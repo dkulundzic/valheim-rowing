@@ -51,6 +51,7 @@ namespace RowingMod
         }
 
         private Ship m_ship;
+        private ShipOars m_oars;
         private ZNetView m_nview;
         private Rigidbody m_body;
         private WaterVolume m_waterVolume;
@@ -67,6 +68,7 @@ namespace RowingMod
         private void Awake()
         {
             m_ship = GetComponent<Ship>();
+            m_oars = GetComponent<ShipOars>();
             m_nview = GetComponent<ZNetView>();
             m_body = GetComponent<Rigidbody>();
             if (m_nview == null || m_nview.GetZDO() == null)
@@ -259,6 +261,7 @@ namespace RowingMod
                 return;
             }
             strokes.StrongBySender[sender] = quality >= 0.999f;
+            m_oars?.OnStroke(sender, quality >= 0.999f);
 
             if (m_nview.IsOwner())
             {
@@ -433,6 +436,8 @@ namespace RowingMod
     {
         private static void Postfix(Ship __instance)
         {
+            // Oars first, so ShipRowing finds them in its Awake.
+            __instance.gameObject.AddComponent<ShipOars>();
             __instance.gameObject.AddComponent<ShipRowing>();
         }
     }

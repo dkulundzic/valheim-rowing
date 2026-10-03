@@ -33,6 +33,12 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 
 - `src/RowingPlugin.cs`: plugin entry point and config entries.
 - `src/ShipRowing.cs`: component added to every ship (Harmony postfix on `Ship.Awake`). It receives strokes, applies force and logs how many seats the ship has.
+- `src/ShipOars.cs`: oar visuals on every client, added to every ship next to `ShipRowing`.
+  - **Occupancy:** an oar appears when a seat is occupied. For the local player that means attached to the seat; for remote players, within 0.5 m of the seat's attach point, since attach state isn't synced.
+  - **Look:** primitives with the hull's material and no colliders.
+  - **Placement:** the oarlock is found by raycasting at the hull from outside.
+  - **Animation:** pitch follows the water level; strokes from the broadcast RPC animate drive, recovery and settle.
+  - Config `UI.ShowOars`.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.

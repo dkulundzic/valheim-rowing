@@ -60,3 +60,4 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Crew.MaxSyncBonus` | 0.45 | Largest sync bonus. |
 | `Crew.ClashBrake` | 0.2 | Braking from an off-beat stroke when others hit the beat. |
 | `UI.BarOffset` | 0 | Extra pixels to raise the stroke bar. |
+| `UI.ShowOars` | true | Show oars beside occupied seats, swinging with each stroke. |
