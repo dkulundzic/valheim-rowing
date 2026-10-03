@@ -30,10 +30,14 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.
 - `.tools/ilspycmd`: decompiler, version 8.2.0.7535. Newer versions don't install on .NET 8.
+- `package/`: Thunderstore files: `manifest.json`, `README.md` (player-facing) and `icon.png`. `make_icon.py` regenerates the icon with Pillow.
+- `package.sh`: builds Release and writes `dist/RowingMod-<version>.zip` (not committed).
 
 ## Commands
 
 - `dotnet` comes from mise and isn't on PATH. Run it as `mise exec dotnet@8 -- dotnet …`.
+- Release zip for friends: `./package.sh`. It fails if `Version` in `src/RowingPlugin.cs` and `version_number` in `package/manifest.json` differ, so bump both. Friends are on Windows and import the zip in r2modman (Settings → Profile → Import local mod).
+- Git: the repo is local only, on branch `main`, using conventional commits (`feat:`, `fix:`, `docs:`, `build:`, `chore:`, `refactor:`).
 - Build: `mise exec dotnet@8 -- dotnet build RowingMod.csproj -c Release`. Output is `bin/Release/RowingMod.dll`. If the Valheim install has `BepInEx/plugins`, the build also copies the DLL to `BepInEx/plugins/RowingMod/`.
 - Decompile one more type: `DOTNET_ROLL_FORWARD=Major mise exec dotnet@8 -- .tools/ilspycmd -t <Type> lib/<dll> -o decompiled/<name>`. `DOTNET_ROLL_FORWARD` is needed because the tool targets .NET 6.
 
@@ -78,4 +82,6 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   4. Remove `arch -x86_64` from `run_bepinex.sh`. Back up `BepInEx/core`, `libdoorstop.dylib` and `run_bepinex.sh` first.
   - Fallback: `Relokk1/valheim-native-arm64`. BepInEx 6 doesn't work on arm64 yet.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.
-- [ ] Later: a Thunderstore package (`manifest.json`, `icon.png` 256×256, `README.md`), possibly gamepad support, and `git init`.
+- [x] Playtested on the crew server: rules, headwind stamina and the stroke bar layout all work.
+- [x] Version 1.0.0 is packaged for friends with `./package.sh`, and the git repo is set up.
+- [ ] Later: possibly gamepad support, publishing on Thunderstore, and checking the logged `top sail speed` values against real speeds.
