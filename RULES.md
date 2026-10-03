@@ -16,7 +16,7 @@ Sit in a passenger seat, press **H** in rhythm, and each good stroke gives the s
 | Ship paddling forward (Slow) | ✅ |
 | Sail open (Half or Full) | ✅ Rowing adds to the wind. |
 | Ship backing (Back) | ✅ Rowing pushes **backward**. |
-| Ship set to **Stop** | ❌ Rowing is paused, unless the `AllowRowingWhenStopped` setting is on. Then rowing pushes forward. |
+| Ship set to **Stop** | ✅ Rowing pushes forward, so a crew can row a ship that nobody is steering. |
 | Out of stamina | ❌ "Too tired to row". |
 
 ## 2. The stroke bar: timing
@@ -73,8 +73,6 @@ The best rhythm is one stroke about every 1.5 seconds, each one in the green zon
 | Message | Meaning |
 |---|---|
 | **Rowing ready** | You sat down in a seat and can row. |
-| **Rowing paused** | The ship was set to Stop. |
-| **You can row now** | The ship started moving again. |
 | **Your strokes won't count** | The ship's owner doesn't have the mod. |
 | **Your strokes count again** | The ship's owner now has the mod. |
 | Strong stroke! / Early / Late / Too fast! | How your last press went. |
@@ -95,7 +93,7 @@ All of these can be changed in `BepInEx/config/com.dkulundzic.rowingmod.cfg`.
 - The crew's push is capped at **2.0** (`MaxBoost`).
 - The push fades by about 63% every **1.2 s** (`StrokeFade`).
 - On average, one rower with perfect timing adds about **0.5**, two add about **1.0**, and four reach the cap.
-- When the ship is set to Stop, the push resets to zero.
+- Switching between forward and back resets the push to zero, so leftover push never shoves the ship the wrong way.
 
 **Speed:**
 - How much a stroke helps = `1 − (speed ÷ top speed)²`.

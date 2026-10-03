@@ -11,7 +11,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - A press before half a cycle (`MinStrokePhase`) is mashing: it costs stamina and makes no stroke.
 - **Stamina:** each stroke costs `StaminaPerStroke` × the headwind multiplier. An exhausted rower can't row.
   - Headwind multiplier: `1 + HeadwindStaminaFactor × headwind × wind intensity`. `headwind` is `max(0, dot(windDir, −rowing direction))` on the horizontal plane (`EnvMan.GetWindDir` points where the wind blows to). A tailwind gives no discount. The bar title shows "Headwind: +N% stamina" above 5%.
-- **When rowing works:** at every speed setting except `Ship.Speed.Stop` (unless `Rules.AllowRowingWhenStopped`, default false; the user has it on locally for solo testing), including with the sail open (Half or Full). While backing (`Back`), strokes push backward. Going from forward to back passes through Stop, which clears the boost.
+- **When rowing works:** always, at every speed setting including `Stop` and with the sail open. While backing (`Back`) strokes push backward, otherwise forward. Changing direction clears the boost (`ShipRowing.m_lastDirection`). Stop was blocked until 1.0.1; the user changed the rule because rowing a stopped boat makes sense, and a seated passenger can't change the speed setting.
 - **Who rows:** only passengers on ship seats (`Chair`). The helmsman can't row.
 - **Stroke strength:** timing × speed factor. The speed factor is `1 − (v / top)²`, where `v` is the ship's speed in the rowing direction and `top` is its top sail speed × `TopSpeedMultiplier`. It's applied every physics step, so rowing can never push a ship past its top sail speed. The sail setting doesn't change stroke strength.
 - **Top sail speed:** the game has no top-speed setting. The mod estimates each ship's top sail speed from its prefab values (`m_sailForceFactor`, `m_dampingForward`, `m_force`): `sqrt(best sail push / (m_dampingForward × submersion))`. The best sail push is about 0.737 × `m_sailForceFactor`, at about a 65° wind. Submersion is `g / (50 × m_force)`. Each ship's value is logged on load: Karve 7.4 m/s, Longship (`VikingShip`) 9.6 m/s.
@@ -20,7 +20,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - The owner adds a boost that fades over `StrokeFade`, capped at `MaxBoost`. It applies the boost in a postfix on `Ship.CustomFixedUpdate` as `m_backwardForce * boost`, pushed through the centre of mass.
   - The owner syncs the boost to the ZDO key `RowingMod_Boost`, so every rower sees the crew's boost.
   - The owner also writes its session ID to the ZDO key `RowingMod_Owner`. If that doesn't match the ZDO's owner for 3 s, the owner is vanilla, and rowers get a warning that their strokes won't count.
-- **Snackbar:** a toast fades in above the bar when you sit down ("Rowing ready"), when rowing becomes possible or blocked (stopping or starting the ship), and for the vanilla-owner warning.
+- **Snackbar:** a toast fades in above the bar when you sit down ("Rowing ready") and for the vanilla-owner warning ("Your strokes won't count" / "count again").
 
 ## Layout
 
@@ -83,7 +83,8 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - [x] Tested on the crew's vanilla dedicated server: sitting, the stroke bar and the speed boost all work.
 - [x] The stroke bar overlapped the stamina bar. It now sits above the HUD bars, with config `UI.BarOffset`. **Not yet checked in game.**
 - [x] Snackbar notices and the vanilla-owner check are built. **Not yet checked in game.**
-- [x] New rules are built: row at any setting except Stop, backward while backing, strength falls with speed up to the top sail speed. **Not yet checked in game.** Check the log for `top sail speed` per ship and compare with real speeds.
+- [x] Speed-based strength, backing and headwind stamina are playtested.
+- [ ] 1.0.1 (rowing at Stop) is built, but not yet checked in game.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.
 - [x] Playtested on the crew server: rules, headwind stamina and the stroke bar layout all work.

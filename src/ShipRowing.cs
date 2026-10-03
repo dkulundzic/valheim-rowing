@@ -24,6 +24,7 @@ namespace RowingMod
         private float m_boost;
         private float m_boostSyncTimer;
         private float m_topSpeed;
+        private float m_lastDirection = 1f;
 
         private void Awake()
         {
@@ -83,16 +84,7 @@ namespace RowingMod
             return Mathf.Clamp01(1f - ratio * ratio);
         }
 
-        /// <summary>
-        /// Whether rowing adds speed right now: any setting but Stop, including with the sail open.
-        /// AllowRowingWhenStopped lifts the Stop rule; strokes then push forward.
-        /// </summary>
-        public static bool CanRow(Ship ship)
-        {
-            return ship.GetSpeedSetting() != Ship.Speed.Stop || RowingPlugin.AllowRowingWhenStopped.Value;
-        }
-
-        /// <summary>Which way rowing pushes: +1 forward, or -1 while the ship is backing.</summary>
+        /// <summary>Which way rowing pushes: -1 while the ship is backing, otherwise +1 (forward), including at Stop.</summary>
         public static float RowDirection(Ship ship)
         {
             return ship.GetSpeedSetting() == Ship.Speed.Back ? -1f : 1f;
@@ -125,7 +117,7 @@ namespace RowingMod
         private void RPC_Stroke(long sender, float quality)
         {
             // Only the owner moves the ship. A stroke that arrives just after ownership changed is dropped.
-            if (!m_nview.IsOwner() || !CanRow(m_ship))
+            if (!m_nview.IsOwner())
             {
                 return;
             }
@@ -140,8 +132,11 @@ namespace RowingMod
                 return;
             }
 
-            if (!CanRow(m_ship))
+            // Switching between forward and back drops the old push, so it can't shove the ship the wrong way.
+            float direction = RowDirection(m_ship);
+            if (direction != m_lastDirection)
             {
+                m_lastDirection = direction;
                 m_boost = 0f;
             }
 
@@ -149,7 +144,7 @@ namespace RowingMod
             {
                 // Same units as the game's paddle force (m_backwardForce), but pushed through the
                 // centre of mass so rowing doesn't turn the ship.
-                Vector3 force = transform.forward * (RowDirection(m_ship) * m_ship.m_backwardForce * m_boost * SpeedFactor());
+                Vector3 force = transform.forward * (direction * m_ship.m_backwardForce * m_boost * SpeedFactor());
                 m_body.AddForceAtPosition(force * (m_body.mass * dt), m_body.worldCenterOfMass, ForceMode.Impulse);
             }
 

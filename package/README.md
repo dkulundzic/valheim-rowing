@@ -12,7 +12,7 @@ Passengers can row to speed up the ship.
 
 ## Rules
 
-- **When rowing works:** at every speed setting except **Stop**, including with the sail open. While the ship is backing, rowing pushes it backward.
+- **When rowing works:** always, at every speed setting, including Stop and with the sail open. While the ship is backing, rowing pushes it backward; otherwise it pushes forward.
 - **Who can row:** only passengers in seats. The helmsman can't.
 - **Strength by speed:** rowing helps most when the ship is slow, then fades as it nears the ship's top sail speed. It can never push a ship past that speed; it just gets you there sooner.
 - **Stamina:** each stroke costs stamina, and up to twice as much when rowing straight into a strong wind. The bar shows the extra cost.
@@ -55,5 +55,4 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Force.MaxBoost` | 2 | Most push the whole crew can build up. |
 | `Force.StrokeFade` | 1.2 | Seconds for a stroke's push to fade. |
 | `Force.TopSpeedMultiplier` | 1 | Rowing stops helping at the ship's top sail speed times this. |
-| `Rules.AllowRowingWhenStopped` | false | Allow rowing at Stop (pushes forward). Useful for testing alone. The ship owner's setting decides. |
 | `UI.BarOffset` | 0 | Extra pixels to raise the stroke bar. |

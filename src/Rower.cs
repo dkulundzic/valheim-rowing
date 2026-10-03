@@ -39,7 +39,6 @@ namespace RowingMod
         private float m_messageUntil;
         private float m_ownerMissingSince = -1f;
         private bool m_ownerWarned;
-        private bool m_couldRow;
         private string m_toastTitle;
         private string m_toastBody;
         private float m_toastStart;
@@ -55,12 +54,6 @@ namespace RowingMod
 
             if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
             {
-                return;
-            }
-
-            if (!ShipRowing.CanRow(m_ship))
-            {
-                Show(BlockedReason(m_ship));
                 return;
             }
 
@@ -114,30 +107,15 @@ namespace RowingMod
             // Start the cycle when they sit down, so the first stroke can be well timed.
             m_lastStrokeTime = Time.time;
 
-            m_couldRow = ShipRowing.CanRow(ship);
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
-            Toast("Rowing ready", m_couldRow ? RowHint() : BlockedReason(ship));
+            Toast("Rowing ready", RowHint());
             return true;
         }
 
-        /// <summary>Shows a snackbar when rowing becomes possible or blocked, or when strokes won't count.</summary>
+        /// <summary>Shows a snackbar when strokes won't count, and again once they do.</summary>
         private void UpdateNotices()
         {
-            bool canRow = ShipRowing.CanRow(m_ship);
-            if (canRow != m_couldRow)
-            {
-                m_couldRow = canRow;
-                if (canRow)
-                {
-                    Toast("You can row now", RowHint());
-                }
-                else
-                {
-                    Toast("Rowing paused", BlockedReason(m_ship));
-                }
-            }
-
             // Strokes go to the ship's owner, so they do nothing if that player doesn't run the mod.
             // Wait a moment before warning, since a new owner takes a sync or two to announce itself.
             if (m_shipRowing != null && m_shipRowing.HasModdedOwner())
@@ -183,11 +161,6 @@ namespace RowingMod
         private static string RowHint()
         {
             return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone";
-        }
-
-        private static string BlockedReason(Ship ship)
-        {
-            return "The ship is stopped. Paddle or open the sail to row";
         }
 
         private void Toast(string title, string body)
@@ -245,37 +218,27 @@ namespace RowingMod
             float messageY = GetHudBarsTop() - BarGap - RowingPlugin.BarOffset.Value - messageHeight;
             // The marker sticks out 4 px above and below the bar.
             float y = messageY - StackGap - 4f - height;
-            bool canRow = ShipRowing.CanRow(m_ship);
-            float alpha = canRow ? 1f : 0.35f;
 
             // Background
-            DrawRect(new Rect(x - 2f, y - 2f, width + 4f, height + 4f), new Color(0f, 0f, 0f, 0.6f * alpha));
+            DrawRect(new Rect(x - 2f, y - 2f, width + 4f, height + 4f), new Color(0f, 0f, 0f, 0.6f));
 
             // Sweet spot
             float sweetWidth = RowingPlugin.SweetSpotWidth.Value;
             float sweetStart = (1f - sweetWidth / 2f) / BarEndPhase;
             float sweetEnd = (1f + sweetWidth / 2f) / BarEndPhase;
-            DrawRect(new Rect(x + width * sweetStart, y, width * (sweetEnd - sweetStart), height), new Color(0.3f, 0.8f, 0.3f, 0.8f * alpha));
+            DrawRect(new Rect(x + width * sweetStart, y, width * (sweetEnd - sweetStart), height), new Color(0.3f, 0.8f, 0.3f, 0.8f));
 
             // Too-fast zone
-            DrawRect(new Rect(x, y, width * (MinStrokePhase / BarEndPhase), height), new Color(0.8f, 0.25f, 0.2f, 0.5f * alpha));
+            DrawRect(new Rect(x, y, width * (MinStrokePhase / BarEndPhase), height), new Color(0.8f, 0.25f, 0.2f, 0.5f));
 
             // Marker
-            float markerPhase = canRow ? Mathf.Min(GetPhase(), BarEndPhase) : 0f;
-            DrawRect(new Rect(x + width * (markerPhase / BarEndPhase) - 2f, y - 4f, 4f, height + 8f), new Color(1f, 1f, 1f, alpha));
+            float markerPhase = Mathf.Min(GetPhase(), BarEndPhase);
+            DrawRect(new Rect(x + width * (markerPhase / BarEndPhase) - 2f, y - 4f, 4f, height + 8f), Color.white);
 
             // Labels
-            string title;
-            if (!canRow)
-            {
-                title = "Stopped";
-            }
-            else
-            {
-                title = ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
-            }
+            string title = ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
             float staminaMultiplier = StaminaMultiplier(m_ship);
-            if (canRow && staminaMultiplier > 1.05f)
+            if (staminaMultiplier > 1.05f)
             {
                 title += $"   Headwind: +{(staminaMultiplier - 1f) * 100f:0}% stamina";
             }
