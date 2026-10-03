@@ -33,6 +33,9 @@ namespace RowingMod
         internal static ConfigEntry<bool> ShowOars;
         internal static ConfigEntry<string> SplashSound;
         internal static ConfigEntry<float> SplashVolume;
+        internal static ConfigEntry<string> ClashSound;
+        internal static ConfigEntry<string> CreakSound;
+        internal static ConfigEntry<float> CreakVolume;
         internal static ConfigEntry<bool> BeatTick;
         internal static ConfigEntry<float> BeatTickVolume;
         internal static ConfigEntry<bool> LogSoundCandidates;
@@ -80,7 +83,13 @@ namespace RowingMod
                 "Show an oar beside every rowing seat, resting in the water and swinging with each stroke. Only players with the mod see them.");
 
             SplashSound = Config.Bind("Sounds", "SplashSound", "",
-                "Name of a game sound prefab whose clips play as the stroke splash. Empty uses a built-in splash.");
+                $"Game sound prefab whose clips play as the stroke splash. Empty uses the default ({RowingSounds.DefaultSplash}); \"generated\" uses a sound made by the mod.");
+            ClashSound = Config.Bind("Sounds", "ClashSound", "",
+                $"Game sound prefab for a clash and the oarlock knock. Empty uses the default ({RowingSounds.DefaultClash}); \"generated\" uses a sound made by the mod.");
+            CreakSound = Config.Bind("Sounds", "CreakSound", "",
+                $"Game sound prefab for wood creaking under strong strokes; a short slice is played. Empty uses the default ({RowingSounds.DefaultCreak}); \"generated\" uses a sound made by the mod.");
+            CreakVolume = Config.Bind("Sounds", "CreakVolume", 0.5f,
+                "Volume of the creak (0 to 1; 0 turns it off). Louder when the crew pushes harder.");
             SplashVolume = Config.Bind("Sounds", "SplashVolume", 0.8f,
                 "Volume of the stroke splash (0 to 1); weak strokes are quieter. Everyone nearby hears it.");
             BeatTick = Config.Bind("Sounds", "BeatTick", true,

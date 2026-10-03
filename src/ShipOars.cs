@@ -69,7 +69,11 @@ namespace RowingMod
             public float Stowed = 1f;
         }
 
+        // Creaks come at most this often per ship, so a full crew doesn't creak on every oar at once.
+        private const float CreakInterval = 0.7f;
+
         private Ship m_ship;
+        private float m_lastCreak = -100f;
         private readonly List<Oar> m_oars = new List<Oar>();
         private bool m_built;
 
@@ -90,13 +94,21 @@ namespace RowingMod
                     oar.Amplitude = strong ? 1f : WeakSweepFactor;
                     oar.Direction = ShipRowing.RowDirection(m_ship);
                     Vector3 blade = oar.Root.TransformPoint(new Vector3(oar.Outboard - BladeLength / 2f, 0f, 0f));
+                    Vector3 oarlock = oar.Root.position;
                     if (clash)
                     {
                         RowingSounds.PlayClash(blade);
+                        return;
                     }
-                    else
+                    RowingSounds.PlaySplash(blade, strong);
+                    // The oar knocks in its oarlock as it swings back after the drive.
+                    RowingSounds.MaybePlayOarlock(oarlock, DriveTime + Random.Range(0f, 0.1f));
+                    if (strong && Time.time - m_lastCreak > CreakInterval)
                     {
-                        RowingSounds.PlaySplash(blade, strong);
+                        m_lastCreak = Time.time;
+                        ShipRowing rowing = GetComponent<ShipRowing>();
+                        float load = rowing != null ? rowing.GetSyncedBoost() / Mathf.Max(0.1f, RowingPlugin.MaxBoost.Value) : 0.5f;
+                        RowingSounds.MaybePlayCreak(oarlock, load);
                     }
                     return;
                 }

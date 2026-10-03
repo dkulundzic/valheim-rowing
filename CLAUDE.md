@@ -40,10 +40,14 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Animation:** pitch follows the water level; strokes from the broadcast RPC animate drive, recovery and settle.
   - Config `UI.ShowOars`.
 - `src/RowingSounds.cs`: sounds, played through the game's SFX mixer group (taken from a game sfx prefab's AudioSource).
-  - **Splash per stroke:** at the blade, heard by everyone with the mod. Uses the clips of a game prefab named in `Sounds.SplashSound`, or a generated stand-in if that's empty.
-  - **Clash:** a generated wooden knock.
+  - **Sources:** `Sounds.SplashSound`, `ClashSound` and `CreakSound` name game sound prefabs. Empty means the default (`sfx_land_water`, `sfx_wood_blocked`, `sfx_bogwitch_creak`), and `generated` means a sound made in code. Prefabs come from ZNetScene, or from the Player's FootStep and water effects and the ships' effect lists.
+  - **Variety (the user wants believable, non-repeating oar sounds):**
+    - **Splash:** a random clip with pitch ±10% and volume −15%/+10%. Half the time a second, quieter, higher splash follows 0.08–0.2 s later. The default splash is pitched ×1.3.
+    - **Oarlock knock:** 40% of strokes, as the oar swings back.
+    - **Creak:** 60% of strong strokes, at most once per 0.7 s per ship. It's a random 0.9 s faded slice, louder with crew boost.
+  - **Clash:** a wooden thud (`ClashSound`).
   - **Beat tick:** generated, heard only by the local seated rower (`Sounds.BeatTick`).
-  - **Discovery:** `Debug.LogSoundCandidates` logs the game's water, splash and wood sounds once per session, for choosing a splash.
+  - **Discovery:** `Debug.LogSoundCandidates` logs the game's water, splash, wood and creak sounds once per session, including footstep, water and ship effect prefabs, for choosing sounds.
   - **Generated clips** use `AudioClip.Create` with a PCM reader callback, because Unity 6's `SetData` has a `ReadOnlySpan` overload that net48 can't compile against.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
