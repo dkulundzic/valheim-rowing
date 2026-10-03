@@ -14,7 +14,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - **When rowing works:** at every speed setting except `Ship.Speed.Stop`, including with the sail open (Half or Full). While backing (`Back`), strokes push backward. Going from forward to back passes through Stop, which clears the boost.
 - **Who rows:** only passengers on ship seats (`Chair`). The helmsman can't row.
 - **Stroke strength:** timing × speed factor. The speed factor is `1 − (v / top)²`, where `v` is the ship's speed in the rowing direction and `top` is its top sail speed × `TopSpeedMultiplier`. It's applied every physics step, so rowing can never push a ship past its top sail speed. The sail setting doesn't change stroke strength.
-- **Top sail speed:** the game has no top-speed setting. The mod estimates each ship's top sail speed from its prefab values (`m_sailForceFactor`, `m_dampingForward`, `m_force`): `sqrt(best sail push / (m_dampingForward × submersion))`. The best sail push is about 0.737 × `m_sailForceFactor`, at about a 65° wind. Submersion is `g / (50 × m_force)`. Each ship's value is logged on load. With the default field values it's about 4.3 m/s.
+- **Top sail speed:** the game has no top-speed setting. The mod estimates each ship's top sail speed from its prefab values (`m_sailForceFactor`, `m_dampingForward`, `m_force`): `sqrt(best sail push / (m_dampingForward × submersion))`. The best sail push is about 0.737 × `m_sailForceFactor`, at about a 65° wind. Submersion is `g / (50 × m_force)`. Each ship's value is logged on load: Karve 7.4 m/s, Longship (`VikingShip`) 9.6 m/s.
 - **Multiplayer:**
   - The rower's client sends RPC `RowingMod_Stroke(float quality)` to the ship's owner (`ZNetView.InvokeRPC` routes to the owner).
   - The owner adds a boost that fades over `StrokeFade`, capped at `MaxBoost`. It applies the boost in a postfix on `Ship.CustomFixedUpdate` as `m_backwardForce * boost`, pushed through the centre of mass.
@@ -57,8 +57,16 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 
 - Valheim install (Steam, external drive): `/Volumes/CORSAIR/SteamLibrary/steamapps/common/Valheim`.
 - The drive is exFAT, so macOS creates `._*` AppleDouble files. If BepInEx warns about `._*.dll`, run `dot_clean` on the folder.
-- The game is a universal binary (x86_64 + arm64), and the Mac is Apple Silicon. With BepInEx it must run as **x86_64 under Rosetta**: BepInEx 5 bundles MonoMod 21.x, which can't detour on arm64 (every Harmony patch fails with an NRE in `DetourHelper.GetIdentifiable`). `run_bepinex.sh` is edited near the end of the file: `ARCHPREFERENCE="x86_64,arm64"` and `exec arch -x86_64 -e …` (the original had `arm64,x86_64` and no `-x86_64`). A BepInEx update would overwrite this edit.
-- Joining the crew server under Rosetta takes about 60 s to spawn: about 20 s before the version check, about 18 s of world setup, about 13 s for `Generating new world minimap`, then about 8 s to respawn. macOS shows "not responding" during this; wait it out. The native timing hasn't been measured.
+- The game is a universal binary (x86_64 + arm64). Since 2026-10-03 it runs **natively as arm64** with BepInEx:
+  - **BepInEx:** `BepInEx.dll`, `BepInEx.Preloader.dll`, `BepInEx.Harmony.dll`, `HarmonyXInterop.dll` and `0Harmony20.dll` in `BepInEx/core` are built from the BepInEx `v5-lts` branch (commit `f4c1b11`, cloned to `.tools/BepInEx-v5lts`). Build: `mise exec dotnet@8 -- dotnet build BepInEx.Preloader/BepInEx.Preloader.csproj -c Release`. It includes PR #1402 (`AppleSiliconDetourFix`) and PR #1288.
+  - **Doorstop:** `libdoorstop.dylib` is 4.6.0 from the UnityDoorstop `ci` release; it exports `doorstop_jit_memcpy`, which #1402 needs.
+  - **Unchanged:** Harmony and MonoMod, so BepInEx 5 mods stay compatible.
+  - **Launch script:** `run_bepinex.sh` is back to the shipped version (`ARCHPREFERENCE="arm64,x86_64"`, `exec arch -e …`).
+  - **Why the stock 5.4.23.5 release fails on arm64:** its old MonoMod can't write detours into macOS MAP_JIT memory (NRE in `DetourHelper.GetIdentifiable`).
+  - **Check the arch:** `vmmap $(pgrep -f MacOS/Valheim) | grep "Code Type"`.
+  - **Roll back to Rosetta:** restore `BepInEx/core`, `libdoorstop.dylib`, `.doorstop_version` and `run_bepinex.sh` from `Valheim/_rosetta_backup/`. The backup's script forces `arch -x86_64`.
+  - Updating BepInEx would overwrite these files.
+- Joining the crew server: native arm64 takes about 9 s from connecting to spawning (minimap 3.3 s). Under Rosetta it took about 52 s (minimap 13 s), and macOS showed "not responding" meanwhile.
 - Code changes need a game restart: BepInEx 5 loads plugins once and Mono can't unload assemblies.
 - If the preloader crashes, it writes `preloader_<timestamp>.log` to `valheim.app/Contents/MacOS/`, not to `BepInEx/`. The game's own log is `~/Library/Logs/IronGate/Valheim/Player.log`.
 - This session needs access to the Valheim folder: `/add-dir /Volumes/CORSAIR/SteamLibrary/steamapps/common/Valheim`.
@@ -76,12 +84,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - [x] The stroke bar overlapped the stamina bar. It now sits above the HUD bars, with config `UI.BarOffset`. **Not yet checked in game.**
 - [x] Snackbar notices and the vanilla-owner check are built. **Not yet checked in game.**
 - [x] New rules are built: row at any setting except Stop, backward while backing, strength falls with speed up to the top sail speed. **Not yet checked in game.** Check the log for `top sail speed` per ship and compare with real speeds.
-- [ ] Performance under Rosetta is poor. Researched plan for native arm64, **waiting for the user's go-ahead**:
-  1. Build BepInEx from the `v5-lts` branch. It has PR #1402 (`AppleSiliconDetourFix`, tested on Valheim 6000.0.75f1) and PR #1288.
-  2. Replace `BepInEx.dll`, `BepInEx.Preloader.dll`, `BepInEx.Harmony.dll` and `HarmonyXInterop.dll`.
-  3. Use the doorstop 4.6.0 CI build (`gh release download ci -R NeighTools/UnityDoorstop -p doorstop_macos_release_4.6.0.zip`), which exports `doorstop_jit_memcpy`.
-  4. Remove `arch -x86_64` from `run_bepinex.sh`. Back up `BepInEx/core`, `libdoorstop.dylib` and `run_bepinex.sh` first.
-  - Fallback: `Relokk1/valheim-native-arm64`. BepInEx 6 doesn't work on arm64 yet.
+- [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.
 - [x] Playtested on the crew server: rules, headwind stamina and the stroke bar layout all work.
 - [x] Version 1.0.0 is packaged for friends with `./package.sh`, and the git repo is set up.

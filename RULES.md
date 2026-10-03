@@ -100,6 +100,7 @@ All of these can be changed in `BepInEx/config/com.dkulundzic.rowingmod.cfg`.
 **Speed:**
 - How much a stroke helps = `1 − (speed ÷ top speed)²`.
 - Top speed is estimated per ship from its sail strength and water drag, then multiplied by `TopSpeedMultiplier` (default **1**).
+- Estimated top speeds: **Karve 7.4 m/s**, **Longship 9.6 m/s**. Other ships appear in the BepInEx log when they load.
 
 **Stamina:**
 - Cost per press = **6** × (1 + headwind), where headwind runs from 0 (side or tailwind) to 1 (straight into a full-strength wind). That gives 6 to 12 stamina.
