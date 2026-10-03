@@ -4,7 +4,8 @@ using UnityEngine;
 namespace RowingMod
 {
     /// <summary>
-    /// Draws an oar beside every rowing seat on a ship, resting in the water, and swings a rower's oar on each stroke. Runs on every client
+    /// Draws an oar beside every rowing bench on a ship. An occupied bench's oar rests in the water and swings on each
+    /// stroke; an empty bench's oar is stowed along the hull, out of the water, as a real crew would pull it in. Runs on every client
     /// with the mod; strokes reach it through the broadcast stroke RPC, so everyone sees the whole crew's oars.
     /// The oars are plain shapes built in code with the ship's own material and have no colliders, so they never
     /// touch the physics.
@@ -33,6 +34,12 @@ namespace RowingMod
         private const float RestPitchMin = 4f;
         private const float RestPitchMax = 55f;
 
+        // Stowed (empty bench): the oar lies along the hull, blade toward the stern, slightly raised.
+        private const float StowSweep = -78f;
+        private const float StowPitch = -4f;
+        // Seconds to swing the oar out when someone sits down, or in when they leave.
+        private const float StowTime = 0.8f;
+
         private class Oar
         {
             public Chair Seat;
@@ -47,6 +54,8 @@ namespace RowingMod
             public float Direction = 1f;
             public float SweepAtStrokeStart;
             public float Sweep;
+            // 0 = out in the water, 1 = stowed. Starts stowed so a freshly loaded ship doesn't animate.
+            public float Stowed = 1f;
         }
 
         private Ship m_ship;
@@ -286,6 +295,11 @@ namespace RowingMod
             }
             oar.Sweep = sweep;
 
+            // Swing between the water and the stowed pose as the bench fills or empties.
+            float stowTarget = oar.Occupant != null ? 0f : 1f;
+            oar.Stowed = Mathf.MoveTowards(oar.Stowed, stowTarget, Time.deltaTime / StowTime);
+            float stow = Mathf.SmoothStep(0f, 1f, oar.Stowed);
+
             // Tilt down just enough for the blade to sit in the water, following the waves.
             Vector3 oarlockWorld = oar.Root.parent.TransformPoint(oar.Root.localPosition);
             float waterLevel = Floating.GetWaterLevel(oarlockWorld, ref oar.WaterVolume);
@@ -293,6 +307,8 @@ namespace RowingMod
             float reach = oar.Outboard - BladeLength / 2f;
             float pitch = Mathf.Asin(Mathf.Clamp(drop / reach, -1f, 1f)) * Mathf.Rad2Deg;
             pitch = Mathf.Clamp(pitch, RestPitchMin, RestPitchMax) - lift;
+            sweep = Mathf.Lerp(sweep, StowSweep, stow);
+            pitch = Mathf.Lerp(pitch, StowPitch, stow);
 
             // Root axes: +X outward. Starboard oars use the ship's axes; port oars are turned 180° so +X points left.
             // Turning about Y by a negative angle moves +X toward +Z, so "toward the bow" is -sweep on starboard

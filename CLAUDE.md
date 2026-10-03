@@ -34,7 +34,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - `src/RowingPlugin.cs`: plugin entry point and config entries.
 - `src/ShipRowing.cs`: component added to every ship (Harmony postfix on `Ship.Awake`). It receives strokes, applies force and logs how many seats the ship has.
 - `src/ShipOars.cs`: oar visuals on every client, added to every ship next to `ShipRowing`.
-  - **Occupancy:** every rowing seat always shows an oar. Occupancy only decides whose strokes animate it: the local player when attached to the seat, remote players when within 0.5 m of the seat's attach point, since attach state isn't synced.
+  - **Occupancy:** every rowing bench always shows an oar: stowed along the hull (blade toward the stern, out of the water) when the bench is empty, out in the water when it's occupied, with a 0.8 s swing between the two. Occupancy also decides whose strokes animate it: the local player when attached to the seat, remote players when within 0.5 m of the seat's attach point, since attach state isn't synced.
   - **Look:** primitives with the hull's material and no colliders.
   - **Placement:** the oarlock is found by raycasting at the hull from outside.
   - **Animation:** pitch follows the water level; strokes from the broadcast RPC animate drive, recovery and settle.
