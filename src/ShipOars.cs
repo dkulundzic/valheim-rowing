@@ -79,7 +79,7 @@ namespace RowingMod
         }
 
         /// <summary>Called for every stroke the ship receives, from any rower including the local one.</summary>
-        public void OnStroke(long sender, bool strong)
+        public void OnStroke(long sender, bool strong, bool clash)
         {
             foreach (Oar oar in m_oars)
             {
@@ -89,6 +89,15 @@ namespace RowingMod
                     oar.StrokeStart = Time.time;
                     oar.Amplitude = strong ? 1f : WeakSweepFactor;
                     oar.Direction = ShipRowing.RowDirection(m_ship);
+                    Vector3 blade = oar.Root.TransformPoint(new Vector3(oar.Outboard - BladeLength / 2f, 0f, 0f));
+                    if (clash)
+                    {
+                        RowingSounds.PlayClash(blade);
+                    }
+                    else
+                    {
+                        RowingSounds.PlaySplash(blade, strong);
+                    }
                     return;
                 }
             }

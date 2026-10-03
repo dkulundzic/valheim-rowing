@@ -39,6 +39,12 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Look:** primitives with the hull's material and no colliders.
   - **Animation:** pitch follows the water level; strokes from the broadcast RPC animate drive, recovery and settle.
   - Config `UI.ShowOars`.
+- `src/RowingSounds.cs`: sounds, played through the game's SFX mixer group (taken from a game sfx prefab's AudioSource).
+  - **Splash per stroke:** at the blade, heard by everyone with the mod. Uses the clips of a game prefab named in `Sounds.SplashSound`, or a generated stand-in if that's empty.
+  - **Clash:** a generated wooden knock.
+  - **Beat tick:** generated, heard only by the local seated rower (`Sounds.BeatTick`).
+  - **Discovery:** `Debug.LogSoundCandidates` logs the game's water, splash and wood sounds once per session, for choosing a splash.
+  - **Generated clips** use `AudioClip.Create` with a PCM reader callback, because Unity 6's `SetData` has a `ReadOnlySpan` overload that net48 can't compile against.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.
@@ -52,7 +58,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - `dotnet` comes from mise and isn't on PATH. Run it as `mise exec dotnet@8 -- dotnet …`.
 - Release zip for friends: `./package.sh`. It fails if `Version` in `src/RowingPlugin.cs` and `version_number` in `package/manifest.json` differ, so bump both. Friends are on Windows and import the zip in r2modman (Settings → Profile → Import local mod).
 - Git: `main` tracks `origin` (git@github.com:dkulundzic/valheim-rowing.git, **public**, MIT license). Keep private details such as server addresses out of commits. Uses conventional commits (`feat:`, `fix:`, `docs:`, `build:`, `chore:`, `refactor:`).
-- Build: `mise exec dotnet@8 -- dotnet build RowingMod.csproj -c Release`. Output is `bin/Release/RowingMod.dll`. If the Valheim install has `BepInEx/plugins`, the build also copies the DLL to `BepInEx/plugins/RowingMod/`.
+- Build: `mise exec dotnet@8 -- dotnet build RowingMod.csproj -c Release`. Unity 6 modules (e.g. AudioModule) target .NET Standard 2.1, so the project also references the game's own `lib/netstandard.dll`. Output is `bin/Release/RowingMod.dll`. If the Valheim install has `BepInEx/plugins`, the build also copies the DLL to `BepInEx/plugins/RowingMod/`.
 - Decompile one more type: `DOTNET_ROLL_FORWARD=Major mise exec dotnet@8 -- .tools/ilspycmd -t <Type> lib/<dll> -o decompiled/<name>`. `DOTNET_ROLL_FORWARD` is needed because the tool targets .NET 6.
 
 ## Game facts learned from the decompiled code

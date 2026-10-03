@@ -31,6 +31,11 @@ namespace RowingMod
         internal static ConfigEntry<float> ClashBrake;
         internal static ConfigEntry<float> BarOffset;
         internal static ConfigEntry<bool> ShowOars;
+        internal static ConfigEntry<string> SplashSound;
+        internal static ConfigEntry<float> SplashVolume;
+        internal static ConfigEntry<bool> BeatTick;
+        internal static ConfigEntry<float> BeatTickVolume;
+        internal static ConfigEntry<bool> LogSoundCandidates;
 
         private void Awake()
         {
@@ -73,6 +78,17 @@ namespace RowingMod
                 "Extra pixels to raise the stroke bar above the stamina bar. Negative values lower it.");
             ShowOars = Config.Bind("UI", "ShowOars", true,
                 "Show an oar beside every rowing seat, resting in the water and swinging with each stroke. Only players with the mod see them.");
+
+            SplashSound = Config.Bind("Sounds", "SplashSound", "",
+                "Name of a game sound prefab whose clips play as the stroke splash. Empty uses a built-in splash.");
+            SplashVolume = Config.Bind("Sounds", "SplashVolume", 0.8f,
+                "Volume of the stroke splash (0 to 1); weak strokes are quieter. Everyone nearby hears it.");
+            BeatTick = Config.Bind("Sounds", "BeatTick", true,
+                "Play a soft tick on the ship's beat while you're seated at an oar. Only you hear it.");
+            BeatTickVolume = Config.Bind("Sounds", "BeatTickVolume", 0.35f,
+                "Volume of the beat tick (0 to 1).");
+            LogSoundCandidates = Config.Bind("Debug", "LogSoundCandidates", true,
+                "Log the game's water, splash and wood sounds once per session, to pick a SplashSound.");
 
             gameObject.AddComponent<Rower>();
             new Harmony(Guid).PatchAll();

@@ -61,3 +61,6 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Crew.ClashBrake` | 0.2 | Braking from an off-beat stroke when others hit the beat. |
 | `UI.BarOffset` | 0 | Extra pixels to raise the stroke bar. |
 | `UI.ShowOars` | true | Show an oar at every rowing seat, swinging with each stroke. |
+| `Sounds.SplashVolume` | 0.8 | Volume of the stroke splash; weak strokes are quieter. |
+| `Sounds.BeatTick` | true | A soft tick on the ship's beat while you're at an oar. Only you hear it. |
+| `Sounds.BeatTickVolume` | 0.35 | Volume of the beat tick. |

@@ -32,6 +32,8 @@ namespace RowingMod
         private ShipRowing m_shipRowing;
         // The beat (network-clock ms) of this rower's latest stroke; one stroke per beat.
         private long m_lastStrokeBeat;
+        // The latest beat this rower heard a tick for.
+        private long m_lastTickBeat;
         private bool m_lastStrokeStrong;
         private bool m_lastStrokeEarly;
         private string m_message;
@@ -51,6 +53,7 @@ namespace RowingMod
                 return;
             }
             UpdateNotices();
+            UpdateTick();
 
             if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
             {
@@ -83,6 +86,21 @@ namespace RowingMod
             m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.StrokeRpc, quality, nearestMs);
             m_messageIsStroke = true;
             m_messageUntil = Time.time + MessageTime;
+        }
+
+        /// <summary>Ticks once on each of the ship's beats, starting with the first beat after sitting down.</summary>
+        private void UpdateTick()
+        {
+            m_shipRowing.GetBeat(ShipRowing.NowMs(), out long beatMs, out _);
+            if (beatMs == m_lastTickBeat)
+            {
+                return;
+            }
+            if (m_lastTickBeat != 0)
+            {
+                RowingSounds.PlayTick();
+            }
+            m_lastTickBeat = beatMs;
         }
 
         /// <summary>
@@ -130,6 +148,7 @@ namespace RowingMod
             m_ship = ship;
             m_shipRowing = shipRowing;
             m_lastStrokeBeat = 0;
+            m_lastTickBeat = 0;
 
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
