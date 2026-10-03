@@ -4,13 +4,14 @@ Passengers can row to make a ship go faster. This page explains the rules in pla
 
 ## In one sentence
 
-Sit in a passenger seat, press **H** in rhythm, and each good stroke gives the ship a push that fades away. The whole crew's pushes add up, but they can't make the ship faster than it could go under full sail in perfect wind.
+Sit on a rowing bench, press **H** on the beat, and each good stroke gives the ship a push that fades away. The whole crew's pushes add up, but they can't make the ship faster than it could go under full sail in perfect wind.
 
 ## 1. Who can row, and when
 
 | Situation | Can you row? |
 |---|---|
-| Sitting in a passenger seat | ✅ |
+| Sitting on a **rowing bench** (Karve 2, Longship 4) | ✅ |
+| Sitting in the **back seat** | ❌ It's a passenger seat on the centre line, with no oar. |
 | Bracing at a **Hold fast** spot | ❌ You're standing and holding on, not sitting at an oar. |
 | Steering at the helm | ❌ The helmsman steers and doesn't row. |
 | Standing or walking on deck | ❌ You must be seated. |
@@ -37,7 +38,7 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
   - **Pressing elsewhere** gives an off-beat stroke: weak when rowing alone, a **clash** when others hit the beat (see section 5).
   - **Pressing again in the same beat** is mashing: it wastes stamina and gives no stroke. The marker turns grey once you've rowed on the current beat.
 
-**Oars:** every rowing seat has an oar resting in the water. Each stroke swings it through the water and back. A crew in sync rows visibly together. Only players with the mod see the oars.
+**Oars:** every rowing bench has an oar resting in the water. Each stroke swings it through the water and back. A crew in sync rows visibly together. Only players with the mod see the oars.
 
 ## 3. Stamina
 

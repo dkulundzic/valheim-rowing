@@ -83,12 +83,13 @@ namespace RowingMod
         }
 
         /// <summary>
-        /// Whether a seat spot on a ship is for rowing. Ships also use Chair for standing spots such as
-        /// "Hold fast" (m_name "$ship_holdfast"), where you brace yourself rather than sit, so those are left out.
+        /// Whether a seat spot on a ship is a rowing bench. Ships use Chair for every spot: the rowing benches
+        /// (animation "attach_sitship"; Karve 2, Longship 4), a back seat on the centre line ("attach_chair") and
+        /// standing "Hold fast" spots ("$ship_holdfast", "attach_mast" / "attach_dragon"). Only the benches row.
         /// </summary>
         public static bool IsRowingSeat(Chair chair)
         {
-            return chair != null && (chair.m_name ?? "").IndexOf("holdfast", System.StringComparison.OrdinalIgnoreCase) < 0;
+            return chair != null && string.Equals(chair.m_attachAnimation, "attach_sitship", System.StringComparison.OrdinalIgnoreCase);
         }
 
         private void LogSeats()

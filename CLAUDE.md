@@ -18,7 +18,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - **Stamina:** each stroke costs `StaminaPerStroke` × the headwind multiplier. An exhausted rower can't row.
   - Headwind multiplier: `1 + HeadwindStaminaFactor × headwind × wind intensity`. `headwind` is `max(0, dot(windDir, −rowing direction))` on the horizontal plane (`EnvMan.GetWindDir` points where the wind blows to). A tailwind gives no discount. The bar title shows "Headwind: +N% stamina" above 5%.
 - **When rowing works:** always, at every speed setting including `Stop` and with the sail open. While backing (`Back`) strokes push backward, otherwise forward. Changing direction clears the boost (`ShipRowing.m_lastDirection`). Stop was blocked until 1.0.1; the user changed the rule because rowing a stopped boat makes sense, and a seated passenger can't change the speed setting.
-- **Who rows:** only passengers on ship seats (`Chair`), and not at Hold fast spots. The helmsman can't row.
+- **Who rows:** only passengers on rowing benches (`Chair` with `attach_sitship`): Karve 2, Longship 4. Not the back seat, not Hold fast spots, not the helmsman.
 - **Stroke strength:** timing × speed factor. The speed factor is `1 − (v / top)²`, where `v` is the ship's speed in the rowing direction and `top` is its top sail speed × `TopSpeedMultiplier`. It's applied every physics step, so rowing can never push a ship past its top sail speed. The sail setting doesn't change stroke strength.
 - **Top sail speed:** the game has no top-speed setting. The mod estimates each ship's top sail speed from its prefab values (`m_sailForceFactor`, `m_dampingForward`, `m_force`): `sqrt(best sail push / (m_dampingForward × submersion))`. The best sail push is about 0.737 × `m_sailForceFactor`, at about a 65° wind. Submersion is `g / (50 × m_force)`. Each ship's value is logged on load: Karve 7.4 m/s, Longship (`VikingShip`) 9.6 m/s.
 - **Multiplayer:**
@@ -62,7 +62,11 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - Valheim uses Unity's new Input System, so read keys with `ZInput`, not `UnityEngine.Input`.
 - Free default keys: B, H, J, K, L, N, O, P, U, Y, Z. F is the guardian power, R is hide weapons, X is sit and T is emote.
 - UI checks: `Console.IsVisible()`, `Chat.instance.HasFocus()`, `TextInput.IsVisible()`, `Menu.IsVisible()` and `InventoryGui.IsVisible()`.
-- Ship seat spots are all `Chair` components, including standing **Hold fast** spots (`m_name` `$ship_holdfast`; the English text "Hold fast" is in `resources.assets`). `ShipRowing.IsRowingSeat` excludes those. Confirmed from the log: Karve has 3 rowing seats + 1 Hold fast (`front`); Longship (`VikingShip`) has 5 rowing seats + 2 Hold fast (`front`, `mast`). Seats are `$piece_stool` with animation `attach_sitship` or `attach_chair`; Hold fast spots use `attach_dragon` / `attach_mast`. Seat object names include `sit_box`, `sit_box_fl`, `sit_box_fr` and `sit_box_back`.
+- Ship seat spots are all `Chair` components, including standing **Hold fast** spots (`m_name` `$ship_holdfast`; the English text "Hold fast" is in `resources.assets`). Confirmed from the log, every spot is a `Chair`:
+  - **Rowing benches,** with animation `attach_sitship`: Karve has 2 (`sit_box_fl`, `sit_box_fr`) and Longship (`VikingShip`) has 4.
+  - **A back seat on the centre line,** with animation `attach_chair` (`sit_box_back` / `sit_box (4)`).
+  - **Hold fast spots:** `$ship_holdfast`, with `attach_mast` / `attach_dragon`.
+  - `ShipRowing.IsRowingSeat` accepts only `attach_sitship`, as the user decided: "Karve has two seats at the front, Longship four".
 - Ship ownership: the server gives an unowned object to the first client whose active area it is in (`ZDOMan.ReleaseNearbyZDOS`). `Ship.UpdateOwner` hands it on only when the owner is no longer in the boat. Taking the helm (`ShipControlls.RPC_RequestControl`) sets `s_user` but does **not** change the owner. So rowing only works when the owner has the mod; strokes sent to a vanilla owner are dropped. The dedicated server never needs the mod.
 - The HUD stamina, eitr and adrenaline bars are `Hud.m_staminaBar2Root`, `m_eitrBarRoot` and `m_adrenalineBarRoot`. The stroke bar is placed above whichever is highest.
 

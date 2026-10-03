@@ -4,7 +4,7 @@ Passengers can row to speed up the ship.
 
 ## How to row
 
-1. Sit in a passenger seat on a Karve or Longship. A "Rowing ready" message appears, and the stroke bar shows above your stamina bar.
+1. Sit on a rowing bench on a Karve (2 benches) or Longship (4 benches). The back seat and Hold fast spots don't row. A "Rowing ready" message appears, and the stroke bar shows above your stamina bar.
 2. Press **H** when the white marker crosses the green zone. That's the ship's beat, and a strong stroke.
    - **Off the beat:** a weak stroke, or a **clash** if others hit the beat, which brakes the boat a little.
    - **Twice in one beat:** wastes stamina.
