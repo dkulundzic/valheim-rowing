@@ -30,6 +30,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.
 - `.tools/ilspycmd`: decompiler, version 8.2.0.7535. Newer versions don't install on .NET 8.
+- `RULES.md`: plain-language rules for players, with the default numbers. Keep it in sync when rules or defaults change.
 - `package/`: Thunderstore files: `manifest.json`, `README.md` (player-facing) and `icon.png`. `make_icon.py` regenerates the icon with Pillow.
 - `package.sh`: builds Release and writes `dist/RowingMod-<version>.zip` (not committed).
 
