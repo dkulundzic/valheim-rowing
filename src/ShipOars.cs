@@ -5,7 +5,7 @@ namespace RowingMod
 {
     /// <summary>
     /// Draws an oar beside every rowing bench on a ship. An occupied bench's oar rests in the water and swings on each
-    /// stroke; an empty bench's oar is stowed along the hull, out of the water, as a real crew would pull it in. Runs on every client
+    /// stroke; an empty bench's oar is pulled in and stowed inside the hull, as a real crew would. Runs on every client
     /// with the mod; strokes reach it through the broadcast stroke RPC, so everyone sees the whole crew's oars.
     /// The oars are plain shapes built in code with the ship's own material and have no colliders, so they never
     /// touch the physics.
@@ -34,9 +34,17 @@ namespace RowingMod
         private const float RestPitchMin = 4f;
         private const float RestPitchMax = 55f;
 
-        // Stowed (empty bench): the oar lies along the hull, blade toward the stern, slightly raised.
-        private const float StowSweep = -78f;
-        private const float StowPitch = -4f;
+        // Stowed (empty bench): the oar lies flat inside the hull, this far in from the gunwale and a little below
+        // its top, parallel to the side, centred on its bench with the blade toward the stern.
+        private const float StowInset = 0.35f;
+        private const float StowDrop = 0.08f;
+        private static readonly Quaternion StowRotation =
+            Quaternion.AngleAxis(90f, Vector3.up) * Quaternion.AngleAxis(90f, Vector3.right);
+
+        // Probing for the gunwale: step outward from the seat, casting down from above.
+        private const float ProbeStep = 0.05f;
+        private const float ProbeReach = 3f;
+        private const float ProbeHeight = 4f;
         // Seconds to swing the oar out when someone sits down, or in when they leave.
         private const float StowTime = 0.8f;
 
@@ -46,6 +54,9 @@ namespace RowingMod
             public float Side; // +1 starboard (right), -1 port (left)
             public Transform Root;
             public float Outboard;
+            // Ship-space poses: the oarlock on the gunwale (rowing pivot) and the stowed spot inside the hull.
+            public Vector3 RowPosition;
+            public Vector3 StowPosition;
             public Player Occupant;
             public WaterVolume WaterVolume;
             // Animation state, in "bow-ward" degrees: positive swings the blade toward the bow.
@@ -162,16 +173,22 @@ namespace RowingMod
                 float side = Mathf.Abs(local.x) > 0.15f ? Mathf.Sign(local.x) : (index % 2 == 0 ? 1f : -1f);
                 index++;
 
-                Vector3 oarlock = FindOarlock(local, side, hullColliders);
+                Vector3 oarlock = FindGunwale(local, side, hullColliders);
                 float halfWidth = Mathf.Abs(oarlock.x);
                 Oar oar = new Oar
                 {
                     Seat = chair,
                     Side = side,
                     Outboard = Mathf.Clamp(1.6f + halfWidth * 0.7f, 1.8f, 3.2f),
+                    RowPosition = oarlock,
                 };
+                // Stowed, the oar's +X points to the stern, so the pivot moves toward the bow by half the
+                // difference between blade side and handle side, which centres the oar on its bench.
+                float middle = (oar.Outboard - Inboard) / 2f;
+                oar.StowPosition = new Vector3(oarlock.x - side * StowInset, oarlock.y - StowDrop, local.z + middle);
                 oar.Root = BuildOar(chair.name, oarlock, oar.Outboard, material, layer);
                 m_oars.Add(oar);
+                RowingPlugin.Log.LogInfo($"  {chair.name}: seat {local.x:0.00}, {local.y:0.00}, {local.z:0.00}; oarlock {oarlock.x:0.00}, {oarlock.y:0.00}, {oarlock.z:0.00}; oar {Inboard + oar.Outboard:0.0} m");
             }
             string materialName = material != null ? material.name : "none";
             RowingPlugin.Log.LogInfo($"{name}: built {m_oars.Count} oar(s) with material {materialName}");
@@ -204,29 +221,51 @@ namespace RowingMod
         }
 
         /// <summary>
-        /// Where the oar rests on the hull beside a seat, in ship space: cast a ray from outside the ship toward
-        /// the seat, a little above seat height, and take where it meets the hull.
+        /// The top of the hull's side (the gunwale) beside a seat, in ship space. Steps outward from the seat,
+        /// casting straight down from above at each step; the outermost spot that still hits the ship is the
+        /// gunwale, and the hit height is its top.
         /// </summary>
-        private Vector3 FindOarlock(Vector3 seatLocal, float side, Collider[] hullColliders)
+        private Vector3 FindGunwale(Vector3 seatLocal, float side, Collider[] hullColliders)
         {
-            float height = seatLocal.y + 0.3f;
-            Vector3 origin = transform.TransformPoint(new Vector3(side * 8f, height, seatLocal.z));
-            Vector3 direction = transform.TransformDirection(new Vector3(-side, 0f, 0f));
-            Ray ray = new Ray(origin, direction);
-            float best = float.MaxValue;
-            foreach (Collider collider in hullColliders)
+            Vector3 down = transform.TransformDirection(Vector3.down);
+            bool found = false;
+            float gunwaleX = 0f;
+            float gunwaleY = seatLocal.y + 0.3f;
+            for (float d = 0f; d <= ProbeReach; d += ProbeStep)
             {
-                if (collider.isTrigger)
+                float x = seatLocal.x + side * d;
+                Ray ray = new Ray(transform.TransformPoint(new Vector3(x, seatLocal.y + ProbeHeight, seatLocal.z)), down);
+                if (TryRaycast(ray, ProbeHeight * 2f, hullColliders, out RaycastHit hit))
+                {
+                    found = true;
+                    gunwaleX = x;
+                    gunwaleY = transform.InverseTransformPoint(hit.point).y;
+                }
+            }
+            if (!found)
+            {
+                return new Vector3(side * 1.2f, seatLocal.y + 0.3f, seatLocal.z);
+            }
+            return new Vector3(gunwaleX, gunwaleY + 0.02f, seatLocal.z);
+        }
+
+        private static bool TryRaycast(Ray ray, float distance, Collider[] colliders, out RaycastHit closest)
+        {
+            closest = default;
+            bool any = false;
+            foreach (Collider collider in colliders)
+            {
+                if (collider == null || collider.isTrigger)
                 {
                     continue;
                 }
-                if (collider.Raycast(ray, out RaycastHit hit, 8f) && hit.distance < best)
+                if (collider.Raycast(ray, out RaycastHit hit, distance) && (!any || hit.distance < closest.distance))
                 {
-                    best = hit.distance;
+                    closest = hit;
+                    any = true;
                 }
             }
-            float x = best < float.MaxValue ? side * (8f - best + 0.05f) : side * 1.2f;
-            return new Vector3(x, height, seatLocal.z);
+            return any;
         }
 
         /// <summary>
@@ -301,21 +340,23 @@ namespace RowingMod
             float stow = Mathf.SmoothStep(0f, 1f, oar.Stowed);
 
             // Tilt down just enough for the blade to sit in the water, following the waves.
-            Vector3 oarlockWorld = oar.Root.parent.TransformPoint(oar.Root.localPosition);
+            Vector3 oarlockWorld = transform.TransformPoint(oar.RowPosition);
             float waterLevel = Floating.GetWaterLevel(oarlockWorld, ref oar.WaterVolume);
             float drop = oarlockWorld.y - waterLevel;
             float reach = oar.Outboard - BladeLength / 2f;
             float pitch = Mathf.Asin(Mathf.Clamp(drop / reach, -1f, 1f)) * Mathf.Rad2Deg;
             pitch = Mathf.Clamp(pitch, RestPitchMin, RestPitchMax) - lift;
-            sweep = Mathf.Lerp(sweep, StowSweep, stow);
-            pitch = Mathf.Lerp(pitch, StowPitch, stow);
 
             // Root axes: +X outward. Starboard oars use the ship's axes; port oars are turned 180° so +X points left.
             // Turning about Y by a negative angle moves +X toward +Z, so "toward the bow" is -sweep on starboard
             // and +sweep on port (whose local +Z faces the stern). Rotating about Z by a negative angle dips +X.
             Quaternion facing = oar.Side > 0f ? Quaternion.identity : Quaternion.Euler(0f, 180f, 0f);
             float yaw = oar.Side > 0f ? -sweep : sweep;
-            oar.Root.localRotation = facing * Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.AngleAxis(-pitch, Vector3.forward);
+            Quaternion rowing = facing * Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.AngleAxis(-pitch, Vector3.forward);
+
+            // Stowed: +X to the stern (a quarter turn about Y), blade turned flat (a quarter turn about the shaft).
+            oar.Root.localRotation = Quaternion.Slerp(rowing, StowRotation, stow);
+            oar.Root.localPosition = Vector3.Lerp(oar.RowPosition, oar.StowPosition, stow);
         }
     }
 }
