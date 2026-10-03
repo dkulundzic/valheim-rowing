@@ -182,13 +182,10 @@ namespace RowingMod
                     Outboard = Mathf.Clamp(1.6f + halfWidth * 0.7f, 1.8f, 3.2f),
                     RowPosition = oarlock,
                 };
-                // Stowed, the oar's +X points to the stern, so the pivot moves toward the bow by half the
-                // difference between blade side and handle side, which centres the oar on its bench.
-                float middle = (oar.Outboard - Inboard) / 2f;
-                oar.StowPosition = new Vector3(oarlock.x - side * StowInset, oarlock.y - StowDrop, local.z + middle);
+                oar.StowPosition = FindStowPosition(local, side, Inboard + oar.Outboard, oar.Outboard, hullColliders);
                 oar.Root = BuildOar(chair.name, oarlock, oar.Outboard, material, layer);
                 m_oars.Add(oar);
-                RowingPlugin.Log.LogInfo($"  {chair.name}: seat {local.x:0.00}, {local.y:0.00}, {local.z:0.00}; oarlock {oarlock.x:0.00}, {oarlock.y:0.00}, {oarlock.z:0.00}; oar {Inboard + oar.Outboard:0.0} m");
+                RowingPlugin.Log.LogInfo($"  {chair.name}: seat {local.x:0.00}, {local.y:0.00}, {local.z:0.00}; oarlock {oarlock.x:0.00}, {oarlock.y:0.00}, {oarlock.z:0.00}; stowed pivot {oar.StowPosition.x:0.00}, {oar.StowPosition.y:0.00}, {oar.StowPosition.z:0.00}; oar {Inboard + oar.Outboard:0.0} m");
             }
             string materialName = material != null ? material.name : "none";
             RowingPlugin.Log.LogInfo($"{name}: built {m_oars.Count} oar(s) with material {materialName}");
@@ -227,14 +224,25 @@ namespace RowingMod
         /// </summary>
         private Vector3 FindGunwale(Vector3 seatLocal, float side, Collider[] hullColliders)
         {
+            return TryProbeGunwale(seatLocal.x, seatLocal.z, side, seatLocal.y, hullColliders, out Vector3 gunwale)
+                ? gunwale
+                : new Vector3(side * 1.2f, seatLocal.y + 0.3f, seatLocal.z);
+        }
+
+        /// <summary>
+        /// Steps outward from <paramref name="startX"/> at <paramref name="z"/> (ship space), casting straight down
+        /// from above; the outermost spot that still hits the ship is the gunwale, and the hit height is its top.
+        /// </summary>
+        private bool TryProbeGunwale(float startX, float z, float side, float seatY, Collider[] hullColliders, out Vector3 gunwale)
+        {
             Vector3 down = transform.TransformDirection(Vector3.down);
             bool found = false;
             float gunwaleX = 0f;
-            float gunwaleY = seatLocal.y + 0.3f;
+            float gunwaleY = 0f;
             for (float d = 0f; d <= ProbeReach; d += ProbeStep)
             {
-                float x = seatLocal.x + side * d;
-                Ray ray = new Ray(transform.TransformPoint(new Vector3(x, seatLocal.y + ProbeHeight, seatLocal.z)), down);
+                float x = startX + side * d;
+                Ray ray = new Ray(transform.TransformPoint(new Vector3(x, seatY + ProbeHeight, z)), down);
                 if (TryRaycast(ray, ProbeHeight * 2f, hullColliders, out RaycastHit hit))
                 {
                     found = true;
@@ -242,11 +250,65 @@ namespace RowingMod
                     gunwaleY = transform.InverseTransformPoint(hit.point).y;
                 }
             }
-            if (!found)
+            gunwale = new Vector3(gunwaleX, gunwaleY + 0.02f, z);
+            return found;
+        }
+
+        /// <summary>
+        /// Where a stowed oar's pivot goes, in ship space. The oar lies flat along the inside of the hull, blade
+        /// toward the stern, ideally centred on its bench. Hulls narrow toward the bow and stern, so on a short
+        /// ship (the Karve) an oar centred on a bench near one end would poke through the side. The oar slides
+        /// toward the middle of the ship until the hull is wide enough at both of its ends and its middle.
+        /// </summary>
+        private Vector3 FindStowPosition(Vector3 seatLocal, float side, float length, float outboard, Collider[] hullColliders)
+        {
+            float half = length / 2f;
+            float towardMiddle = -Mathf.Sign(seatLocal.z);
+            for (float shift = 0f; shift <= Mathf.Abs(seatLocal.z) + 0.01f; shift += 0.1f)
             {
-                return new Vector3(side * 1.2f, seatLocal.y + 0.3f, seatLocal.z);
+                float centre = seatLocal.z + towardMiddle * shift;
+                if (TryFitStowed(centre, half, side, seatLocal.y, hullColliders, out float x, out float y))
+                {
+                    return StowPivot(x, y, centre, side, outboard, half);
+                }
             }
-            return new Vector3(gunwaleX, gunwaleY + 0.02f, seatLocal.z);
+            // Nothing fits (a very small hull): lie along the centre line, just above the seat.
+            return StowPivot(0f, seatLocal.y + 0.3f, 0f, side, outboard, half);
+        }
+
+        /// <summary>
+        /// Whether an oar centred at this point along the ship fits inside the hull: the gunwale must be found at
+        /// both ends and the middle. Gives the inset sideways position and the height, from the narrowest point.
+        /// </summary>
+        private bool TryFitStowed(float centre, float half, float side, float seatY, Collider[] hullColliders, out float x, out float y)
+        {
+            x = 0f;
+            y = float.MaxValue;
+            float narrowest = float.MaxValue;
+            foreach (float z in new[] { centre - half, centre, centre + half })
+            {
+                if (!TryProbeGunwale(0f, z, side, seatY, hullColliders, out Vector3 gunwale))
+                {
+                    return false;
+                }
+                narrowest = Mathf.Min(narrowest, Mathf.Abs(gunwale.x));
+                y = Mathf.Min(y, gunwale.y);
+            }
+            if (narrowest < StowInset + 0.15f)
+            {
+                return false;
+            }
+            x = side * (narrowest - StowInset);
+            y -= StowDrop;
+            return true;
+        }
+
+        /// <summary>The pivot for a stowed oar whose middle is at <paramref name="centre"/>.</summary>
+        private static Vector3 StowPivot(float x, float y, float centre, float side, float outboard, float half)
+        {
+            // Stowed, the oar's +X points to the stern and runs from -Inboard to +outboard about the pivot,
+            // so the pivot sits toward the bow of the oar's middle by (outboard - half).
+            return new Vector3(x, y, centre + (outboard - half));
         }
 
         private static bool TryRaycast(Ray ray, float distance, Collider[] colliders, out RaycastHit closest)
