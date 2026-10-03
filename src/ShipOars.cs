@@ -4,7 +4,7 @@ using UnityEngine;
 namespace RowingMod
 {
     /// <summary>
-    /// Draws an oar beside every occupied rowing seat on a ship and swings it on each stroke. Runs on every client
+    /// Draws an oar beside every rowing seat on a ship, resting in the water, and swings a rower's oar on each stroke. Runs on every client
     /// with the mod; strokes reach it through the broadcast stroke RPC, so everyone sees the whole crew's oars.
     /// The oars are plain shapes built in code with the ship's own material and have no colliders, so they never
     /// touch the physics.
@@ -93,39 +93,19 @@ namespace RowingMod
             }
             if (!m_built)
             {
-                // Build only once someone could see the oars, so ships far away cost nothing.
-                if (!AnyPlayerAboard())
-                {
-                    return;
-                }
                 Build();
             }
 
             foreach (Oar oar in m_oars)
             {
+                if (!oar.Root.gameObject.activeSelf)
+                {
+                    oar.Root.gameObject.SetActive(true);
+                }
+                // Who sits here decides whose strokes swing this oar.
                 oar.Occupant = FindOccupant(oar.Seat);
-                bool visible = oar.Occupant != null;
-                if (oar.Root.gameObject.activeSelf != visible)
-                {
-                    oar.Root.gameObject.SetActive(visible);
-                }
-                if (visible)
-                {
-                    Animate(oar);
-                }
+                Animate(oar);
             }
-        }
-
-        private bool AnyPlayerAboard()
-        {
-            foreach (Player player in Player.GetAllPlayers())
-            {
-                if (player != null && m_ship.IsPlayerInBoat(player))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         private static Player FindOccupant(Chair seat)
@@ -182,7 +162,6 @@ namespace RowingMod
                     Outboard = Mathf.Clamp(1.6f + halfWidth * 0.7f, 1.8f, 3.2f),
                 };
                 oar.Root = BuildOar(chair.name, oarlock, oar.Outboard, material, layer);
-                oar.Root.gameObject.SetActive(false);
                 m_oars.Add(oar);
             }
             string materialName = material != null ? material.name : "none";

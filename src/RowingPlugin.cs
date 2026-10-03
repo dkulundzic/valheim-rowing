@@ -72,7 +72,7 @@ namespace RowingMod
             BarOffset = Config.Bind("UI", "BarOffset", 0f,
                 "Extra pixels to raise the stroke bar above the stamina bar. Negative values lower it.");
             ShowOars = Config.Bind("UI", "ShowOars", true,
-                "Show an oar beside every occupied rowing seat, swinging with each stroke. Only players with the mod see them.");
+                "Show an oar beside every rowing seat, resting in the water and swinging with each stroke. Only players with the mod see them.");
 
             gameObject.AddComponent<Rower>();
             new Harmony(Guid).PatchAll();
