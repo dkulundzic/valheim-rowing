@@ -200,7 +200,7 @@ namespace RowingMod
             {
                 if (chair.m_attachPoint == attachPoint)
                 {
-                    return true;
+                    return ShipRowing.IsRowingSeat(chair);
                 }
             }
             return false;

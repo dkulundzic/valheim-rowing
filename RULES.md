@@ -11,6 +11,7 @@ Sit in a passenger seat, press **H** in rhythm, and each good stroke gives the s
 | Situation | Can you row? |
 |---|---|
 | Sitting in a passenger seat | ✅ |
+| Bracing at a **Hold fast** spot | ❌ You're standing and holding on, not sitting at an oar. |
 | Steering at the helm | ❌ The helmsman steers and doesn't row. |
 | Standing or walking on deck | ❌ You must be seated. |
 | Ship paddling forward (Slow) | ✅ |

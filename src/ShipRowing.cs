@@ -61,6 +61,8 @@ namespace RowingMod
         private float m_lastDirection = 1f;
         private readonly Dictionary<long, BeatStrokes> m_beats = new Dictionary<long, BeatStrokes>();
         private readonly List<long> m_staleBeats = new List<long>();
+        // Ship types whose seat spots have been logged, so each type is described once per session.
+        private static readonly HashSet<string> s_loggedShipTypes = new HashSet<string>();
 
         private void Awake()
         {
@@ -74,9 +76,39 @@ namespace RowingMod
 
             m_nview.Register<float, long>(StrokeRpc, RPC_Stroke);
             m_nview.Register<float>(LegacyStrokeRpc, RPC_LegacyStroke);
-            int seats = GetComponentsInChildren<Chair>(includeInactive: true).Length;
             m_topSpeed = EstimateTopSailSpeed(m_ship);
-            RowingPlugin.Log.LogInfo($"{name}: {seats} seat(s) for rowers, top sail speed {m_topSpeed:0.0} m/s");
+            LogSeats();
+        }
+
+        /// <summary>
+        /// Whether a seat spot on a ship is for rowing. Ships also use Chair for standing spots such as
+        /// "Hold fast" (m_name "$ship_holdfast"), where you brace yourself rather than sit, so those are left out.
+        /// </summary>
+        public static bool IsRowingSeat(Chair chair)
+        {
+            return chair != null && (chair.m_name ?? "").IndexOf("holdfast", System.StringComparison.OrdinalIgnoreCase) < 0;
+        }
+
+        private void LogSeats()
+        {
+            Chair[] chairs = GetComponentsInChildren<Chair>(includeInactive: true);
+            int rowingSeats = 0;
+            foreach (Chair chair in chairs)
+            {
+                if (IsRowingSeat(chair))
+                {
+                    rowingSeats++;
+                }
+            }
+            RowingPlugin.Log.LogInfo($"{name}: {rowingSeats} rowing seat(s) of {chairs.Length} spot(s), top sail speed {m_topSpeed:0.0} m/s");
+            if (s_loggedShipTypes.Add(name))
+            {
+                foreach (Chair chair in chairs)
+                {
+                    string kind = IsRowingSeat(chair) ? "rowing seat" : "not for rowing";
+                    RowingPlugin.Log.LogInfo($"  {chair.name}: name {chair.m_name}, animation {chair.m_attachAnimation}, {kind}");
+                }
+            }
         }
 
         /// <summary>

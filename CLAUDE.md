@@ -18,7 +18,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - **Stamina:** each stroke costs `StaminaPerStroke` × the headwind multiplier. An exhausted rower can't row.
   - Headwind multiplier: `1 + HeadwindStaminaFactor × headwind × wind intensity`. `headwind` is `max(0, dot(windDir, −rowing direction))` on the horizontal plane (`EnvMan.GetWindDir` points where the wind blows to). A tailwind gives no discount. The bar title shows "Headwind: +N% stamina" above 5%.
 - **When rowing works:** always, at every speed setting including `Stop` and with the sail open. While backing (`Back`) strokes push backward, otherwise forward. Changing direction clears the boost (`ShipRowing.m_lastDirection`). Stop was blocked until 1.0.1; the user changed the rule because rowing a stopped boat makes sense, and a seated passenger can't change the speed setting.
-- **Who rows:** only passengers on ship seats (`Chair`). The helmsman can't row.
+- **Who rows:** only passengers on ship seats (`Chair`), and not at Hold fast spots. The helmsman can't row.
 - **Stroke strength:** timing × speed factor. The speed factor is `1 − (v / top)²`, where `v` is the ship's speed in the rowing direction and `top` is its top sail speed × `TopSpeedMultiplier`. It's applied every physics step, so rowing can never push a ship past its top sail speed. The sail setting doesn't change stroke strength.
 - **Top sail speed:** the game has no top-speed setting. The mod estimates each ship's top sail speed from its prefab values (`m_sailForceFactor`, `m_dampingForward`, `m_force`): `sqrt(best sail push / (m_dampingForward × submersion))`. The best sail push is about 0.737 × `m_sailForceFactor`, at about a 65° wind. Submersion is `g / (50 × m_force)`. Each ship's value is logged on load: Karve 7.4 m/s, Longship (`VikingShip`) 9.6 m/s.
 - **Multiplayer:**
@@ -56,7 +56,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - Valheim uses Unity's new Input System, so read keys with `ZInput`, not `UnityEngine.Input`.
 - Free default keys: B, H, J, K, L, N, O, P, U, Y, Z. F is the guardian power, R is hide weapons, X is sit and T is emote.
 - UI checks: `Console.IsVisible()`, `Chat.instance.HasFocus()`, `TextInput.IsVisible()`, `Menu.IsVisible()` and `InventoryGui.IsVisible()`.
-- Ships have seats: Karve has 4 and Longship (`VikingShip`) has 7 (confirmed in game).
+- Ship seat spots are all `Chair` components, including standing **Hold fast** spots (`m_name` `$ship_holdfast`; the English text "Hold fast" is in `resources.assets`). `ShipRowing.IsRowingSeat` excludes those. Karve has 4 spots in total and Longship (`VikingShip`) has 7. The log lists each ship type's spots (name and attach animation) once per session; check it for the real rowing-seat counts.
 - Ship ownership: the server gives an unowned object to the first client whose active area it is in (`ZDOMan.ReleaseNearbyZDOS`). `Ship.UpdateOwner` hands it on only when the owner is no longer in the boat. Taking the helm (`ShipControlls.RPC_RequestControl`) sets `s_user` but does **not** change the owner. So rowing only works when the owner has the mod; strokes sent to a vanilla owner are dropped. The dedicated server never needs the mod.
 - The HUD stamina, eitr and adrenaline bars are `Hud.m_staminaBar2Root`, `m_eitrBarRoot` and `m_adrenalineBarRoot`. The stroke bar is placed above whichever is highest.
 
