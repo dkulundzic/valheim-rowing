@@ -5,10 +5,10 @@ Passengers can row to speed up the ship.
 ## How to row
 
 1. Sit in a passenger seat on a Karve or Longship. A "Rowing ready" message appears, and the stroke bar shows above your stamina bar.
-2. Press **H** when the white marker reaches the green zone. That's a strong stroke.
-   - **Early or late:** a weak stroke.
-   - **Before the red zone ends:** mashing, which wastes stamina and does nothing.
-3. Keep the rhythm. Each stroke gives the ship a push that fades over about a second, and the whole crew's strokes add up.
+2. Press **H** when the white marker crosses the green zone. That's the ship's beat, and a strong stroke.
+   - **Off the beat:** a weak stroke, or a **clash** if others hit the beat, which brakes the boat a little.
+   - **Twice in one beat:** wastes stamina.
+3. The whole ship shares one beat, slow when still and quicker at speed. Rowers who hit the same beat get a sync bonus of up to +45%.
 
 ## Rules
 
@@ -46,8 +46,9 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | Setting | Default | What it does |
 |---|---|---|
 | `Controls.RowKey` | H | Key for a stroke. Don't use movement, attack, jump or crouch keys; they make you stand up. |
-| `Timing.StrokeCycle` | 1.5 | Seconds from one stroke to the middle of the next green zone. |
-| `Timing.SweetSpotWidth` | 0.2 | Width of the green zone, as a fraction of the cycle. |
+| `Timing.StrokeCycleStill` | 1.8 | Seconds between beats when the ship is still. |
+| `Timing.StrokeCycleTopSpeed` | 1.2 | Seconds between beats at top sail speed. |
+| `Timing.SweetSpotWidth` | 0.2 | Width of the green zone around each beat, as a fraction of the beat. |
 | `Timing.WeakStrokeFactor` | 0.35 | Strength of an early or late stroke. |
 | `Stamina.StaminaPerStroke` | 6 | Stamina per stroke. |
 | `Stamina.HeadwindStaminaFactor` | 1 | Extra cost into the wind (1 = up to double; 0 = off). |
@@ -55,4 +56,7 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Force.MaxBoost` | 2 | Most push the whole crew can build up. |
 | `Force.StrokeFade` | 1.2 | Seconds for a stroke's push to fade. |
 | `Force.TopSpeedMultiplier` | 1 | Rowing stops helping at the ship's top sail speed times this. |
+| `Crew.SyncBonusPerRower` | 0.15 | Bonus per extra rower hitting the same beat. |
+| `Crew.MaxSyncBonus` | 0.45 | Largest sync bonus. |
+| `Crew.ClashBrake` | 0.2 | Braking from an off-beat stroke when others hit the beat. |
 | `UI.BarOffset` | 0 | Extra pixels to raise the stroke bar. |

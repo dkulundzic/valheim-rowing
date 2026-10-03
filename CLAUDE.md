@@ -5,10 +5,16 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 ## How it plays
 
 - A passenger sits on a ship seat (a `Chair`, not the helm) and presses the row key (default **H**). A stroke bar (IMGUI) shows a marker sweeping toward a green sweet spot.
-- **Stroke timing:**
-  - A press in the sweet spot is a strong stroke.
-  - An early or late press is a weak stroke (`WeakStrokeFactor`).
-  - A press before half a cycle (`MinStrokePhase`) is mashing: it costs stamina and makes no stroke.
+- **Shared beat (1.1):** the whole ship rows to one beat.
+  - **The owner keeps it:** in `ShipRowing.UpdateBeat`, while anyone is aboard (`!Ship.CanBeRemoved()`), the owner writes ZDO longs `RowingMod_BeatTime` (latest beat, network-clock ms from `ZNet.GetTimeSeconds`) and `RowingMod_BeatPeriod` (ms).
+  - **Tempo:** at each beat the owner picks the next period from speed: `StrokeCycleStill` (1.8 s) when still, down to `StrokeCycleTopSpeed` (1.2 s) at top speed.
+  - **Clients:** extend the schedule with `GetBeat`. A stale schedule (more than 2 s past the next beat, e.g. after sleeping) restarts.
+  - **A press belongs to the nearest beat:** within ±`SweetSpotWidth`/2 of the beat it's strong, otherwise off-beat.
+  - **One stroke per beat;** a second press is mashing (stamina spent, no stroke).
+- **Sync and clash,** computed by the owner per beat in `ApplyBeat`:
+  - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
+  - **Clash:** if anyone hit the beat, each off-beat stroke on it adds no boost and adds `ClashBrake` to a separate brake pool. The brake only slows the ship and never reverses it. If nobody hit the beat, off-beat strokes are weak (`WeakStrokeFactor`).
+  - **Late strokes:** strokes arrive one at a time, so the owner re-applies the difference for the beat.
 - **Stamina:** each stroke costs `StaminaPerStroke` × the headwind multiplier. An exhausted rower can't row.
   - Headwind multiplier: `1 + HeadwindStaminaFactor × headwind × wind intensity`. `headwind` is `max(0, dot(windDir, −rowing direction))` on the horizontal plane (`EnvMan.GetWindDir` points where the wind blows to). A tailwind gives no discount. The bar title shows "Headwind: +N% stamina" above 5%.
 - **When rowing works:** always, at every speed setting including `Stop` and with the sail open. While backing (`Back`) strokes push backward, otherwise forward. Changing direction clears the boost (`ShipRowing.m_lastDirection`). Stop was blocked until 1.0.1; the user changed the rule because rowing a stopped boat makes sense, and a seated passenger can't change the speed setting.
@@ -16,7 +22,8 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - **Stroke strength:** timing × speed factor. The speed factor is `1 − (v / top)²`, where `v` is the ship's speed in the rowing direction and `top` is its top sail speed × `TopSpeedMultiplier`. It's applied every physics step, so rowing can never push a ship past its top sail speed. The sail setting doesn't change stroke strength.
 - **Top sail speed:** the game has no top-speed setting. The mod estimates each ship's top sail speed from its prefab values (`m_sailForceFactor`, `m_dampingForward`, `m_force`): `sqrt(best sail push / (m_dampingForward × submersion))`. The best sail push is about 0.737 × `m_sailForceFactor`, at about a 65° wind. Submersion is `g / (50 × m_force)`. Each ship's value is logged on load: Karve 7.4 m/s, Longship (`VikingShip`) 9.6 m/s.
 - **Multiplayer:**
-  - The rower's client sends RPC `RowingMod_Stroke(float quality)` to the ship's owner (`ZNetView.InvokeRPC` routes to the owner).
+  - **Broadcast:** the rower's client broadcasts RPC `RowingMod_Stroke2(float quality, long beatMs)` to everybody (`ZNetView.Everybody`, which also runs locally). Every client records strokes per beat for the "In sync ×N" / "Clash!" messages; only the owner applies force.
+  - **Legacy:** the 1.0 RPC `RowingMod_Stroke(float)` is still accepted from old rowers, with no sync or clash. A 1.0 owner ignores 1.1 strokes.
   - The owner adds a boost that fades over `StrokeFade`, capped at `MaxBoost`. It applies the boost in a postfix on `Ship.CustomFixedUpdate` as `m_backwardForce * boost`, pushed through the centre of mass.
   - The owner syncs the boost to the ZDO key `RowingMod_Boost`, so every rower sees the crew's boost.
   - The owner also writes its session ID to the ZDO key `RowingMod_Owner`. If that doesn't match the ZDO's owner for 3 s, the owner is vanilla, and rowers get a warning that their strokes won't count.

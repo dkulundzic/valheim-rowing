@@ -4,14 +4,10 @@ namespace RowingMod
 {
     /// <summary>
     /// Runs on each client for the local player. While they sit on a ship seat it reads the row key,
-    /// judges the stroke timing, spends stamina, sends the stroke to the ship's owner and draws the stroke bar.
+    /// judges the stroke against the ship's beat, spends stamina, broadcasts the stroke and draws the stroke bar.
     /// </summary>
     public class Rower : MonoBehaviour
     {
-        // A press before this point in the cycle is mashing: it costs stamina and does nothing.
-        private const float MinStrokePhase = 0.5f;
-        // How far past the sweet spot the bar runs before the marker stops at the end.
-        private const float BarEndPhase = 1.5f;
         private const float MessageTime = 1.2f;
         // Space between the bottom of the rowing UI and the top of the game's stamina bars.
         private const float BarGap = 12f;
@@ -34,8 +30,12 @@ namespace RowingMod
         private Transform m_seat;
         private Ship m_ship;
         private ShipRowing m_shipRowing;
-        private float m_lastStrokeTime;
+        // The beat (network-clock ms) of this rower's latest stroke; one stroke per beat.
+        private long m_lastStrokeBeat;
+        private bool m_lastStrokeStrong;
+        private bool m_lastStrokeEarly;
         private string m_message;
+        private bool m_messageIsStroke;
         private float m_messageUntil;
         private float m_ownerMissingSince = -1f;
         private bool m_ownerWarned;
@@ -65,18 +65,42 @@ namespace RowingMod
             }
             player.UseStamina(cost);
 
-            float phase = GetPhase();
-            m_lastStrokeTime = Time.time;
-            if (phase < MinStrokePhase)
+            // A press belongs to the nearest beat; the green zone sits on the beat.
+            long nowMs = ShipRowing.NowMs();
+            m_shipRowing.GetBeat(nowMs, out long beatMs, out long periodMs);
+            long nearestMs = nowMs - beatMs <= beatMs + periodMs - nowMs ? beatMs : beatMs + periodMs;
+            if (nearestMs == m_lastStrokeBeat)
             {
-                Show("Too fast!");
+                Show("Too fast! One stroke per beat");
                 return;
             }
 
-            bool inSweetSpot = Mathf.Abs(phase - 1f) <= RowingPlugin.SweetSpotWidth.Value / 2f;
-            float quality = inSweetSpot ? 1f : RowingPlugin.WeakStrokeFactor.Value;
-            Show(inSweetSpot ? "Strong stroke!" : (phase < 1f ? "Early" : "Late"));
-            m_ship.GetComponent<ZNetView>().InvokeRPC(ShipRowing.StrokeRpc, quality);
+            float offset = (nowMs - nearestMs) / (float)periodMs;
+            m_lastStrokeBeat = nearestMs;
+            m_lastStrokeStrong = Mathf.Abs(offset) <= RowingPlugin.SweetSpotWidth.Value / 2f;
+            m_lastStrokeEarly = offset < 0f;
+            float quality = m_lastStrokeStrong ? 1f : RowingPlugin.WeakStrokeFactor.Value;
+            m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.StrokeRpc, quality, nearestMs);
+            m_messageIsStroke = true;
+            m_messageUntil = Time.time + MessageTime;
+        }
+
+        /// <summary>
+        /// The message for this rower's latest stroke. It's worked out every frame because other rowers' strokes
+        /// for the same beat arrive over the network a moment later and can turn it into a sync or a clash.
+        /// </summary>
+        private string StrokeMessage()
+        {
+            int strong = m_shipRowing != null ? m_shipRowing.GetStrongCount(m_lastStrokeBeat) : 0;
+            if (m_lastStrokeStrong)
+            {
+                return strong >= 2 ? $"In sync ×{strong}!" : "Strong stroke!";
+            }
+            if (strong >= 1)
+            {
+                return "Clash!";
+            }
+            return m_lastStrokeEarly ? "Early" : "Late";
         }
 
         /// <summary>Tracks whether the local player sits on a ship seat (a Chair, not the helm).</summary>
@@ -97,15 +121,15 @@ namespace RowingMod
             }
 
             Ship ship = attachPoint.GetComponentInParent<Ship>();
-            if (ship == null || !IsShipSeat(ship, attachPoint))
+            ShipRowing shipRowing = ship != null ? ship.GetComponent<ShipRowing>() : null;
+            if (shipRowing == null || !IsShipSeat(ship, attachPoint))
             {
                 return false;
             }
 
             m_ship = ship;
-            m_shipRowing = ship.GetComponent<ShipRowing>();
-            // Start the cycle when they sit down, so the first stroke can be well timed.
-            m_lastStrokeTime = Time.time;
+            m_shipRowing = shipRowing;
+            m_lastStrokeBeat = 0;
 
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
@@ -188,14 +212,10 @@ namespace RowingMod
                 || Menu.IsVisible() || InventoryGui.IsVisible();
         }
 
-        private float GetPhase()
-        {
-            return (Time.time - m_lastStrokeTime) / Mathf.Max(0.1f, RowingPlugin.StrokeCycle.Value);
-        }
-
         private void Show(string message)
         {
             m_message = message;
+            m_messageIsStroke = false;
             m_messageUntil = Time.time + MessageTime;
         }
 
@@ -222,18 +242,21 @@ namespace RowingMod
             // Background
             DrawRect(new Rect(x - 2f, y - 2f, width + 4f, height + 4f), new Color(0f, 0f, 0f, 0.6f));
 
-            // Sweet spot
-            float sweetWidth = RowingPlugin.SweetSpotWidth.Value;
-            float sweetStart = (1f - sweetWidth / 2f) / BarEndPhase;
-            float sweetEnd = (1f + sweetWidth / 2f) / BarEndPhase;
-            DrawRect(new Rect(x + width * sweetStart, y, width * (sweetEnd - sweetStart), height), new Color(0.3f, 0.8f, 0.3f, 0.8f));
+            // The bar spans one beat, centred on the nearest beat: the marker sweeps through the green zone
+            // as the beat passes, then jumps back to the left edge halfway to the next beat.
+            long nowMs = ShipRowing.NowMs();
+            m_shipRowing.GetBeat(nowMs, out long beatMs, out long periodMs);
+            long nearestMs = nowMs - beatMs <= beatMs + periodMs - nowMs ? beatMs : beatMs + periodMs;
+            float markerPos = Mathf.Clamp01((nowMs - nearestMs) / (float)periodMs + 0.5f);
 
-            // Too-fast zone
-            DrawRect(new Rect(x, y, width * (MinStrokePhase / BarEndPhase), height), new Color(0.8f, 0.25f, 0.2f, 0.5f));
+            // Green zone, with a line on the beat itself
+            float sweetWidth = Mathf.Clamp01(RowingPlugin.SweetSpotWidth.Value);
+            DrawRect(new Rect(x + width * (0.5f - sweetWidth / 2f), y, width * sweetWidth, height), new Color(0.3f, 0.8f, 0.3f, 0.8f));
+            DrawRect(new Rect(x + width * 0.5f - 1f, y, 2f, height), new Color(1f, 1f, 1f, 0.35f));
 
-            // Marker
-            float markerPhase = Mathf.Min(GetPhase(), BarEndPhase);
-            DrawRect(new Rect(x + width * (markerPhase / BarEndPhase) - 2f, y - 4f, 4f, height + 8f), Color.white);
+            // Marker, greyed once you've stroked on this beat
+            Color markerColor = nearestMs == m_lastStrokeBeat ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
+            DrawRect(new Rect(x + width * markerPos - 2f, y - 4f, 4f, height + 8f), markerColor);
 
             // Labels
             string title = ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
@@ -251,9 +274,10 @@ namespace RowingMod
             float titleY = y - 4f - StackGap - titleHeight;
             GUI.Label(new Rect(textX, titleY, TextWidth, titleHeight), title, style);
 
-            if (m_message != null && Time.time < m_messageUntil)
+            if (Time.time < m_messageUntil)
             {
-                GUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), m_message, style);
+                string message = m_messageIsStroke ? StrokeMessage() : m_message;
+                GUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), message, style);
             }
 
             DrawToast(titleY - StackGap);

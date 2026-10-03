@@ -19,21 +19,22 @@ Sit in a passenger seat, press **H** in rhythm, and each good stroke gives the s
 | Ship set to **Stop** | ✅ Rowing pushes forward, so a crew can row a ship that nobody is steering. |
 | Out of stamina | ❌ "Too tired to row". |
 
-## 2. The stroke bar: timing
+## 2. The ship's beat: timing
 
-When you sit down, a bar appears above your stamina bar. A white marker sweeps from left to right after each stroke:
+The whole ship rows to **one shared beat**, like a drummer keeping time. Every rower sees the same beat at the same moment.
+
+- **The beat speeds up with the ship:** slow, heavy strokes to get moving (one every 1.8 s), and a quicker rhythm near top speed (one every 1.2 s). The tempo only changes between beats.
+- **The stroke bar shows the beat.** The green zone sits on the beat in the middle of the bar. The white marker sweeps through it as the beat passes, then starts over.
 
 ```
- [ RED |                 | GREEN |          ]
-   too fast       early   strong    late
+ [            |GREEN|            ]
+     early     strong     late
 ```
 
-- **Green zone:** a **strong** stroke, full power.
-- **Early or late:** a **weak** stroke, about a third of the power.
-- **Red zone (pressing too soon):** mashing. You lose stamina and get no stroke.
-- **Every press restarts the marker**, including a wasted one. Mashing doesn't just fail; it also throws off your rhythm.
-
-The best rhythm is one stroke about every 1.5 seconds, each one in the green zone. Fast weak strokes give less speed than steady strong ones, and they cost more stamina.
+- **One stroke per beat:**
+  - **Pressing in the green zone** gives a **strong** stroke, full power.
+  - **Pressing elsewhere** gives an off-beat stroke: weak when rowing alone, a **clash** when others hit the beat (see section 5).
+  - **Pressing again in the same beat** is mashing: it wastes stamina and gives no stroke. The marker turns grey once you've rowed on the current beat.
 
 ## 3. Stamina
 
@@ -46,7 +47,7 @@ The best rhythm is one stroke about every 1.5 seconds, each one in the green zon
 ## 4. How strokes speed up the ship
 
 - **Each stroke is a push that fades.** A strong stroke gives the ship a push that dies away over a second or two.
-- **The crew's pushes add up.** Every rower's strokes go into one shared pool, so more rowers in rhythm means more push. There's a ceiling, though: about 4 rowers with good timing reach it, and more add nothing.
+- **The crew's pushes add up.** Every rower's strokes go into one shared pool, so more rowers on the beat means more push. There's a ceiling, though: about 4 rowers in sync reach it, and more add nothing.
 - **Rowing works best when slow.** The faster the ship already goes, the less each stroke helps:
 
   | Ship speed (compared with its top speed) | How much a stroke helps |
@@ -59,7 +60,26 @@ The best rhythm is one stroke about every 1.5 seconds, each one in the green zon
 - **Each ship has its own top speed:** the speed it would reach with full sail, the strongest wind and the best wind angle. Rowing can never push past it. In good wind, rowing gets you to top speed sooner. In calm or bad wind, it's what keeps you moving.
 - **Rowing pushes straight,** so it never turns the ship. Steering stays with the helmsman.
 
-## 5. Playing together
+## 5. Rowing together: sync and clashes
+
+- **In sync:** when several rowers hit the **same beat** in the green zone, each of their strokes gets a bonus: **+15% per extra rower**, up to **+45%**. Three rowers in sync each row 30% harder. You'll see **"In sync ×3!"**.
+- **Clash:** an off-beat stroke on a beat someone else hit means your oar fights the crew's rhythm. It gives **no push** and **brakes the boat a little**. You'll see **"Clash!"**. A clash never pushes the boat backward; it only slows it.
+- **Alone,** or when **nobody** hits the beat, an off-beat stroke is just weak (about a third of a strong one), not a clash. There's no rhythm to break.
+
+How much the crew pushes, on average (ship still, in units of the ship's paddle force):
+
+| Crew | Push |
+|---|---|
+| 1 rower, on beat | 0.40 |
+| 1 rower, off beat | 0.14 |
+| 2 rowers in sync | 0.92 |
+| 3 rowers in sync | 1.56 |
+| 2 in sync + 1 clashing | 0.79 |
+| 3 rowers all off beat | 0.42 |
+
+Solo rowing is meant to be hard work. A crew in sync is far stronger than the same crew rowing sloppily.
+
+## 6. Playing together
 
 - **The server doesn't need the mod.** Everyone, with or without the mod, sees the ship go faster.
 - **The ship's "owner" needs the mod.** Valheim lets one player's game run each ship's physics. That's the ship's owner: usually the first player aboard, **not necessarily the helmsman**. Your strokes go to that player's game.
@@ -68,14 +88,17 @@ The best rhythm is one stroke about every 1.5 seconds, each one in the green zon
   - **Easiest rule: the whole crew installs the mod.**
 - **The owner's settings decide.** If someone changes their config, ships they own row differently. Keep the defaults to keep it fair.
 
-## 6. Messages you'll see
+## 7. Messages you'll see
 
 | Message | Meaning |
 |---|---|
 | **Rowing ready** | You sat down in a seat and can row. |
 | **Your strokes won't count** | The ship's owner doesn't have the mod. |
 | **Your strokes count again** | The ship's owner now has the mod. |
-| Strong stroke! / Early / Late / Too fast! | How your last press went. |
+| **In sync ×N!** | Your strong stroke landed on the same beat as N−1 others. |
+| **Clash!** | Your off-beat stroke fought the crew's rhythm. |
+| Strong stroke! / Early / Late | How your last press went. |
+| Too fast! One stroke per beat | You already rowed on this beat. |
 | Too tired to row | Not enough stamina for a stroke. |
 
 ## The numbers (default settings)
@@ -83,16 +106,19 @@ The best rhythm is one stroke about every 1.5 seconds, each one in the green zon
 All of these can be changed in `BepInEx/config/com.dkulundzic.rowingmod.cfg`.
 
 **Timing:**
-- Rhythm (`StrokeCycle`): **1.5 s** from one stroke to the middle of the green zone.
-- Green zone (`SweetSpotWidth`): 20% of the cycle, about **1.35–1.65 s** after your last press.
-- Too fast: under half a cycle, **0.75 s**.
+- Beat: **1.8 s** when still (`StrokeCycleStill`), down to **1.2 s** at top speed (`StrokeCycleTopSpeed`), in proportion to speed ÷ top speed.
+- Green zone (`SweetSpotWidth`): 20% of the beat, centred on it: ±0.18 s at the slowest beat, ±0.12 s at the fastest.
 - Weak-stroke power (`WeakStrokeFactor`): **35%** of a strong stroke.
+
+**Crew:**
+- Sync bonus: **+15%** per extra rower on the same beat (`SyncBonusPerRower`), up to **+45%** (`MaxSyncBonus`).
+- Clash brake: **0.2** of the ship's paddle force (`ClashBrake`), fading like a stroke.
 
 **Push:**
 - One strong stroke adds **0.6** to the crew's push (`StrokeStrength`). The unit is "the ship's own paddle force": a push of 1.0 equals one extra set of paddles.
 - The crew's push is capped at **2.0** (`MaxBoost`).
 - The push fades by about 63% every **1.2 s** (`StrokeFade`).
-- On average, one rower with perfect timing adds about **0.5**, two add about **1.0**, and four reach the cap.
+- On average, one rower on every beat adds about **0.4** when the ship is still (slow beat) and **0.6** near top speed (fast beat), before the speed limit below.
 - Switching between forward and back resets the push to zero, so leftover push never shoves the ship the wrong way.
 
 **Speed:**

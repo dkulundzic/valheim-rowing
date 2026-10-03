@@ -16,7 +16,8 @@ namespace RowingMod
         internal static ManualLogSource Log;
 
         internal static ConfigEntry<KeyCode> RowKey;
-        internal static ConfigEntry<float> StrokeCycle;
+        internal static ConfigEntry<float> StrokeCycleStill;
+        internal static ConfigEntry<float> StrokeCycleTopSpeed;
         internal static ConfigEntry<float> SweetSpotWidth;
         internal static ConfigEntry<float> WeakStrokeFactor;
         internal static ConfigEntry<float> StaminaPerStroke;
@@ -25,6 +26,9 @@ namespace RowingMod
         internal static ConfigEntry<float> MaxBoost;
         internal static ConfigEntry<float> StrokeFade;
         internal static ConfigEntry<float> TopSpeedMultiplier;
+        internal static ConfigEntry<float> SyncBonusPerRower;
+        internal static ConfigEntry<float> MaxSyncBonus;
+        internal static ConfigEntry<float> ClashBrake;
         internal static ConfigEntry<float> BarOffset;
 
         private void Awake()
@@ -34,15 +38,17 @@ namespace RowingMod
             RowKey = Config.Bind("Controls", "RowKey", KeyCode.H,
                 "Key a seated passenger presses to make a stroke. Movement, attack, jump and crouch keys stand you up, so don't use those.");
 
-            StrokeCycle = Config.Bind("Timing", "StrokeCycle", 1.5f,
-                "Seconds from one stroke to the middle of the next sweet spot.");
+            StrokeCycleStill = Config.Bind("Timing", "StrokeCycleStill", 1.8f,
+                "Seconds between the ship's beats when it's still. The beat speeds up with the ship.");
+            StrokeCycleTopSpeed = Config.Bind("Timing", "StrokeCycleTopSpeed", 1.2f,
+                "Seconds between the ship's beats at its top sail speed.");
             SweetSpotWidth = Config.Bind("Timing", "SweetSpotWidth", 0.2f,
-                "Width of the sweet spot as a fraction of the stroke cycle.");
+                "Width of the green zone around each beat, as a fraction of the beat.");
             WeakStrokeFactor = Config.Bind("Timing", "WeakStrokeFactor", 0.35f,
                 "Strength of an early or late stroke compared with a well-timed one.");
 
             StaminaPerStroke = Config.Bind("Stamina", "StaminaPerStroke", 6f,
-                "Stamina each stroke costs, including strokes that come too fast to count.");
+                "Stamina each stroke costs, including a wasted second press in the same beat.");
             HeadwindStaminaFactor = Config.Bind("Stamina", "HeadwindStaminaFactor", 1f,
                 "Extra stamina cost when rowing into the wind, as a fraction of StaminaPerStroke. 1 means up to double straight into a full-strength wind; it scales with the wind's strength and angle. 0 turns it off.");
 
@@ -54,6 +60,13 @@ namespace RowingMod
                 "Seconds for a stroke's push to fade out.");
             TopSpeedMultiplier = Config.Bind("Force", "TopSpeedMultiplier", 1f,
                 "Rowing can't push a ship past its top sail speed (full sail, best wind) times this. Strokes weaken as the ship nears it.");
+
+            SyncBonusPerRower = Config.Bind("Crew", "SyncBonusPerRower", 0.15f,
+                "Extra strength of a well-timed stroke for each other rower who also hit the same beat.");
+            MaxSyncBonus = Config.Bind("Crew", "MaxSyncBonus", 0.45f,
+                "Most extra strength the sync bonus can give one stroke.");
+            ClashBrake = Config.Bind("Crew", "ClashBrake", 0.2f,
+                "Braking from an off-beat stroke on a beat someone else hit (clashing oars), as a fraction of the ship's paddle force. It only slows the ship, never reverses it.");
 
             BarOffset = Config.Bind("UI", "BarOffset", 0f,
                 "Extra pixels to raise the stroke bar above the stamina bar. Negative values lower it.");
