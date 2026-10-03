@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>RowingMod</AssemblyName>
+    <RootNamespace>RowingMod</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <!-- Only compile src/; decompiled/ holds the game's code for reading. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <!-- Where Valheim is installed. After a build, the DLL is copied into BepInEx/plugins there if BepInEx is installed. -->
+    <ValheimDir>/Volumes/CORSAIR/SteamLibrary/steamapps/common/Valheim</ValheimDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" IncludeAssets="compile" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Game DLLs copied from valheim.app/Contents/Resources/Data/Managed (not committed). -->
+  <ItemGroup>
+    <Reference Include="assembly_valheim" HintPath="lib/assembly_valheim.dll" Private="false" />
+    <Reference Include="assembly_utils" HintPath="lib/assembly_utils.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="lib/UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="lib/UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.PhysicsModule" HintPath="lib/UnityEngine.PhysicsModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UI" HintPath="lib/UnityEngine.UI.dll" Private="false" />
+    <Reference Include="UnityEngine.UIModule" HintPath="lib/UnityEngine.UIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="lib/UnityEngine.InputLegacyModule.dll" Private="false" />
+    <Reference Include="UnityEngine.IMGUIModule" HintPath="lib/UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.TextRenderingModule" HintPath="lib/UnityEngine.TextRenderingModule.dll" Private="false" />
+  </ItemGroup>
+
+  <Target Name="CopyToBepInEx" AfterTargets="Build" Condition="Exists('$(ValheimDir)/BepInEx/plugins')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ValheimDir)/BepInEx/plugins/RowingMod" />
+    <Message Importance="high" Text="Copied $(TargetFileName) to $(ValheimDir)/BepInEx/plugins/RowingMod" />
+  </Target>
+
+</Project>

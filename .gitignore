@@ -1,0 +1,11 @@
+bin/
+obj/
+lib/
+.tools/
+decompiled/
+*.user
+.vs/
+.idea/
+.DS_Store
+dist/
+._*
