@@ -108,7 +108,7 @@ namespace RowingMod
             SplashVolume = Config.Bind("Sounds", "SplashVolume", 0.8f,
                 "Volume of the stroke splash (0 to 1); weak strokes are quieter. Everyone nearby hears it.");
             BeatTick = Config.Bind("Sounds", "BeatTick", true,
-                "Play a soft tick on the ship's beat while you're seated at an oar. Only you hear it.");
+                "Play a soft tick on the ship's beat while you're seated at an oar. Only you hear it. In game, hold the row key for 3 s to turn it on or off.");
             BeatTickVolume = Config.Bind("Sounds", "BeatTickVolume", 0.35f,
                 "Volume of the beat tick (0 to 1).");
             ShowSplashes = Config.Bind("UI", "ShowSplashes", true,

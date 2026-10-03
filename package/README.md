@@ -65,5 +65,5 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Sounds.CreakVolume` | 0.5 | Volume of wood creaking under strong strokes (0 turns it off). |
 | `Sounds.SplashSound`, `RunoffSound`, `DripSound`, `KnockSound`, `SyncSound`, `ClashSound`, `CreakSound` | (empty) | Game sounds for each layer of a stroke (comma-separated to combine); empty uses the mod's default choice. |
 | `UI.ShowSplashes` | true | Show water spray at the blade on each stroke. |
-| `Sounds.BeatTick` | true | A soft tick on the ship's beat while you're at an oar. Only you hear it. |
+| `Sounds.BeatTick` | true | A soft tick on the ship's beat while you're at an oar. Only you hear it. You can also hold H for 3 seconds in game to turn it on or off. |
 | `Sounds.BeatTickVolume` | 0.35 | Volume of the beat tick. |

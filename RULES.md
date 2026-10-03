@@ -103,6 +103,7 @@ Solo rowing is meant to be hard work. A crew in sync is far stronger than the sa
 | **Clash!** | Your off-beat stroke fought the crew's rhythm. |
 | Strong stroke! / Early / Late | How your last press went. |
 | Too fast! One stroke per beat | You already rowed on this beat. |
+| **Beat tick on / off** | You held H for 3 seconds, which turns the beat tick on or off. The label beside the stroke bar always shows which. |
 | Too tired to row | Not enough stamina for a stroke. |
 
 ## The numbers (default settings)

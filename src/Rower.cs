@@ -9,6 +9,10 @@ namespace RowingMod
     public class Rower : MonoBehaviour
     {
         private const float MessageTime = 1.2f;
+        // Holding the row key this long turns the beat tick on or off.
+        private const float HoldToToggle = 3f;
+        // A hold only counts as one (and shows its countdown) after this long, so ordinary strokes don't flash it.
+        private const float HoldShowAfter = 0.4f;
         // Space between the bottom of the rowing UI and the top of the game's stamina bars.
         private const float BarGap = 12f;
         // Vertical space between the stacked pieces: snackbar, title, bar and message.
@@ -34,6 +38,9 @@ namespace RowingMod
         private long m_lastStrokeBeat;
         // The latest beat this rower heard a tick for.
         private long m_lastTickBeat;
+        // When the row key went down for the current hold (-1 when not held), and whether this hold already toggled.
+        private float m_holdStart = -1f;
+        private bool m_holdToggled;
         private bool m_lastStrokeStrong;
         private bool m_lastStrokeEarly;
         private string m_message;
@@ -54,6 +61,7 @@ namespace RowingMod
             }
             UpdateNotices();
             UpdateTick();
+            UpdateHold();
 
             if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
             {
@@ -203,7 +211,51 @@ namespace RowingMod
 
         private static string RowHint()
         {
-            return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone";
+            return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. " +
+                $"Hold {RowingPlugin.RowKey.Value} for {HoldToToggle:0} s to turn the beat tick {(RowingPlugin.BeatTick.Value ? "off" : "on")}.";
+        }
+
+        /// <summary>
+        /// Holding the row key for HoldToToggle seconds turns the beat tick on or off (saved to the config).
+        /// The press that starts the hold is still a stroke, since strokes happen the moment the key goes down.
+        /// </summary>
+        private void UpdateHold()
+        {
+            if (!ZInput.GetKey(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
+            {
+                m_holdStart = -1f;
+                m_holdToggled = false;
+                return;
+            }
+            if (m_holdStart < 0f)
+            {
+                m_holdStart = Time.time;
+                return;
+            }
+            if (!m_holdToggled && Time.time - m_holdStart >= HoldToToggle)
+            {
+                m_holdToggled = true;
+                RowingPlugin.BeatTick.Value = !RowingPlugin.BeatTick.Value;
+                string key = RowingPlugin.RowKey.Value.ToString();
+                Toast(RowingPlugin.BeatTick.Value ? "Beat tick on" : "Beat tick off",
+                    $"Hold {key} for {HoldToToggle:0} s to turn it {(RowingPlugin.BeatTick.Value ? "off" : "on")} again");
+            }
+        }
+
+        /// <summary>While the row key is held long enough to look intentional: the countdown to toggling the tick.</summary>
+        private string HoldMessage()
+        {
+            if (m_holdStart < 0f || m_holdToggled)
+            {
+                return null;
+            }
+            float held = Time.time - m_holdStart;
+            if (held < HoldShowAfter)
+            {
+                return null;
+            }
+            string action = RowingPlugin.BeatTick.Value ? "off" : "on";
+            return $"Keep holding to turn the beat tick {action}... {Mathf.Max(0f, HoldToToggle - held):0.0} s";
         }
 
         private void Toast(string title, string body)
@@ -277,6 +329,15 @@ namespace RowingMod
             Color markerColor = nearestMs == m_lastStrokeBeat ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
             DrawRect(new Rect(x + width * markerPos - 2f, y - 4f, 4f, height + 8f), markerColor);
 
+            // Beside the bar: whether the beat tick is on, and how to change it.
+            GUIStyle hintStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft, wordWrap = false };
+            string hint = $"Beat tick {(RowingPlugin.BeatTick.Value ? "on" : "off")} · hold {RowingPlugin.RowKey.Value} {HoldToToggle:0} s";
+            Color previousColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, 0.7f);
+            float hintHeight = hintStyle.CalcHeight(new GUIContent(hint), 400f);
+            GUI.Label(new Rect(x + width + 10f, y + height / 2f - hintHeight / 2f, 400f, hintHeight), hint, hintStyle);
+            GUI.color = previousColor;
+
             // Labels
             string title = ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
             float staminaMultiplier = StaminaMultiplier(m_ship);
@@ -293,7 +354,12 @@ namespace RowingMod
             float titleY = y - 4f - StackGap - titleHeight;
             GUI.Label(new Rect(textX, titleY, TextWidth, titleHeight), title, style);
 
-            if (Time.time < m_messageUntil)
+            string holdMessage = HoldMessage();
+            if (holdMessage != null)
+            {
+                GUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), holdMessage, style);
+            }
+            else if (Time.time < m_messageUntil)
             {
                 string message = m_messageIsStroke ? StrokeMessage() : m_message;
                 GUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), message, style);
