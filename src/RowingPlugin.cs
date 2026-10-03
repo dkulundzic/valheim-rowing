@@ -26,7 +26,6 @@ namespace RowingMod
         internal static ConfigEntry<float> StrokeFade;
         internal static ConfigEntry<float> TopSpeedMultiplier;
         internal static ConfigEntry<float> BarOffset;
-        internal static ConfigEntry<bool> AllowRowingWhenStopped;
 
         private void Awake()
         {
@@ -58,10 +57,6 @@ namespace RowingMod
 
             BarOffset = Config.Bind("UI", "BarOffset", 0f,
                 "Extra pixels to raise the stroke bar above the stamina bar. Negative values lower it.");
-
-            // Temporary, for testing: lets a crew row a stopped ship. The ship's owner's setting decides.
-            AllowRowingWhenStopped = Config.Bind("Testing", "AllowRowingWhenStopped", false,
-                "Testing only: allow rowing while the ship is set to Stop (strokes push forward).");
 
             gameObject.AddComponent<Rower>();
             new Harmony(Guid).PatchAll();

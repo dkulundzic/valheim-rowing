@@ -77,6 +77,5 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   3. Use the doorstop 4.6.0 CI build (`gh release download ci -R NeighTools/UnityDoorstop -p doorstop_macos_release_4.6.0.zip`), which exports `doorstop_jit_memcpy`.
   4. Remove `arch -x86_64` from `run_bepinex.sh`. Back up `BepInEx/core`, `libdoorstop.dylib` and `run_bepinex.sh` first.
   - Fallback: `Relokk1/valheim-native-arm64`. BepInEx 6 doesn't work on arm64 yet.
-- [ ] **Temporary:** `Testing.AllowRowingWhenStopped = true` is set in the user's `BepInEx/config/com.dkulundzic.rowingmod.cfg` for testing. Set it back to false, and consider removing the entry, once testing is done.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.
 - [ ] Later: a Thunderstore package (`manifest.json`, `icon.png` 256×256, `README.md`), possibly gamepad support, and `git init`.
