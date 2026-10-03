@@ -120,7 +120,9 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - [x] Snackbar notices and the vanilla-owner check are built. **Not yet checked in game.**
 - [x] Speed-based strength, backing and headwind stamina are playtested.
 - [x] Rowing at Stop, the shared beat with speed-based tempo, sync/clash, Hold fast and back-seat exclusion, and oars (gunwale placement, stowing that fits the Karve) are playtested (2026-10-03).
-- [ ] **Next, 1.1.0:** sounds (a splash per stroke, louder for strong strokes; a local beat tick, on by default, configurable). Then discuss oar braking and a top-down crew GUI. Then release 1.1.0, bundling everything since 1.0.0; 1.0.1 was never published.
+- [x] Layered stroke sounds and spray are playtested; the user is happy with the sounds as they are. The spray uses `fx_footstep_water` (4 particle systems, not networked); `fx_land_water` has a bigger spray.
+- [ ] Hold-to-toggle beat tick: built, not yet checked in game.
+- [ ] **Next, 1.1.0:** discuss oar braking and a top-down crew GUI, then release 1.1.0, bundling everything since 1.0.0; 1.0.1 was never published.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.
 - [x] Playtested on the crew server: rules, headwind stamina and the stroke bar layout all work.
