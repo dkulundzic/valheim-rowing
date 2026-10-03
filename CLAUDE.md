@@ -42,6 +42,9 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - `src/RowingSounds.cs`: sounds and the blade spray.
   - **Mixer:** everything plays through the game's SFX mixer group, taken from a game sfx prefab's AudioSource.
   - **3D, heard by every crew member with the mod:** each stroke's sounds play at that oar, since strokes are broadcast. Only the beat tick is local.
+  - **Beat tick:** generated, heard only by the local seated rower (`Sounds.BeatTick`).
+    - **Toggle:** holding the row key for 3 s toggles it (`Rower.UpdateHold`, saved to the config). The press that starts the hold still counts as a stroke.
+    - **UI:** a label beside the bar shows "Beat tick on/off · hold H 3 s", the message line counts down after 0.4 s of holding, and the "Rowing ready" snackbar mentions the hold.
   - **Each stroke is layered** (the user wants believable, non-repeating sounds; values are defaults, each a `Sounds.*` setting):
     - **Splash** (`fx_footstep_water`, 7 wading clips): random clip, pitch 0.9–1.12, volume jitter.
     - **Run-off** (`sfx_ship_waterimpact` after-splash): a 0.7 s slice, 50% of strokes.
