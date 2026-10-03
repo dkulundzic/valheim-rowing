@@ -26,6 +26,7 @@ namespace RowingMod
         internal static ConfigEntry<float> StrokeFade;
         internal static ConfigEntry<float> TopSpeedMultiplier;
         internal static ConfigEntry<float> BarOffset;
+        internal static ConfigEntry<bool> AllowRowingWhenStopped;
 
         private void Awake()
         {
@@ -54,6 +55,9 @@ namespace RowingMod
                 "Seconds for a stroke's push to fade out.");
             TopSpeedMultiplier = Config.Bind("Force", "TopSpeedMultiplier", 1f,
                 "Rowing can't push a ship past its top sail speed (full sail, best wind) times this. Strokes weaken as the ship nears it.");
+
+            AllowRowingWhenStopped = Config.Bind("Rules", "AllowRowingWhenStopped", false,
+                "Allow rowing while the ship is set to Stop; strokes push forward. Handy for testing alone, since a seated passenger can't change the speed setting. The ship owner's setting decides.");
 
             BarOffset = Config.Bind("UI", "BarOffset", 0f,
                 "Extra pixels to raise the stroke bar above the stamina bar. Negative values lower it.");

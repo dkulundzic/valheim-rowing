@@ -16,7 +16,7 @@ Sit in a passenger seat, press **H** in rhythm, and each good stroke gives the s
 | Ship paddling forward (Slow) | ✅ |
 | Sail open (Half or Full) | ✅ Rowing adds to the wind. |
 | Ship backing (Back) | ✅ Rowing pushes **backward**. |
-| Ship set to **Stop** | ❌ Rowing is paused. |
+| Ship set to **Stop** | ❌ Rowing is paused, unless the `AllowRowingWhenStopped` setting is on. Then rowing pushes forward. |
 | Out of stamina | ❌ "Too tired to row". |
 
 ## 2. The stroke bar: timing

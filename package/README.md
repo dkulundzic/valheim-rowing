@@ -55,4 +55,5 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Force.MaxBoost` | 2 | Most push the whole crew can build up. |
 | `Force.StrokeFade` | 1.2 | Seconds for a stroke's push to fade. |
 | `Force.TopSpeedMultiplier` | 1 | Rowing stops helping at the ship's top sail speed times this. |
+| `Rules.AllowRowingWhenStopped` | false | Allow rowing at Stop (pushes forward). Useful for testing alone. The ship owner's setting decides. |
 | `UI.BarOffset` | 0 | Extra pixels to raise the stroke bar. |

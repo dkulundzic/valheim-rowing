@@ -83,10 +83,13 @@ namespace RowingMod
             return Mathf.Clamp01(1f - ratio * ratio);
         }
 
-        /// <summary>Whether rowing adds speed right now: any setting but Stop, including with the sail open.</summary>
+        /// <summary>
+        /// Whether rowing adds speed right now: any setting but Stop, including with the sail open.
+        /// AllowRowingWhenStopped lifts the Stop rule; strokes then push forward.
+        /// </summary>
         public static bool CanRow(Ship ship)
         {
-            return ship.GetSpeedSetting() != Ship.Speed.Stop;
+            return ship.GetSpeedSetting() != Ship.Speed.Stop || RowingPlugin.AllowRowingWhenStopped.Value;
         }
 
         /// <summary>Which way rowing pushes: +1 forward, or -1 while the ship is backing.</summary>
