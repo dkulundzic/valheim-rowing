@@ -63,6 +63,7 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `UI.ShowOars` | true | Show an oar at every rowing seat, swinging with each stroke. |
 | `Sounds.SplashVolume` | 0.8 | Volume of the stroke splash, clash and oarlock knock; weak strokes are quieter. |
 | `Sounds.CreakVolume` | 0.5 | Volume of wood creaking under strong strokes (0 turns it off). |
-| `Sounds.SplashSound`, `ClashSound`, `CreakSound` | (empty) | Game sound to use for each; empty uses the mod's default choice. |
+| `Sounds.SplashSound`, `RunoffSound`, `DripSound`, `KnockSound`, `SyncSound`, `ClashSound`, `CreakSound` | (empty) | Game sounds for each layer of a stroke (comma-separated to combine); empty uses the mod's default choice. |
+| `UI.ShowSplashes` | true | Show water spray at the blade on each stroke. |
 | `Sounds.BeatTick` | true | A soft tick on the ship's beat while you're at an oar. Only you hear it. |
 | `Sounds.BeatTickVolume` | 0.35 | Volume of the beat tick. |

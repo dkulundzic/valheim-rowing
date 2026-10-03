@@ -39,15 +39,20 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Look:** primitives with the hull's material and no colliders.
   - **Animation:** pitch follows the water level; strokes from the broadcast RPC animate drive, recovery and settle.
   - Config `UI.ShowOars`.
-- `src/RowingSounds.cs`: sounds, played through the game's SFX mixer group (taken from a game sfx prefab's AudioSource).
-  - **Sources:** `Sounds.SplashSound`, `ClashSound` and `CreakSound` name game sound prefabs. Empty means the default (`sfx_land_water`, `sfx_wood_blocked`, `sfx_bogwitch_creak`), and `generated` means a sound made in code. Prefabs come from ZNetScene, or from the Player's FootStep and water effects and the ships' effect lists.
-  - **Variety (the user wants believable, non-repeating oar sounds):**
-    - **Splash:** a random clip with pitch ±10% and volume −15%/+10%. Half the time a second, quieter, higher splash follows 0.08–0.2 s later. The default splash is pitched ×1.3.
-    - **Oarlock knock:** 40% of strokes, as the oar swings back.
-    - **Creak:** 60% of strong strokes, at most once per 0.7 s per ship. It's a random 0.9 s faded slice, louder with crew boost.
-  - **Clash:** a wooden thud (`ClashSound`).
-  - **Beat tick:** generated, heard only by the local seated rower (`Sounds.BeatTick`).
-  - **Discovery:** `Debug.LogSoundCandidates` logs the game's water, splash, wood and creak sounds once per session, including footstep, water and ship effect prefabs, for choosing sounds.
+- `src/RowingSounds.cs`: sounds and the blade spray.
+  - **Mixer:** everything plays through the game's SFX mixer group, taken from a game sfx prefab's AudioSource.
+  - **3D, heard by every crew member with the mod:** each stroke's sounds play at that oar, since strokes are broadcast. Only the beat tick is local.
+  - **Each stroke is layered** (the user wants believable, non-repeating sounds; values are defaults, each a `Sounds.*` setting):
+    - **Splash** (`fx_footstep_water`, 7 wading clips): random clip, pitch 0.9–1.12, volume jitter.
+    - **Run-off** (`sfx_ship_waterimpact` after-splash): a 0.7 s slice, 50% of strokes.
+    - **Sync** (`sfx_land_water` pitched ×0.8–0.9): a deeper splash added when the stroke lands on a beat others hit, fuller with more rowers.
+    - **Drips** (`sfx_footstep_swim`): a 0.6 s slice on the recovery, 60% of strokes.
+    - **Oarlock knock** (`fx_footstep_wood_jog`): 40% of strokes.
+    - **Creak** (bog witch creak and the ship's sail-change vibration, pooled): a 0.9 s slice on 60% of strong strokes, at most once per 0.7 s per ship, louder with crew boost.
+    - **Clash** (`sfx_wood_blocked`) replaces all of the above.
+  - **Settings:** each names one or more prefabs (comma-separated, clips pooled). Empty means the default; `generated` means a sound made in code.
+  - **Spray** (`UI.ShowSplashes`, `UI.SplashEffect`, default `fx_footstep_water`): the prefab's particles, with its ZSFX and AudioSources removed. It's instantiated under an inactive holder so the effect's own sound never wakes, and skipped if the prefab is networked or has no particles.
+  - **Discovery:** `Debug.LogSoundCandidates` logs candidate sfx/vfx/fx prefabs once per session, with clips, particle counts and whether they're networked, including footstep, water and ship effect prefabs.
   - **Generated clips** use `AudioClip.Create` with a PCM reader callback, because Unity 6's `SetData` has a `ReadOnlySpan` overload that net48 can't compile against.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).

@@ -83,7 +83,7 @@ namespace RowingMod
         }
 
         /// <summary>Called for every stroke the ship receives, from any rower including the local one.</summary>
-        public void OnStroke(long sender, bool strong, bool clash)
+        public void OnStroke(long sender, bool strong, bool clash, int strongOnBeat)
         {
             foreach (Oar oar in m_oars)
             {
@@ -100,16 +100,15 @@ namespace RowingMod
                         RowingSounds.PlayClash(blade);
                         return;
                     }
-                    RowingSounds.PlaySplash(blade, strong);
-                    // The oar knocks in its oarlock as it swings back after the drive.
-                    RowingSounds.MaybePlayOarlock(oarlock, DriveTime + Random.Range(0f, 0.1f));
-                    if (strong && Time.time - m_lastCreak > CreakInterval)
+                    // At most one creak chance per CreakInterval per ship, so a full crew doesn't creak on every oar.
+                    bool creak = strong && Time.time - m_lastCreak > CreakInterval;
+                    if (creak)
                     {
                         m_lastCreak = Time.time;
-                        ShipRowing rowing = GetComponent<ShipRowing>();
-                        float load = rowing != null ? rowing.GetSyncedBoost() / Mathf.Max(0.1f, RowingPlugin.MaxBoost.Value) : 0.5f;
-                        RowingSounds.MaybePlayCreak(oarlock, load);
                     }
+                    ShipRowing rowing = GetComponent<ShipRowing>();
+                    float load = rowing != null ? rowing.GetSyncedBoost() / Mathf.Max(0.1f, RowingPlugin.MaxBoost.Value) : 0.5f;
+                    RowingSounds.PlayStroke(blade, oarlock, strong, strongOnBeat, DriveTime, creak, load);
                     return;
                 }
             }

@@ -33,8 +33,14 @@ namespace RowingMod
         internal static ConfigEntry<bool> ShowOars;
         internal static ConfigEntry<string> SplashSound;
         internal static ConfigEntry<float> SplashVolume;
+        internal static ConfigEntry<string> RunoffSound;
+        internal static ConfigEntry<string> DripSound;
+        internal static ConfigEntry<string> KnockSound;
+        internal static ConfigEntry<string> SyncSound;
         internal static ConfigEntry<string> ClashSound;
         internal static ConfigEntry<string> CreakSound;
+        internal static ConfigEntry<string> SplashEffect;
+        internal static ConfigEntry<bool> ShowSplashes;
         internal static ConfigEntry<float> CreakVolume;
         internal static ConfigEntry<bool> BeatTick;
         internal static ConfigEntry<float> BeatTickVolume;
@@ -82,12 +88,21 @@ namespace RowingMod
             ShowOars = Config.Bind("UI", "ShowOars", true,
                 "Show an oar beside every rowing seat, resting in the water and swinging with each stroke. Only players with the mod see them.");
 
+            const string soundHelp = " One or more game sound prefabs, comma-separated (their clips are pooled and picked at random). Empty uses the default ({0}); \"generated\" uses a sound made by the mod.";
             SplashSound = Config.Bind("Sounds", "SplashSound", "",
-                $"Game sound prefab whose clips play as the stroke splash. Empty uses the default ({RowingSounds.DefaultSplash}); \"generated\" uses a sound made by the mod.");
+                "The blade entering the water." + string.Format(soundHelp, RowingSounds.DefaultSplash));
+            RunoffSound = Config.Bind("Sounds", "RunoffSound", "",
+                "Water running off just after a splash (a short slice is played)." + string.Format(soundHelp, RowingSounds.DefaultRunoff));
+            DripSound = Config.Bind("Sounds", "DripSound", "",
+                "Drips as the blade lifts out of the water (a short slice is played)." + string.Format(soundHelp, RowingSounds.DefaultDrip));
+            KnockSound = Config.Bind("Sounds", "KnockSound", "",
+                "The oar knocking in its oarlock as it swings back." + string.Format(soundHelp, RowingSounds.DefaultKnock));
+            SyncSound = Config.Bind("Sounds", "SyncSound", "",
+                "The deeper splash added when rowers hit the same beat." + string.Format(soundHelp, RowingSounds.DefaultSync));
             ClashSound = Config.Bind("Sounds", "ClashSound", "",
-                $"Game sound prefab for a clash and the oarlock knock. Empty uses the default ({RowingSounds.DefaultClash}); \"generated\" uses a sound made by the mod.");
+                "An oar clashing with the crew's rhythm." + string.Format(soundHelp, RowingSounds.DefaultClash));
             CreakSound = Config.Bind("Sounds", "CreakSound", "",
-                $"Game sound prefab for wood creaking under strong strokes; a short slice is played. Empty uses the default ({RowingSounds.DefaultCreak}); \"generated\" uses a sound made by the mod.");
+                "Wood creaking under strong strokes (a short slice is played)." + string.Format(soundHelp, RowingSounds.DefaultCreak));
             CreakVolume = Config.Bind("Sounds", "CreakVolume", 0.5f,
                 "Volume of the creak (0 to 1; 0 turns it off). Louder when the crew pushes harder.");
             SplashVolume = Config.Bind("Sounds", "SplashVolume", 0.8f,
@@ -96,6 +111,10 @@ namespace RowingMod
                 "Play a soft tick on the ship's beat while you're seated at an oar. Only you hear it.");
             BeatTickVolume = Config.Bind("Sounds", "BeatTickVolume", 0.35f,
                 "Volume of the beat tick (0 to 1).");
+            ShowSplashes = Config.Bind("UI", "ShowSplashes", true,
+                "Show water spray at the blade on each stroke.");
+            SplashEffect = Config.Bind("UI", "SplashEffect", "",
+                $"Game effect prefab whose particles show as the spray (its sound is removed). Empty uses the default ({RowingSounds.DefaultSplashEffect}).");
             LogSoundCandidates = Config.Bind("Debug", "LogSoundCandidates", true,
                 "Log the game's water, splash and wood sounds once per session, to pick a SplashSound.");
 

@@ -6,39 +6,49 @@ using UnityEngine.Audio;
 namespace RowingMod
 {
     /// <summary>
-    /// Rowing sounds: a splash where an oar's blade enters the water on each stroke, a wooden thud for a clash and
-    /// a creak of wood under load on strong strokes (heard by everyone nearby with the mod), plus a soft beat tick
-    /// only the seated rower hears.
+    /// Rowing sounds and the blade's splash effect. Every stroke is built from layers with randomness, so no two
+    /// strokes sound alike: a splash, sometimes water running off, a deeper splash when the crew hits the beat
+    /// together, a creak of wood under load, a knock in the oarlock and drips as the blade lifts. A clash is a
+    /// wooden thud. The seated rower also hears a soft tick on the ship's beat.
     ///
-    /// The splash, clash and creak reuse audio clips from the game's own sound prefabs (Sounds.*Sound settings,
-    /// empty = the default listed below, "generated" = a sound made in code), played through our own AudioSource so
-    /// volume, pitch and length are ours to set. Everything goes through the game's SFX mixer group, so the game's
-    /// SFX volume applies.
+    /// Sounds reuse clips from the game's own prefabs, played through our own AudioSource so volume, pitch and
+    /// length are ours. Each Sounds.* setting names one or more prefabs (comma-separated; their clips are pooled),
+    /// is empty for the default below, or says "generated" for a sound made in code. Everything goes through the
+    /// game's SFX mixer group, so the game's SFX volume applies.
     /// </summary>
     public static class RowingSounds
     {
-        // Defaults chosen from the game's sounds (see the Debug.LogSoundCandidates log).
-        public const string DefaultSplash = "sfx_land_water";
+        // Defaults, chosen from the game's sounds (see the Debug.LogSoundCandidates log).
+        public const string DefaultSplash = "fx_footstep_water";
+        public const string DefaultRunoff = "sfx_ship_waterimpact";
+        public const string DefaultDrip = "sfx_footstep_swim";
+        public const string DefaultKnock = "fx_footstep_wood_jog";
         public const string DefaultClash = "sfx_wood_blocked";
-        public const string DefaultCreak = "sfx_bogwitch_creak";
+        public const string DefaultCreak = "sfx_bogwitch_creak,sfx_ship_sailposition_change_vibration_only";
+        public const string DefaultSync = "sfx_land_water";
+        public const string DefaultSplashEffect = "fx_footstep_water";
         private const string Generated = "generated";
 
         private const int SampleRate = 44100;
         private const float MaxDistance = 40f;
-        // The default splash is a body falling into deep water; higher and quieter it's closer to a blade.
-        private const float SplashPitch = 1.3f;
-        // The default creak clips are seconds long; play a short faded slice from a random point.
-        private const float CreakSlice = 0.9f;
+        private const float EffectLifetime = 4f;
 
         private static bool s_initialized;
         private static AudioMixerGroup s_sfxGroup;
-        private static AudioClip[] s_splashClips;
-        private static AudioClip[] s_clashClips;
-        private static AudioClip[] s_creakClips;
+        private static AudioClip[] s_splash;
+        private static AudioClip[] s_runoff;
+        private static AudioClip[] s_drip;
+        private static AudioClip[] s_knock;
+        private static AudioClip[] s_clash;
+        private static AudioClip[] s_creak;
+        private static AudioClip[] s_sync;
         private static AudioClip s_tickClip;
         private static AudioSource s_tickSource;
-        // Sound prefabs that aren't registered in ZNetScene but hang off other prefabs (footsteps, ship effects).
+        private static GameObject s_splashEffect;
+        private static GameObject s_effectHolder;
+        // Effect prefabs that aren't registered in ZNetScene but hang off other prefabs (footsteps, ship effects).
         private static readonly Dictionary<string, GameObject> s_extraPrefabs = new Dictionary<string, GameObject>();
+        private static readonly Dictionary<string, string> s_extraSources = new Dictionary<string, string>();
 
         /// <summary>Finds the game's sounds once the prefabs are loaded. Safe to call every frame.</summary>
         private static bool EnsureInitialized()
@@ -54,13 +64,18 @@ namespace RowingMod
             s_initialized = true;
 
             CollectExtraPrefabs();
-            LogSoundCandidates();
+            LogCandidates();
 
-            s_splashClips = LoadClips(RowingPlugin.SplashSound.Value, DefaultSplash, MakeSplash);
-            s_clashClips = LoadClips(RowingPlugin.ClashSound.Value, DefaultClash, () => MakeKnock("RowingMod_Clash", 420f, 0.09f, 0.55f));
-            s_creakClips = LoadClips(RowingPlugin.CreakSound.Value, DefaultCreak, MakeCreak);
+            s_splash = LoadClips(RowingPlugin.SplashSound.Value, DefaultSplash, MakeSplash);
+            s_runoff = LoadClips(RowingPlugin.RunoffSound.Value, DefaultRunoff, MakeSplash);
+            s_drip = LoadClips(RowingPlugin.DripSound.Value, DefaultDrip, MakeSplash);
+            s_knock = LoadClips(RowingPlugin.KnockSound.Value, DefaultKnock, () => MakeKnock("RowingMod_Knock", 520f, 0.05f, 0.4f));
+            s_clash = LoadClips(RowingPlugin.ClashSound.Value, DefaultClash, () => MakeKnock("RowingMod_Clash", 420f, 0.09f, 0.55f));
+            s_creak = LoadClips(RowingPlugin.CreakSound.Value, DefaultCreak, MakeCreak);
+            s_sync = LoadClips(RowingPlugin.SyncSound.Value, DefaultSync, MakeSplash);
             s_tickClip = MakeKnock("RowingMod_Tick", 1250f, 0.035f, 0.25f);
             s_sfxGroup = FindSfxGroup();
+            s_splashEffect = FindSplashEffect();
 
             GameObject tickObject = new GameObject("RowingMod_Tick");
             Object.DontDestroyOnLoad(tickObject);
@@ -71,37 +86,52 @@ namespace RowingMod
             return true;
         }
 
-        /// <summary>A splash at the blade, louder for a strong stroke.</summary>
-        public static void PlaySplash(Vector3 position, bool strong)
+        /// <summary>
+        /// Everything a stroke sounds (and looks) like. <paramref name="strongOnBeat"/> is how many well-timed
+        /// strokes this beat has had so far, this one included; <paramref name="recovery"/> is when the blade lifts
+        /// out of the water (seconds from now); <paramref name="creak"/> allows a creak, with <paramref name="load"/>
+        /// (0..1) for how hard the crew pushes.
+        /// </summary>
+        public static void PlayStroke(Vector3 blade, Vector3 oarlock, bool strong, int strongOnBeat, float recovery, bool creak, float load)
         {
             if (!EnsureInitialized())
             {
                 return;
             }
-            bool generated = IsGenerated(RowingPlugin.SplashSound.Value);
-            float basePitch = generated ? 1f : SplashPitch;
             float volume = RowingPlugin.SplashVolume.Value * (strong ? 1f : 0.55f);
-            // Every splash differs a little: a random clip, pitch and volume...
-            PlayAt(Pick(s_splashClips), position, volume * Random.Range(0.85f, 1.1f), basePitch * Random.Range(0.9f, 1.1f), 0f, 0f, 0f);
-            // ...and half the time a quieter, higher second splash just after, like water running off the blade.
+
+            // The blade entering the water: a random clip, pitch and volume each time.
+            PlayAt(Pick(s_splash), blade, volume * Random.Range(0.8f, 1.05f), Random.Range(0.9f, 1.12f), 0f, 0f, 0f);
+            // Often, water running off a moment later: a soft slice of a longer after-splash.
             if (Random.value < 0.5f)
             {
-                PlayAt(Pick(s_splashClips), position, volume * Random.Range(0.25f, 0.45f), basePitch * Random.Range(1.3f, 1.6f),
-                    0f, 0f, Random.Range(0.08f, 0.2f));
+                PlaySlice(s_runoff, blade, volume * Random.Range(0.25f, 0.4f), Random.Range(0.95f, 1.15f), 0.7f, Random.Range(0.1f, 0.25f));
             }
-        }
-
-        /// <summary>
-        /// A soft knock of the oar in its oarlock as it swings back, on some strokes only and at a random volume.
-        /// </summary>
-        public static void MaybePlayOarlock(Vector3 position, float delay)
-        {
-            if (!EnsureInitialized() || Random.value > 0.4f)
+            // Crew in sync: each stroke that lands on a beat others hit adds a deeper splash, so a synced crew
+            // sounds fuller than the same strokes scattered.
+            if (strong && strongOnBeat >= 2)
             {
-                return;
+                float fullness = Mathf.Min(0.6f, 0.25f + 0.1f * (strongOnBeat - 1));
+                PlayAt(Pick(s_sync), blade, RowingPlugin.SplashVolume.Value * fullness, Random.Range(0.78f, 0.9f), 0f, 0f, Random.Range(0f, 0.04f));
             }
-            PlayAt(Pick(s_clashClips), position, RowingPlugin.SplashVolume.Value * Random.Range(0.15f, 0.3f),
-                Random.Range(1.2f, 1.5f), 0f, 0f, delay);
+            // As the blade lifts out on the recovery: sometimes drips, sometimes a knock of the oar in its oarlock.
+            if (Random.value < 0.6f)
+            {
+                PlaySlice(s_drip, blade, volume * Random.Range(0.12f, 0.22f), Random.Range(1.0f, 1.25f), 0.6f, recovery + Random.Range(0.05f, 0.2f));
+            }
+            if (Random.value < 0.4f)
+            {
+                PlayAt(Pick(s_knock), oarlock, RowingPlugin.SplashVolume.Value * Random.Range(0.15f, 0.3f), Random.Range(1.05f, 1.3f),
+                    0f, 0f, recovery + Random.Range(0f, 0.1f));
+            }
+            // Wood straining under a strong stroke, on most strokes but not all, louder when the crew pushes hard.
+            if (strong && creak && RowingPlugin.CreakVolume.Value > 0f && Random.value < 0.6f)
+            {
+                float creakVolume = RowingPlugin.CreakVolume.Value * Mathf.Lerp(0.5f, 1f, Mathf.Clamp01(load));
+                PlaySlice(s_creak, oarlock, creakVolume, Random.Range(0.9f, 1.1f), 0.9f, 0f);
+            }
+
+            ShowSplash(blade, strong);
         }
 
         /// <summary>A wooden thud: an oar clashing with the crew's rhythm.</summary>
@@ -111,28 +141,8 @@ namespace RowingMod
             {
                 return;
             }
-            PlayAt(Pick(s_clashClips), position, RowingPlugin.SplashVolume.Value, Random.Range(0.95f, 1.05f), 0f, 0f, 0f);
-        }
-
-        /// <summary>
-        /// Wood straining under a strong stroke, on most strokes but not all; <paramref name="load"/> (0..1) is how
-        /// hard the crew pushes. Each creak is a random slice of a random clip.
-        /// </summary>
-        public static void MaybePlayCreak(Vector3 position, float load)
-        {
-            if (!EnsureInitialized() || RowingPlugin.CreakVolume.Value <= 0f || Random.value > 0.6f)
-            {
-                return;
-            }
-            AudioClip clip = Pick(s_creakClips);
-            if (clip == null)
-            {
-                return;
-            }
-            float volume = RowingPlugin.CreakVolume.Value * Mathf.Lerp(0.5f, 1f, Mathf.Clamp01(load));
-            float length = Mathf.Min(CreakSlice, clip.length);
-            float start = Random.Range(0f, Mathf.Max(0f, clip.length - length));
-            PlayAt(clip, position, volume, Random.Range(0.9f, 1.1f), start, length, 0f);
+            PlayAt(Pick(s_clash), position, RowingPlugin.SplashVolume.Value, Random.Range(0.95f, 1.05f), 0f, 0f, 0f);
+            ShowSplash(position, strong: false);
         }
 
         /// <summary>The ship's beat, heard only by the local seated rower.</summary>
@@ -150,9 +160,22 @@ namespace RowingMod
             return clips != null && clips.Length > 0 ? clips[Random.Range(0, clips.Length)] : null;
         }
 
+        /// <summary>Plays a random slice (at most <paramref name="length"/> seconds) from a random clip of a set.</summary>
+        private static void PlaySlice(AudioClip[] clips, Vector3 position, float volume, float pitch, float length, float delay)
+        {
+            AudioClip clip = Pick(clips);
+            if (clip == null)
+            {
+                return;
+            }
+            float slice = Mathf.Min(length, clip.length);
+            float start = Random.Range(0f, Mathf.Max(0f, clip.length - slice));
+            PlayAt(clip, position, volume, pitch, start, slice, delay);
+        }
+
         /// <summary>
         /// Plays a clip at a position (3D) after <paramref name="delay"/> seconds. With a <paramref name="length"/>
-        /// above zero it plays only that slice, starting at <paramref name="start"/> seconds, and fades out at the end.
+        /// above zero it plays only that slice, starting at <paramref name="start"/> seconds, faded in and out.
         /// </summary>
         private static void PlayAt(AudioClip clip, Vector3 position, float volume, float pitch, float start, float length, float delay)
         {
@@ -177,15 +200,16 @@ namespace RowingMod
             float playSeconds = (length > 0f ? length : clip.length - start) / Mathf.Max(0.1f, pitch);
             if (length > 0f)
             {
-                sound.AddComponent<FadeOut>().Begin(source, playSeconds, delay);
+                sound.AddComponent<SliceFade>().Begin(source, playSeconds, delay);
             }
             Object.Destroy(sound, delay + playSeconds + 0.1f);
         }
 
         /// <summary>Fades a sound slice in quickly and out at its end, so a cut from a longer clip doesn't click.</summary>
-        private class FadeOut : MonoBehaviour
+        private class SliceFade : MonoBehaviour
         {
-            private const float Fade = 0.15f;
+            private const float FadeIn = 0.05f;
+            private const float FadeOut = 0.15f;
             private AudioSource m_source;
             private float m_volume;
             private float m_length;
@@ -207,10 +231,60 @@ namespace RowingMod
                     return;
                 }
                 float t = Time.time - m_start;
-                float fadeIn = Mathf.Clamp01(t / 0.05f);
-                float fadeOut = Mathf.Clamp01((m_length - t) / Fade);
-                m_source.volume = m_volume * Mathf.Min(fadeIn, fadeOut);
+                m_source.volume = m_volume * Mathf.Min(Mathf.Clamp01(t / FadeIn), Mathf.Clamp01((m_length - t) / FadeOut));
             }
+        }
+
+        /// <summary>
+        /// Water spray at the blade: the particles of a game water effect (UI.SplashEffect) without its sound,
+        /// since the sounds above are played separately. Smaller for a weak stroke.
+        /// </summary>
+        private static void ShowSplash(Vector3 position, bool strong)
+        {
+            if (s_splashEffect == null || !RowingPlugin.ShowSplashes.Value)
+            {
+                return;
+            }
+            // Instantiate under an inactive holder so the effect's own components don't wake up (and play their
+            // sound) before the sound components are removed.
+            GameObject effect = Object.Instantiate(s_splashEffect, s_effectHolder.transform);
+            foreach (ZSFX sfx in effect.GetComponentsInChildren<ZSFX>(includeInactive: true))
+            {
+                Object.DestroyImmediate(sfx);
+            }
+            foreach (AudioSource source in effect.GetComponentsInChildren<AudioSource>(includeInactive: true))
+            {
+                Object.DestroyImmediate(source);
+            }
+            effect.transform.SetParent(null, worldPositionStays: false);
+            effect.transform.position = position;
+            effect.transform.localScale *= strong ? 1f : 0.7f;
+            Object.Destroy(effect, EffectLifetime);
+        }
+
+        /// <summary>
+        /// The splash effect prefab, if it has particles and isn't networked (instantiating a networked prefab
+        /// would create a world object for everyone).
+        /// </summary>
+        private static GameObject FindSplashEffect()
+        {
+            string setting = RowingPlugin.SplashEffect.Value?.Trim();
+            string name = string.IsNullOrEmpty(setting) ? DefaultSplashEffect : setting;
+            GameObject prefab = FindPrefab(name);
+            if (prefab == null || prefab.GetComponentInChildren<ParticleSystem>(includeInactive: true) == null)
+            {
+                RowingPlugin.Log.LogWarning($"Splash effect '{name}' not found or has no particles; no visible splash");
+                return null;
+            }
+            if (prefab.GetComponent<ZNetView>() != null)
+            {
+                RowingPlugin.Log.LogWarning($"Splash effect '{name}' is a networked object; no visible splash");
+                return null;
+            }
+            s_effectHolder = new GameObject("RowingMod_EffectHolder");
+            s_effectHolder.SetActive(false);
+            Object.DontDestroyOnLoad(s_effectHolder);
+            return prefab;
         }
 
         private static bool IsGenerated(string setting)
@@ -219,21 +293,44 @@ namespace RowingMod
         }
 
         /// <summary>
-        /// The clips for one sound setting: the named game prefab (or the default when the setting is empty), or the
-        /// generated stand-in when the setting says "generated" or the prefab can't be found.
+        /// The clips for one sound setting: the clips of every named game prefab (comma-separated; empty means the
+        /// default), or a generated stand-in when the setting says "generated" or nothing usable is found.
         /// </summary>
-        private static AudioClip[] LoadClips(string setting, string fallbackName, System.Func<AudioClip> generate)
+        private static AudioClip[] LoadClips(string setting, string defaultNames, System.Func<AudioClip> generate)
         {
             if (!IsGenerated(setting))
             {
-                string name = string.IsNullOrEmpty(setting?.Trim()) ? fallbackName : setting.Trim();
-                GameObject prefab = FindPrefab(name);
-                ZSFX sfx = prefab != null ? prefab.GetComponentInChildren<ZSFX>(includeInactive: true) : null;
-                if (sfx != null && sfx.m_audioClips != null && sfx.m_audioClips.Length > 0)
+                string names = string.IsNullOrEmpty(setting?.Trim()) ? defaultNames : setting;
+                List<AudioClip> clips = new List<AudioClip>();
+                foreach (string part in names.Split(','))
                 {
-                    return sfx.m_audioClips;
+                    string name = part.Trim();
+                    if (name.Length == 0)
+                    {
+                        continue;
+                    }
+                    GameObject prefab = FindPrefab(name);
+                    ZSFX sfx = prefab != null ? prefab.GetComponentInChildren<ZSFX>(includeInactive: true) : null;
+                    if (sfx != null && sfx.m_audioClips != null && sfx.m_audioClips.Length > 0)
+                    {
+                        foreach (AudioClip clip in sfx.m_audioClips)
+                        {
+                            if (clip != null)
+                            {
+                                clips.Add(clip);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        RowingPlugin.Log.LogWarning($"Sound '{name}' not found or has no clips");
+                    }
                 }
-                RowingPlugin.Log.LogWarning($"Sound '{name}' not found or has no clips; using a generated sound");
+                if (clips.Count > 0)
+                {
+                    return clips.ToArray();
+                }
+                RowingPlugin.Log.LogWarning($"No usable sounds in '{names}'; using a generated sound");
             }
             return new[] { generate() };
         }
@@ -254,7 +351,7 @@ namespace RowingMod
         /// </summary>
         private static AudioMixerGroup FindSfxGroup()
         {
-            foreach (string name in new[] { DefaultSplash, DefaultClash })
+            foreach (string name in new[] { "sfx_wood_blocked", "sfx_land_water" })
             {
                 GameObject prefab = FindPrefab(name);
                 AudioSource source = prefab != null ? prefab.GetComponentInChildren<AudioSource>(includeInactive: true) : null;
@@ -292,8 +389,8 @@ namespace RowingMod
         }
 
         /// <summary>
-        /// Sound prefabs referenced by the player (footsteps, water effects) and the ships (water impact, sail
-        /// change), which aren't all registered in ZNetScene. Keyed by name so the Sounds.* settings can use them.
+        /// Effect prefabs referenced by the player (footsteps, water effects) and the ships (water impact, sail
+        /// change), which aren't all registered in ZNetScene. Keyed by name so the settings can use them.
         /// </summary>
         private static void CollectExtraPrefabs()
         {
@@ -329,8 +426,6 @@ namespace RowingMod
             }
         }
 
-        private static readonly Dictionary<string, string> s_extraSources = new Dictionary<string, string>();
-
         private static void AddExtra(EffectList effects, string source)
         {
             if (effects?.m_effectPrefabs == null)
@@ -345,30 +440,32 @@ namespace RowingMod
 
         private static void AddExtra(GameObject prefab, string source)
         {
-            if (prefab == null || prefab.GetComponentInChildren<ZSFX>(includeInactive: true) == null)
+            if (prefab == null || s_extraPrefabs.ContainsKey(prefab.name))
             {
                 return;
             }
-            if (!s_extraPrefabs.ContainsKey(prefab.name))
+            if (prefab.GetComponentInChildren<ZSFX>(includeInactive: true) == null
+                && prefab.GetComponentInChildren<ParticleSystem>(includeInactive: true) == null)
             {
-                s_extraPrefabs[prefab.name] = prefab;
-                s_extraSources[prefab.name] = source;
+                return;
             }
+            s_extraPrefabs[prefab.name] = prefab;
+            s_extraSources[prefab.name] = source;
         }
 
         /// <summary>
-        /// Lists the game's sound prefabs that might suit rowing, with their clips, once per session, so better
-        /// sounds can be chosen for the Sounds.* settings.
+        /// Lists the game's sounds and particle effects that might suit rowing, once per session, so better ones
+        /// can be chosen for the Sounds.* and UI.SplashEffect settings.
         /// </summary>
-        private static void LogSoundCandidates()
+        private static void LogCandidates()
         {
             if (!RowingPlugin.LogSoundCandidates.Value)
             {
                 return;
             }
             string[] keywords = { "water", "splash", "swim", "wave", "paddle", "oar", "boat", "ship", "drum", "wood", "knock",
-                "bubble", "fish", "creak", "squeak", "strain", "stress", "rope", "bend", "door", "chest", "crack" };
-            StringBuilder log = new StringBuilder("Sound candidates for rowing (Sounds.SplashSound, ClashSound, CreakSound):");
+                "bubble", "fish", "creak", "squeak", "strain", "stress", "rope", "bend", "door", "chest", "crack", "spray", "drip" };
+            StringBuilder log = new StringBuilder("Sound and effect candidates for rowing (Sounds.*, UI.SplashEffect):");
             int count = 0;
             foreach (GameObject prefab in AllPrefabs())
             {
@@ -377,16 +474,16 @@ namespace RowingMod
                     continue;
                 }
                 string name = prefab.name.ToLowerInvariant();
-                if (!name.Contains("sfx") || !ContainsAny(name, keywords))
+                if (!(name.StartsWith("sfx") || name.StartsWith("vfx") || name.StartsWith("fx")) || !ContainsAny(name, keywords))
                 {
                     continue;
                 }
-                AppendSound(log, prefab, null);
+                AppendCandidate(log, prefab, null);
                 count++;
             }
             foreach (KeyValuePair<string, GameObject> extra in s_extraPrefabs)
             {
-                AppendSound(log, extra.Value, s_extraSources[extra.Key]);
+                AppendCandidate(log, extra.Value, s_extraSources[extra.Key]);
                 count++;
             }
             log.Append($"\n  ({count} found)");
@@ -405,7 +502,7 @@ namespace RowingMod
             return false;
         }
 
-        private static void AppendSound(StringBuilder log, GameObject prefab, string source)
+        private static void AppendCandidate(StringBuilder log, GameObject prefab, string source)
         {
             ZSFX sfx = prefab.GetComponentInChildren<ZSFX>(includeInactive: true);
             List<string> clips = new List<string>();
@@ -419,8 +516,11 @@ namespace RowingMod
                     }
                 }
             }
+            int particles = prefab.GetComponentsInChildren<ParticleSystem>(includeInactive: true).Length;
             string from = source != null ? $" [{source}]" : "";
-            log.Append($"\n  {prefab.name}{from}: {string.Join(", ", clips.ToArray())}");
+            string particleNote = particles > 0 ? $" [{particles} particle system(s)]" : "";
+            string networked = prefab.GetComponent<ZNetView>() != null ? " [networked]" : "";
+            log.Append($"\n  {prefab.name}{from}{particleNote}{networked}: {string.Join(", ", clips.ToArray())}");
         }
 
         /// <summary>A short wooden knock: two decaying tones and a click.</summary>

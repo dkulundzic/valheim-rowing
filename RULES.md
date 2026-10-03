@@ -38,7 +38,7 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
   - **Pressing elsewhere** gives an off-beat stroke: weak when rowing alone, a **clash** when others hit the beat (see section 5).
   - **Pressing again in the same beat** is mashing: it wastes stamina and gives no stroke. The marker turns grey once you've rowed on the current beat.
 
-**Oars:** every rowing bench has an oar. On an empty bench it's pulled in and stowed inside the hull; when someone sits down, it swings out and rests in the water. Each stroke swings it through the water and back. A crew in sync rows visibly together. Only players with the mod see the oars.
+**Oars:** every rowing bench has an oar. On an empty bench it's pulled in and stowed inside the hull; when someone sits down, it swings out and rests in the water. Each stroke swings it through the water and back. A crew in sync rows visibly together, and you can hear it: every oar splashes where it is, and a crew hitting the beat together sounds fuller and deeper. Wood creaks under strong strokes. Only players with the mod see and hear the oars.
 
 ## 3. Stamina
 
