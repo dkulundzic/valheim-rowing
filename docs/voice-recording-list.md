@@ -35,4 +35,4 @@ The voice sounds RowingMod needs, for recording on an iPhone (Voice Memos). Make
 
 ## Sending them
 
-AirDrop the memos to the Mac (they land in `~/Downloads`), then say the file names. Each take is cleaned (trimmed, denoised, levelled, EQ'd), and varied in pitch; you listen to them and pick the keepers before anything goes into the mod.
+AirDrop the memos to the Mac (they land in `~/Downloads`), then say the file names. Each take is cleaned (trimmed, denoised, levelled, EQ'd) and varied in pitch; you listen to them and pick the keepers before anything goes into the mod.
