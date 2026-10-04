@@ -53,6 +53,8 @@ namespace RowingMod
         internal static ConfigEntry<string> DrumSound;
         internal static ConfigEntry<KeyCode> DrumKey;
         internal static ConfigEntry<float> RestedDiscount;
+        internal static ConfigEntry<float> ColdFactor;
+        internal static ConfigEntry<float> FreezingFactor;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
@@ -87,6 +89,10 @@ namespace RowingMod
 
             StaminaPerStroke = Config.Bind("Stamina", "StaminaPerStroke", 6f,
                 "Stamina each stroke costs, including a wasted second press in the same beat.");
+            ColdFactor = Config.Bind("Stamina", "ColdFactor", 0.15f,
+                "Extra stamina cost for strokes and braking with the Cold debuff (0.15 = 15% more). 0 turns it off.");
+            FreezingFactor = Config.Bind("Stamina", "FreezingFactor", 0.3f,
+                "Extra stamina cost for strokes and braking with the Freezing debuff (replaces the Cold cost). 0 turns it off.");
             RestedDiscount = Config.Bind("Stamina", "RestedDiscount", 0.1f,
                 "Rowers with the Rested buff pay this fraction less stamina for strokes and braking (0.1 = 10% less).");
             HeadwindStaminaFactor = Config.Bind("Stamina", "HeadwindStaminaFactor", 1f,

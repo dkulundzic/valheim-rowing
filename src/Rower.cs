@@ -68,7 +68,7 @@ namespace RowingMod
                 return;
             }
 
-            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player);
+            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player) * ColdMultiplier(player, out _);
             if (!player.HaveStamina(cost))
             {
                 Show("Too tired to row");
@@ -104,7 +104,7 @@ namespace RowingMod
         private void UpdateBrake(Player player)
         {
             bool wanted = ZInput.GetKey(RowingPlugin.BrakeKey.Value, logWarning: false) && !IsTyping();
-            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * Time.deltaTime;
+            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * ColdMultiplier(player, out _) * Time.deltaTime;
             if (wanted && cost > 0f && !player.HaveStamina(cost))
             {
                 wanted = false;
@@ -258,6 +258,31 @@ namespace RowingMod
             return rested ? 1f - Mathf.Clamp01(RowingPlugin.RestedDiscount.Value) : 1f;
         }
 
+        /// <summary>
+        /// Cold bodies tire faster: with the Cold debuff strokes and braking cost Stamina.ColdFactor more, and with
+        /// Freezing Stamina.FreezingFactor more (Freezing replaces Cold).
+        /// </summary>
+        private static float ColdMultiplier(Player player, out string reason)
+        {
+            reason = null;
+            SEMan seman = player != null ? player.GetSEMan() : null;
+            if (seman == null)
+            {
+                return 1f;
+            }
+            if (seman.HaveStatusEffect(SEMan.s_statusEffectFreezing))
+            {
+                reason = "Freezing";
+                return 1f + Mathf.Max(0f, RowingPlugin.FreezingFactor.Value);
+            }
+            if (seman.HaveStatusEffect(SEMan.s_statusEffectCold))
+            {
+                reason = "Cold";
+                return 1f + Mathf.Max(0f, RowingPlugin.ColdFactor.Value);
+            }
+            return 1f;
+        }
+
         private static string RowHint()
         {
             return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake.";
@@ -355,6 +380,11 @@ namespace RowingMod
             if (staminaMultiplier > 1.05f)
             {
                 title += $"   Headwind: +{(staminaMultiplier - 1f) * 100f:0}% stamina";
+            }
+            float cold = ColdMultiplier(Player.m_localPlayer, out string coldReason);
+            if (cold > 1.005f)
+            {
+                title += $"   {coldReason}: +{(cold - 1f) * 100f:0}% stamina";
             }
             float rested = RestedMultiplier(Player.m_localPlayer);
             if (rested < 0.999f)
