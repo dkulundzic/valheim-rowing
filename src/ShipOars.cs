@@ -67,7 +67,47 @@ namespace RowingMod
             public float Sweep;
             // 0 = out in the water, 1 = stowed. Starts stowed so a freshly loaded ship doesn't animate.
             public float Stowed = 1f;
+            // The latest stroke, for the crew panel: its beat, what kind it turned out to be, and when.
+            public long StrokeBeat;
+            public StrokeKind Kind;
+            public float KindTime = -100f;
         }
+
+        public enum StrokeKind
+        {
+            None,
+            Strong,
+            Weak,
+            Clash,
+            Sync,
+        }
+
+        /// <summary>One rowing bench as the crew panel draws it, in ship space seen from above (x right, y = z forward).</summary>
+        public struct Bench
+        {
+            public Vector2 Seat;
+            public Vector2 OarFrom;
+            public Vector2 OarTo;
+            public Player Occupant;
+            public StrokeKind Kind;
+            public float KindAge;
+        }
+
+        // Hull outlines seen from above, per ship type: half-width of the gunwale every HullStep metres along the ship.
+        private const float HullStep = 0.25f;
+        private const float HullSearch = 15f;
+        private static readonly Dictionary<string, HullOutline> s_hulls = new Dictionary<string, HullOutline>();
+
+        public class HullOutline
+        {
+            public float MinZ;
+            public float MaxZ;
+            public float MaxHalfWidth;
+            public float[] HalfWidths; // at MinZ + i * HullStep
+            public Texture2D Texture;
+        }
+
+        private HullOutline m_hull;
 
         // Creaks come at most this often per ship, so a full crew doesn't creak on every oar at once.
         private const float CreakInterval = 0.7f;
@@ -83,12 +123,35 @@ namespace RowingMod
         }
 
         /// <summary>Called for every stroke the ship receives, from any rower including the local one.</summary>
-        public void OnStroke(long sender, bool strong, bool clash, int strongOnBeat)
+        public void OnStroke(long sender, bool strong, bool clash, int strongOnBeat, long beatMs)
         {
+            // A well-timed stroke on a beat others already hit makes all of them a sync, and turns any earlier
+            // off-beat stroke on that beat into a clash. The crew panel shows the upgrade.
+            if (strong && strongOnBeat >= 1)
+            {
+                foreach (Oar other in m_oars)
+                {
+                    if (other.StrokeBeat != beatMs)
+                    {
+                        continue;
+                    }
+                    if (other.Kind == StrokeKind.Weak)
+                    {
+                        other.Kind = StrokeKind.Clash;
+                    }
+                    else if (other.Kind == StrokeKind.Strong && strongOnBeat >= 2)
+                    {
+                        other.Kind = StrokeKind.Sync;
+                    }
+                }
+            }
             foreach (Oar oar in m_oars)
             {
                 if (oar.Occupant != null && OwnerOf(oar.Occupant) == sender)
                 {
+                    oar.StrokeBeat = beatMs;
+                    oar.Kind = clash ? StrokeKind.Clash : !strong ? StrokeKind.Weak : strongOnBeat >= 2 ? StrokeKind.Sync : StrokeKind.Strong;
+                    oar.KindTime = Time.time;
                     oar.SweepAtStrokeStart = oar.Sweep;
                     oar.StrokeStart = Time.time;
                     oar.Amplitude = strong ? 1f : WeakSweepFactor;
@@ -112,6 +175,131 @@ namespace RowingMod
                     return;
                 }
             }
+        }
+
+        /// <summary>The ship's rowing benches for the crew panel, with each oar projected from its real position.</summary>
+        public void GetBenches(List<Bench> benches)
+        {
+            benches.Clear();
+            foreach (Oar oar in m_oars)
+            {
+                Transform seat = oar.Seat.m_attachPoint != null ? oar.Seat.m_attachPoint : oar.Seat.transform;
+                Vector3 seatLocal = transform.InverseTransformPoint(seat.position);
+                Vector3 from = oar.Root.localPosition;
+                Vector3 to = transform.InverseTransformPoint(oar.Root.TransformPoint(new Vector3(oar.Outboard, 0f, 0f)));
+                benches.Add(new Bench
+                {
+                    Seat = new Vector2(seatLocal.x, seatLocal.z),
+                    OarFrom = new Vector2(from.x, from.z),
+                    OarTo = new Vector2(to.x, to.z),
+                    Occupant = oar.Occupant,
+                    Kind = oar.Kind,
+                    KindAge = Time.time - oar.KindTime,
+                });
+            }
+        }
+
+        /// <summary>
+        /// The hull seen from above, traced from the gunwale (shared per ship type), or null before the oars are
+        /// built. Includes a texture: dark translucent deck with a light outline, bow at the top.
+        /// </summary>
+        public HullOutline GetHull()
+        {
+            return m_hull;
+        }
+
+        private HullOutline TraceHull(Collider[] hullColliders, float probeY)
+        {
+            string key = name;
+            if (s_hulls.TryGetValue(key, out HullOutline cached))
+            {
+                return cached;
+            }
+            List<float> widths = new List<float>();
+            float minZ = float.NaN;
+            float lastZ = float.NaN;
+            for (float z = -HullSearch; z <= HullSearch; z += HullStep)
+            {
+                bool found = TryProbeGunwale(0f, z, 1f, probeY, hullColliders, out Vector3 gunwale);
+                if (!found)
+                {
+                    if (!float.IsNaN(minZ))
+                    {
+                        break; // past the bow
+                    }
+                    continue;
+                }
+                if (float.IsNaN(minZ))
+                {
+                    minZ = z;
+                }
+                widths.Add(Mathf.Abs(gunwale.x));
+                lastZ = z;
+            }
+            if (widths.Count < 2)
+            {
+                return null;
+            }
+            HullOutline hull = new HullOutline { MinZ = minZ, MaxZ = lastZ, HalfWidths = widths.ToArray() };
+            foreach (float width in widths)
+            {
+                hull.MaxHalfWidth = Mathf.Max(hull.MaxHalfWidth, width);
+            }
+            hull.Texture = DrawHull(hull);
+            s_hulls[key] = hull;
+            return hull;
+        }
+
+        public static float HalfWidthAt(HullOutline hull, float z)
+        {
+            float index = (z - hull.MinZ) / HullStep;
+            if (index < 0f || index > hull.HalfWidths.Length - 1)
+            {
+                return 0f;
+            }
+            int i = Mathf.Min((int)index, hull.HalfWidths.Length - 2);
+            return Mathf.Lerp(hull.HalfWidths[i], hull.HalfWidths[i + 1], index - i);
+        }
+
+        /// <summary>Renders the outline into a texture once: 32 pixels per metre, anti-aliased edges.</summary>
+        private static Texture2D DrawHull(HullOutline hull)
+        {
+            const float pixelsPerMetre = 32f;
+            const float outlinePixels = 2.5f;
+            int width = Mathf.CeilToInt(hull.MaxHalfWidth * 2f * pixelsPerMetre) + 4;
+            int height = Mathf.CeilToInt((hull.MaxZ - hull.MinZ) * pixelsPerMetre) + 4;
+            Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, mipChain: false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            Color clear = new Color(0f, 0f, 0f, 0f);
+            for (int py = 0; py < height; py++)
+            {
+                // Texture rows go up, so the bottom row is the stern (MinZ) and the top the bow.
+                float z = hull.MinZ + (py - 2 + 0.5f) / pixelsPerMetre;
+                float halfWidth = HalfWidthAt(hull, z) * pixelsPerMetre;
+                for (int px = 0; px < width; px++)
+                {
+                    float x = Mathf.Abs(px + 0.5f - width / 2f);
+                    float inside = halfWidth - x; // pixels from the edge, positive inside
+                    if (inside <= -1f || halfWidth <= 0f)
+                    {
+                        texture.SetPixel(px, py, clear);
+                        continue;
+                    }
+                    float coverage = Mathf.Clamp01(inside + 0.5f);
+                    float edge = Mathf.Clamp01(outlinePixels - inside);
+                    Color fill = new Color(0.05f, 0.05f, 0.05f, 0.55f);
+                    Color line = new Color(1f, 1f, 1f, 0.9f);
+                    Color color = Color.Lerp(fill, line, edge);
+                    color.a *= coverage;
+                    texture.SetPixel(px, py, color);
+                }
+            }
+            texture.Apply();
+            return texture;
         }
 
         private static long OwnerOf(Player player)
@@ -207,6 +395,16 @@ namespace RowingMod
                 m_oars.Add(oar);
                 RowingPlugin.Log.LogInfo($"  {chair.name}: seat {local.x:0.00}, {local.y:0.00}, {local.z:0.00}; oarlock {oarlock.x:0.00}, {oarlock.y:0.00}, {oarlock.z:0.00}; stowed pivot {oar.StowPosition.x:0.00}, {oar.StowPosition.y:0.00}, {oar.StowPosition.z:0.00}; oar {Inboard + oar.Outboard:0.0} m");
             }
+            float probeY = 0f;
+            foreach (Chair chair in GetComponentsInChildren<Chair>(includeInactive: true))
+            {
+                if (ShipRowing.IsRowingSeat(chair))
+                {
+                    probeY = transform.InverseTransformPoint(chair.transform.position).y;
+                    break;
+                }
+            }
+            m_hull = TraceHull(hullColliders, probeY);
             string materialName = material != null ? material.name : "none";
             RowingPlugin.Log.LogInfo($"{name}: built {m_oars.Count} oar(s) with material {materialName}");
         }

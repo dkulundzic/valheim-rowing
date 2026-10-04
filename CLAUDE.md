@@ -57,6 +57,13 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Spray** (`UI.ShowSplashes`, `UI.SplashEffect`, default `fx_footstep_water`): the prefab's particles, with its ZSFX and AudioSources removed. It's instantiated under an inactive holder so the effect's own sound never wakes, and skipped if the prefab is networked or has no particles.
   - **Discovery:** `Debug.LogSoundCandidates` logs candidate sfx/vfx/fx prefabs once per session, with clips, particle counts and whether they're networked, including footstep, water and ship effect prefabs.
   - **Generated clips** use `AudioClip.Create` with a PCM reader callback, because Unity 6's `SetData` has a `ReadOnlySpan` overload that net48 can't compile against.
+- `src/CrewPanel.cs`: a top-down ship view in the bottom-right corner, for rowers on a bench and the helmsman (`Player.GetControlledShip`).
+  - **Hull:** the outline is traced per ship type from gunwale probes (`ShipOars.TraceHull`) and rendered once into a texture. It pulses on each beat.
+  - **Benches:** empty rings, occupied discs, and a stroke flash coloured green (strong), yellow (weak), red (clash) or gold (sync). Kinds upgrade as later strokes for the same beat arrive, in `ShipOars.OnStroke`. Your own bench has a white ring.
+  - **Mini oars** are projected from the real 3D oars (`ShipOars.GetBenches`).
+  - **Also:** a crew-boost bar along the centre line, and a footer with "Crew boost N%" and "In sync ×N".
+  - Config: `UI.ShowCrewPanel`, and `UI.CrewNames` (off by default).
+- `src/RowingUI.cs`: IMGUI scaling and helpers. All mod UI draws in virtual pixels scaled by `UI.Scale` (0 = automatic, `Screen.height / 1080`, at least 1). `DrawLine` builds its own rotation matrix, because `GUIUtility.RotateAroundPivot` takes the pivot in unscaled pixels.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.

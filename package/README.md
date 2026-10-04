@@ -59,6 +59,9 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Crew.SyncBonusPerRower` | 0.15 | Bonus per extra rower hitting the same beat. |
 | `Crew.MaxSyncBonus` | 0.45 | Largest sync bonus. |
 | `Crew.ClashBrake` | 0.2 | Braking from an off-beat stroke when others hit the beat. |
+| `UI.Scale` | 0 | Size of the stroke bar, messages and crew panel. 0 is automatic (fits the screen; 1 at 1080p). |
+| `UI.ShowCrewPanel` | true | Show the crew panel (top-down ship with its rowers) in the bottom-right corner while rowing or steering. |
+| `UI.CrewNames` | false | Show player names next to the benches in the crew panel. |
 | `UI.BarOffset` | 0 | Extra pixels to raise the stroke bar. |
 | `UI.ShowOars` | true | Show an oar at every rowing seat, swinging with each stroke. |
 | `Sounds.SplashVolume` | 0.8 | Volume of the stroke splash, clash and oarlock knock; weak strokes are quieter. |

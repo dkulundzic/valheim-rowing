@@ -296,17 +296,30 @@ namespace RowingMod
             {
                 return;
             }
+            Matrix4x4 previousMatrix = RowingUI.BeginScaled();
+            try
+            {
+                DrawStrokeUI();
+            }
+            finally
+            {
+                GUI.matrix = previousMatrix;
+            }
+        }
 
+        /// <summary>The stroke bar, its labels and the snackbar, in virtual pixels (see RowingUI).</summary>
+        private void DrawStrokeUI()
+        {
             const float width = 320f;
             const float height = 16f;
-            float x = (Screen.width - width) / 2f;
-            float textX = (Screen.width - TextWidth) / 2f;
+            float x = (RowingUI.Width - width) / 2f;
+            float textX = (RowingUI.Width - TextWidth) / 2f;
             GUIStyle style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false };
 
             // Stack from the bottom up, measuring each text line, so nothing overlaps whatever the font size:
             // message line (space kept even when empty, so the bar doesn't jump), bar, title, snackbar.
             float messageHeight = style.CalcHeight(new GUIContent("Ag"), TextWidth);
-            float messageY = GetHudBarsTop() - BarGap - RowingPlugin.BarOffset.Value - messageHeight;
+            float messageY = GetHudBarsTop() / RowingUI.Scale - BarGap - RowingPlugin.BarOffset.Value - messageHeight;
             // The marker sticks out 4 px above and below the bar.
             float y = messageY - StackGap - 4f - height;
 
@@ -395,7 +408,7 @@ namespace RowingMod
             float bodyHeight = bodyStyle.CalcHeight(new GUIContent(m_toastBody), textWidth);
             float height = ToastPadding + titleHeight + bodyHeight + ToastPadding;
 
-            Rect panel = new Rect((Screen.width - ToastWidth) / 2f, bottom - height - slide, ToastWidth, height);
+            Rect panel = new Rect((RowingUI.Width - ToastWidth) / 2f, bottom - height - slide, ToastWidth, height);
             DrawRect(panel, new Color(0f, 0f, 0f, 0.7f * alpha));
             DrawRect(new Rect(panel.x, panel.y, 4f, panel.height), new Color(0.3f, 0.8f, 0.3f, alpha));
 
@@ -408,7 +421,7 @@ namespace RowingMod
         }
 
         /// <summary>
-        /// Top edge, in GUI coordinates (y down), of the game's stamina, eitr and adrenaline bars,
+        /// Top edge, in screen pixels with y down (divide by RowingUI.Scale for virtual pixels), of the game's stamina, eitr and adrenaline bars,
         /// which sit at the bottom centre and stack when shown. Falls back to a fixed height without a HUD.
         /// </summary>
         private static float GetHudBarsTop()

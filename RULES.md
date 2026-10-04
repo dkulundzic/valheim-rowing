@@ -92,7 +92,19 @@ Solo rowing is meant to be hard work. A crew in sync is far stronger than the sa
   - **Easiest rule: the whole crew installs the mod.**
 - **The owner's settings decide.** If someone changes their config, ships they own row differently. Keep the defaults to keep it fair.
 
-## 7. Messages you'll see
+## 7. The crew panel
+
+While you row or steer, a small top-down view of the ship sits in the bottom-right corner:
+
+- **Benches:** a dim ring is an empty bench, and a disc is a rower. After each stroke the disc flashes **green** (strong), **yellow** (weak), **red** (clash) or **gold** (in sync with others). Your own bench has a white ring.
+- **Oars:** little oars swing just like the real ones, and stowed oars lie inside the hull.
+- **Crew boost:** the blue bar along the middle fills with the crew's push.
+- **The beat:** the ship's outline pulses on every beat, so you can see the rhythm even with the tick off.
+- **Footer:** the crew's boost, and "In sync ×N" when N rowers hit the same beat.
+
+The helmsman sees the panel too, which shows who's rowing and who's in time.
+
+## 8. Messages you'll see
 
 | Message | Meaning |
 |---|---|

@@ -31,6 +31,9 @@ namespace RowingMod
         internal static ConfigEntry<float> ClashBrake;
         internal static ConfigEntry<float> BarOffset;
         internal static ConfigEntry<bool> ShowOars;
+        internal static ConfigEntry<float> UIScale;
+        internal static ConfigEntry<bool> ShowCrewPanel;
+        internal static ConfigEntry<bool> CrewNames;
         internal static ConfigEntry<string> SplashSound;
         internal static ConfigEntry<float> SplashVolume;
         internal static ConfigEntry<string> RunoffSound;
@@ -85,6 +88,12 @@ namespace RowingMod
 
             BarOffset = Config.Bind("UI", "BarOffset", 0f,
                 "Extra pixels to raise the stroke bar above the stamina bar. Negative values lower it.");
+            UIScale = Config.Bind("UI", "Scale", 0f,
+                "Size of the stroke bar, messages and crew panel. 0 is automatic (scaled for the screen height, 1 at 1080p); e.g. 1.5 makes them 50% bigger than at 1080p.");
+            ShowCrewPanel = Config.Bind("UI", "ShowCrewPanel", true,
+                "Show the crew panel (a top-down view of the ship with its rowers) in the bottom-right corner while you row or steer.");
+            CrewNames = Config.Bind("UI", "CrewNames", false,
+                "Show player names next to the benches in the crew panel.");
             ShowOars = Config.Bind("UI", "ShowOars", true,
                 "Show an oar beside every rowing seat, resting in the water and swinging with each stroke. Only players with the mod see them.");
 
@@ -119,6 +128,7 @@ namespace RowingMod
                 "Log the game's water, splash and wood sounds once per session, to pick a SplashSound.");
 
             gameObject.AddComponent<Rower>();
+            gameObject.AddComponent<CrewPanel>();
             new Harmony(Guid).PatchAll();
             Log.LogInfo($"{Name} {Version} loaded");
         }

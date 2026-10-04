@@ -265,7 +265,7 @@ namespace RowingMod
             strokes.StrongBySender[sender] = strong;
             // An off-beat stroke on a beat someone already hit is a clash (as far as this client knows yet).
             int strongOnBeat = strokes.StrongCount;
-            m_oars?.OnStroke(sender, strong, clash: !strong && strongOnBeat > 0, strongOnBeat);
+            m_oars?.OnStroke(sender, strong, clash: !strong && strongOnBeat > 0, strongOnBeat, beatMs);
 
             if (m_nview.IsOwner())
             {
