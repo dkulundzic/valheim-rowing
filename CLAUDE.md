@@ -69,6 +69,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.
 - `.tools/ilspycmd`: decompiler, version 8.2.0.7535. Newer versions don't install on .NET 8.
 - `RULES.md`: plain-language rules for players, with the default numbers. Keep it in sync when rules or defaults change.
+- `docs/proposals/`: agreed designs not yet built (e.g. `oar-braking.md`).
 - `package/`: Thunderstore files: `manifest.json`, `README.md` (player-facing) and `icon.png`. `make_icon.py` regenerates the icon with Pillow.
 - `package.sh`: builds Release and writes `dist/RowingMod-<version>.zip` (not committed).
 
@@ -136,7 +137,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
     - stowed oars in the panel are thin and faint;
     - oar room is 1.2 m, with oars clipped at the panel edge (`RowingUI.ClipLine`), so the hull is bigger;
     - the boost bar is outlined.
-- [ ] **Next, 1.1.0:** decide on oar braking (proposal: hold J, drag grows with speed, about 3 stamina/s, optional one-sided turning; questions still open), then release 1.1.0, bundling everything since 1.0.0; 1.0.1 was never published.
+- [ ] **Next, 1.1.0:** first discuss showing the helmsman on the crew panel (no oar). Then implement oar braking as agreed in `docs/proposals/oar-braking.md`; its strength gets tuned by playtest. Then release 1.1.0, bundling everything since 1.0.0; 1.0.1 was never published.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.
 - [x] Playtested on the crew server: rules, headwind stamina and the stroke bar layout all work.
