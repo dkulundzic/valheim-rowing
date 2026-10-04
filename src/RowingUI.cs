@@ -125,6 +125,44 @@ namespace RowingMod
             GUI.matrix = previous;
         }
 
+        /// <summary>A filled, anti-aliased white diamond (a square on its corner), to tint with GUI.color.</summary>
+        public static Texture2D Diamond => s_diamond ?? (s_diamond = MakeDiamond(64, 0f));
+
+        /// <summary>An anti-aliased white diamond outline, to tint with GUI.color.</summary>
+        public static Texture2D DiamondRing => s_diamondRing ?? (s_diamondRing = MakeDiamond(64, 0.22f));
+
+        private static Texture2D s_diamond;
+        private static Texture2D s_diamondRing;
+
+        private static Texture2D MakeDiamond(int size, float holeFraction)
+        {
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            float radius = size / 2f;
+            float hole = radius * (1f - holeFraction);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    // Distance in the diamond's own metric (|x| + |y|), scaled so the edge is anti-aliased by a pixel.
+                    float distance = (Mathf.Abs(x + 0.5f - radius) + Mathf.Abs(y + 0.5f - radius)) / 1.4142f;
+                    float edge = radius / 1.4142f;
+                    float alpha = Mathf.Clamp01(edge - distance);
+                    if (holeFraction > 0f)
+                    {
+                        alpha *= Mathf.Clamp01(distance - hole / 1.4142f);
+                    }
+                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+            texture.Apply();
+            return texture;
+        }
+
         /// <summary>A filled, anti-aliased white disc, to tint with GUI.color.</summary>
         public static Texture2D Disc => s_disc ?? (s_disc = MakeCircle(64, 0f));
 

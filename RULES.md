@@ -100,7 +100,8 @@ While you row or steer, a small top-down view of the ship sits in the bottom-rig
 - **Oars:** little oars swing just like the real ones, and stowed oars lie inside the hull.
 - **Crew boost:** the blue bar along the middle fills with the crew's push.
 - **The beat:** the ship's outline pulses on every beat, so you can see the rhythm even with the tick off.
-- **Footer:** the crew's boost, and "In sync ×N" when N rowers hit the same beat.
+- **Helmsman:** a diamond at the helm, with no oar. It's an outline when nobody steers and filled when someone does, with a white ring when it's you.
+- **Footer:** the ship's speed setting and the crew's boost (e.g. "Half sail · Crew boost 40%"), and "In sync ×N" when N rowers hit the same beat.
 
 The helmsman sees the panel too, which shows who's rowing and who's in time.
 

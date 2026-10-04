@@ -61,7 +61,8 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Hull:** the outline is traced per ship type from gunwale probes (`ShipOars.TraceHull`) and rendered once into a texture. It pulses on each beat.
   - **Benches:** empty rings, occupied discs, and a stroke flash coloured green (strong), yellow (weak), red (clash) or gold (sync). Kinds upgrade as later strokes for the same beat arrive, in `ShipOars.OnStroke`. Your own bench has a white ring.
   - **Mini oars** are projected from the real 3D oars (`ShipOars.GetBenches`).
-  - **Also:** a crew-boost bar along the centre line, and a footer with "Crew boost N%" and "In sync ×N".
+  - **Helm:** the helmsman is a diamond at `ShipControlls.m_attachPoint`, with no oar. It's an outline when empty and filled when steered (`HaveValidUser`/`GetUser`), with a white ring when it's you.
+  - **Also:** a crew-boost bar along the centre line, and a footer with the speed setting ("Paddling · Crew boost N%") and "In sync ×N".
   - Config: `UI.ShowCrewPanel`, and `UI.CrewNames` (off by default).
 - `src/RowingUI.cs`: IMGUI scaling and helpers. All mod UI draws in virtual pixels scaled by `UI.Scale` (0 = automatic, `Screen.height / 1080`, at least 1). `DrawLine` builds its own rotation matrix, because `GUIUtility.RotateAroundPivot` takes the pivot in unscaled pixels.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
@@ -137,7 +138,9 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
     - stowed oars in the panel are thin and faint;
     - oar room is 1.2 m, with oars clipped at the panel edge (`RowingUI.ClipLine`), so the hull is bigger;
     - the boost bar is outlined.
-- [ ] **Next, 1.1.0:** first discuss showing the helmsman on the crew panel (no oar). Then implement oar braking as agreed in `docs/proposals/oar-braking.md`; its strength gets tuned by playtest. Then release 1.1.0, bundling everything since 1.0.0; 1.0.1 was never published.
+- [ ] The helmsman diamond and the speed setting in the panel footer are built; the user will test them.
+- [ ] **Next, 1.1.0:** implement oar braking as agreed in `docs/proposals/oar-braking.md`; its strength gets tuned by playtest. Then release 1.1.0, bundling everything since 1.0.0; 1.0.1 was never published.
+- [ ] **To discuss after braking:** grunting or effort sounds for rowers. No voice sounds turned up in the game's sound list, so this may need bundled audio.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.
 - [x] Playtested on the crew server: rules, headwind stamina and the stroke bar layout all work.

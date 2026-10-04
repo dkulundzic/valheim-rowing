@@ -6,7 +6,8 @@ namespace RowingMod
     /// <summary>
     /// The crew panel: a top-down view of the ship in the bottom-right corner, for rowers and the helmsman. It
     /// shows each rowing bench (empty, occupied, and a flash for each stroke: strong, weak, clash or in sync), the
-    /// oars swinging as they really do, your own bench, the crew's boost and a pulse on each of the ship's beats.
+    /// oars swinging as they really do, the helmsman (a diamond at the helm, no oar), your own place, the ship's
+    /// speed setting, the crew's boost and a pulse on each of the ship's beats.
     /// Everything comes from data every client already has (broadcast strokes and seat occupancy).
     /// </summary>
     public class CrewPanel : MonoBehaviour
@@ -23,6 +24,8 @@ namespace RowingMod
         private const float FlashTime = 0.9f;
         private const float BenchSize = 12f;
         private const float LocalRingSize = 20f;
+        private const float HelmSize = 13f;
+        private const float LocalHelmRingSize = 21f;
 
         private static readonly Color Idle = new Color(0.85f, 0.85f, 0.85f, 0.95f);
         private static readonly Color Empty = new Color(0.8f, 0.8f, 0.8f, 0.45f);
@@ -52,7 +55,7 @@ namespace RowingMod
             Matrix4x4 previous = RowingUI.BeginScaled();
             try
             {
-                Draw(oars, rowing, hull);
+                Draw(ship, oars, rowing, hull);
             }
             finally
             {
@@ -89,7 +92,7 @@ namespace RowingMod
             return null;
         }
 
-        private void Draw(ShipOars oars, ShipRowing rowing, ShipOars.HullOutline hull)
+        private void Draw(Ship ship, ShipOars oars, ShipRowing rowing, ShipOars.HullOutline hull)
         {
             Rect panel = new Rect(RowingUI.Width - Margin - PanelWidth, RowingUI.Height - Margin - PanelHeight, PanelWidth, PanelHeight);
             RowingUI.DrawRect(panel, new Color(0f, 0f, 0f, 0.3f));
@@ -176,11 +179,14 @@ namespace RowingMod
                 }
             }
 
-            // Footer: the crew's boost and, right around a beat the crew hit together, how many were in sync.
-            GUIStyle footer = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false };
+            DrawHelm(ship, Map, nameStyle);
+
+            // Footer: the ship's speed setting and the crew's boost and, right around a beat the crew hit together,
+            // how many were in sync.
+            GUIStyle footer = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false, fontSize = 11, clipping = TextClipping.Overflow };
             float boost = rowing.GetSyncedBoost();
             Rect line1 = new Rect(panel.x, panel.yMax - Padding - FooterHeight, panel.width, FooterHeight / 2f);
-            RowingUI.Label(line1, $"Crew boost {boost * 100f:0}%", footer);
+            RowingUI.Label(line1, $"{SpeedSettingName(ship.GetSpeedSetting())} · Crew boost {boost * 100f:0}%", footer);
             long nearestMs = nowMs - beatMs <= periodMs / 2 ? beatMs : beatMs + periodMs;
             int inSync = rowing.GetStrongCount(nearestMs);
             if (inSync >= 2)
@@ -189,6 +195,58 @@ namespace RowingMod
                 GUI.color = SyncColor;
                 RowingUI.Label(new Rect(line1.x, line1.yMax, line1.width, line1.height), $"In sync ×{inSync}", footer);
                 GUI.color = previousColor;
+            }
+        }
+
+        /// <summary>
+        /// The helm: a diamond where the helmsman stands, without an oar. A dim outline when nobody steers, filled
+        /// when someone does, ringed when it's you. Who steers is synced by the game (ShipControlls.GetUser).
+        /// </summary>
+        private static void DrawHelm(Ship ship, System.Func<Vector2, Vector2> map, GUIStyle nameStyle)
+        {
+            ShipControlls helm = ship.GetComponentInChildren<ShipControlls>();
+            if (helm == null)
+            {
+                return;
+            }
+            Transform spot = helm.m_attachPoint != null ? helm.m_attachPoint : helm.transform;
+            Vector3 local = ship.transform.InverseTransformPoint(spot.position);
+            Vector2 position = map(new Vector2(local.x, local.z));
+
+            Player helmsman = helm.HaveValidUser() ? Player.GetPlayer(helm.GetUser()) : null;
+            if (helmsman == null)
+            {
+                RowingUI.DrawTexture(Centred(position, HelmSize), RowingUI.DiamondRing, Empty);
+                return;
+            }
+            RowingUI.DrawTexture(Centred(position, HelmSize), RowingUI.Diamond, Idle);
+            if (helmsman == Player.m_localPlayer)
+            {
+                RowingUI.DrawTexture(Centred(position, LocalHelmRingSize), RowingUI.DiamondRing, Color.white);
+            }
+            if (RowingPlugin.CrewNames.Value)
+            {
+                nameStyle.alignment = TextAnchor.MiddleLeft;
+                RowingUI.Label(new Rect(position.x + 12f, position.y - 9f, 120f, 18f), helmsman.GetPlayerName(), nameStyle);
+            }
+        }
+
+        private static string SpeedSettingName(Ship.Speed speed)
+        {
+            switch (speed)
+            {
+                case Ship.Speed.Stop:
+                    return "Stopped";
+                case Ship.Speed.Back:
+                    return "Backing";
+                case Ship.Speed.Slow:
+                    return "Paddling";
+                case Ship.Speed.Half:
+                    return "Half sail";
+                case Ship.Speed.Full:
+                    return "Full sail";
+                default:
+                    return speed.ToString();
             }
         }
 
