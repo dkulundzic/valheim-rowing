@@ -50,6 +50,7 @@ namespace RowingMod
         internal static ConfigEntry<bool> ShowSplashes;
         internal static ConfigEntry<float> CreakVolume;
         internal static ConfigEntry<float> DrumVolume;
+        internal static ConfigEntry<string> DrumSound;
         internal static ConfigEntry<KeyCode> DrumKey;
         internal static ConfigEntry<float> RestedDiscount;
         internal static ConfigEntry<bool> ShowWakes;
@@ -139,6 +140,8 @@ namespace RowingMod
                 "Volume of the stroke splash (0 to 1); weak strokes are quieter. Everyone nearby hears it.");
             DrumVolume = Config.Bind("Sounds", "DrumVolume", 0.8f,
                 "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
+            DrumSound = Config.Bind("Sounds", "DrumSound", "",
+                "The war drum's sound. Empty uses the recorded dundun drum shipped with the mod (sounds/dundun.wav); \"generated\" uses a drum made by the mod.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
                 "Show subtle wakes on the water where blades sweep through.");
             WakeEffect = Config.Bind("UI", "WakeEffect", "",

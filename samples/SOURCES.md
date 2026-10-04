@@ -255,3 +255,15 @@ Attribution text: none required for any file (all CC0). Optional courtesy credit
 | File | Dur (s) | Source page | Author | Licence | Original file | Cut (s) |
 |---|---|---|---|---|---|---|
 | `extra_crowd_rowing_fs-shangusburger-764157_1.wav` | 12.44 | https://freesound.org/people/ShangusBurger/sounds/764157/ | ShangusBurger | CC0 1.0 | freesound-previews/764157_ShangusBurger.mp3 (Freesound title: "CRWDBatl_Crowd Grunting, Exerting, Metered, Rowing_ShaneVincent_GSC24_MSDEC-MKH435-Spirit.wav") | 0.0-12.44 |
+
+## Drums (2026-10-04)
+
+All by JIMMYJAMES112 on Freesound: a dunun set (replicas from oil drums, and a carved sangban, with cow hide skins), sampled on a Roland SPD-SX. Downloaded as the public HQ MP3 previews (the originals need a login) to `originals/fs-jimmyjames112-dunun/`.
+
+| File | Page | License | Used |
+|---|---|---|---|
+| `170180` Dundunba.WAV | https://freesound.org/people/JIMMYJAMES112/sounds/170180/ | CC0 1.0 | **Yes:** `package/sounds/dundun.wav` (the war drum), tail trimmed below -60 dB, normalized to -1 dBFS |
+| `170177` Sangban.WAV | https://freesound.org/people/JIMMYJAMES112/sounds/170177/ | CC0 1.0 | Not yet |
+| `170178` Sangban mute.WAV | https://freesound.org/people/JIMMYJAMES112/sounds/170178/ | CC0 1.0 | Not yet |
+| `170179` Kenkeni.WAV | https://freesound.org/people/JIMMYJAMES112/sounds/170179/ | CC0 1.0 | Not yet |
+| `506467` Kenkeni_Mute.aiff | https://freesound.org/people/JIMMYJAMES112/sounds/506467/ | **CC BY-NC 4.0** | **No** (not CC0); deleted |

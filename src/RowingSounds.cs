@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -47,6 +48,9 @@ namespace RowingMod
         private static AudioClip[] s_sync;
         private static AudioClip s_drum;
         private static AudioClip s_drumAccent;
+        // The real drum: a dundunba hit shipped with the mod (sounds/dundun.wav), or null to use the generated drum.
+        private static AudioClip s_dundun;
+        public const string DundunFile = "dundun.wav";
         private static GameObject s_splashEffect;
         private static GameObject s_wakeEffect;
         private static GameObject s_effectHolder;
@@ -79,6 +83,10 @@ namespace RowingMod
             s_sync = LoadClips(RowingPlugin.SyncSound.Value, DefaultSync, MakeSplash);
             s_drum = MakeDrum("RowingMod_Drum", accent: false);
             s_drumAccent = MakeDrum("RowingMod_DrumAccent", accent: true);
+            if (!IsGenerated(RowingPlugin.DrumSound.Value))
+            {
+                s_dundun = LoadBundledWav(DundunFile);
+            }
             s_sfxGroup = FindSfxGroup();
 
             s_effectHolder = new GameObject("RowingMod_EffectHolder");
@@ -219,6 +227,13 @@ namespace RowingMod
                 return;
             }
             float volume = RowingPlugin.DrumVolume.Value * (accent ? 1f : 0.72f);
+            if (s_dundun != null)
+            {
+                // The accent is a touch deeper; the other beats vary slightly, like a hand that never hits quite the same.
+                float pitch = accent ? Random.Range(0.92f, 0.95f) : Random.Range(0.98f, 1.04f);
+                PlayAt(s_dundun, position, volume * Random.Range(0.92f, 1f), pitch, 0f, 0f, 0f, DrumMaxDistance);
+                return;
+            }
             PlayAt(accent ? s_drumAccent : s_drum, position, volume, Random.Range(0.97f, 1.03f), 0f, 0f, 0f, DrumMaxDistance);
         }
 
@@ -713,7 +728,90 @@ namespace RowingMod
         }
 
         /// <summary>
-        /// A war drum hit made in code, until a recorded drum replaces it: a deep tom whose pitch drops quickly,
+        /// Loads a sound shipped with the mod, from the "sounds" folder next to the mod's DLL: a PCM WAV file
+        /// (8/16/24/32-bit integer, any channels, mixed down to mono). Returns null if it's missing or unreadable.
+        /// </summary>
+        private static AudioClip LoadBundledWav(string fileName)
+        {
+            string folder = Path.Combine(Path.GetDirectoryName(typeof(RowingSounds).Assembly.Location) ?? "", "sounds");
+            string path = Path.Combine(folder, fileName);
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    RowingPlugin.Log.LogWarning($"Sound file {path} is missing; using a generated sound");
+                    return null;
+                }
+                byte[] bytes = File.ReadAllBytes(path);
+                if (bytes.Length < 44 || Encoding.ASCII.GetString(bytes, 0, 4) != "RIFF" || Encoding.ASCII.GetString(bytes, 8, 4) != "WAVE")
+                {
+                    RowingPlugin.Log.LogWarning($"Sound file {path} isn't a WAV file; using a generated sound");
+                    return null;
+                }
+                int channels = 0, sampleRate = 0, bits = 0, format = 0;
+                int position = 12;
+                while (position + 8 <= bytes.Length)
+                {
+                    string id = Encoding.ASCII.GetString(bytes, position, 4);
+                    int size = System.BitConverter.ToInt32(bytes, position + 4);
+                    int body = position + 8;
+                    if (id == "fmt ")
+                    {
+                        format = System.BitConverter.ToInt16(bytes, body);
+                        channels = System.BitConverter.ToInt16(bytes, body + 2);
+                        sampleRate = System.BitConverter.ToInt32(bytes, body + 4);
+                        bits = System.BitConverter.ToInt16(bytes, body + 14);
+                    }
+                    else if (id == "data")
+                    {
+                        if (format != 1 || channels < 1 || (bits != 8 && bits != 16 && bits != 24 && bits != 32))
+                        {
+                            RowingPlugin.Log.LogWarning($"Sound file {path} is format {format}, {bits}-bit; only integer PCM WAV works");
+                            return null;
+                        }
+                        int bytesPerSample = bits / 8;
+                        int frames = Mathf.Min(size, bytes.Length - body) / (bytesPerSample * channels);
+                        float[] samples = new float[frames];
+                        for (int frame = 0; frame < frames; frame++)
+                        {
+                            float sum = 0f;
+                            for (int channel = 0; channel < channels; channel++)
+                            {
+                                sum += ReadSample(bytes, body + (frame * channels + channel) * bytesPerSample, bits);
+                            }
+                            samples[frame] = sum / channels;
+                        }
+                        RowingPlugin.Log.LogInfo($"Loaded {fileName} ({frames / (float)sampleRate:0.00} s)");
+                        return MakeClip(Path.GetFileNameWithoutExtension(fileName), samples, sampleRate);
+                    }
+                    position = body + size + (size & 1);
+                }
+                RowingPlugin.Log.LogWarning($"Sound file {path} has no audio data; using a generated sound");
+            }
+            catch (System.Exception e)
+            {
+                RowingPlugin.Log.LogWarning($"Couldn't read sound file {path}: {e.Message}; using a generated sound");
+            }
+            return null;
+        }
+
+        private static float ReadSample(byte[] bytes, int offset, int bits)
+        {
+            switch (bits)
+            {
+                case 8:
+                    return (bytes[offset] - 128) / 128f;
+                case 16:
+                    return System.BitConverter.ToInt16(bytes, offset) / 32768f;
+                case 24:
+                    return (bytes[offset] | (bytes[offset + 1] << 8) | ((sbyte)bytes[offset + 2] << 16)) / 8388608f;
+                default:
+                    return System.BitConverter.ToInt32(bytes, offset) / 2147483648f;
+            }
+        }
+
+        /// <summary>
+        /// A war drum hit made in code (the fallback when the shipped drum is missing or Sounds.DrumSound is "generated"): a deep tom whose pitch drops quickly,
         /// an overtone, and a skin slap. The accent (first of four beats) is deeper and longer.
         /// </summary>
         private static AudioClip MakeDrum(string name, bool accent)
@@ -772,8 +870,13 @@ namespace RowingMod
         /// </summary>
         private static AudioClip MakeClip(string name, float[] samples)
         {
+            return MakeClip(name, samples, SampleRate);
+        }
+
+        private static AudioClip MakeClip(string name, float[] samples, int sampleRate)
+        {
             int position = 0;
-            return AudioClip.Create(name, samples.Length, 1, SampleRate, false,
+            return AudioClip.Create(name, samples.Length, 1, sampleRate, false,
                 data =>
                 {
                     for (int i = 0; i < data.Length; i++)

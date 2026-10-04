@@ -44,6 +44,11 @@
 
   <Target Name="CopyToBepInEx" AfterTargets="Build" Condition="Exists('$(ValheimDir)/BepInEx/plugins')">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ValheimDir)/BepInEx/plugins/RowingMod" />
+    <!-- Sounds shipped with the mod, loaded from a "sounds" folder next to the DLL. -->
+    <ItemGroup>
+      <ModSounds Include="package/sounds/*.wav" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ModSounds)" DestinationFolder="$(ValheimDir)/BepInEx/plugins/RowingMod/sounds" />
     <Message Importance="high" Text="Copied $(TargetFileName) to $(ValheimDir)/BepInEx/plugins/RowingMod" />
   </Target>
 
