@@ -68,7 +68,7 @@ namespace RowingMod
                 return;
             }
 
-            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player);
+            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player) * WeatherMultiplier(out _);
             if (!player.HaveStamina(cost))
             {
                 Show("Too tired to row");
@@ -104,7 +104,7 @@ namespace RowingMod
         private void UpdateBrake(Player player)
         {
             bool wanted = ZInput.GetKey(RowingPlugin.BrakeKey.Value, logWarning: false) && !IsTyping();
-            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * Time.deltaTime;
+            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * WeatherMultiplier(out _) * Time.deltaTime;
             if (wanted && cost > 0f && !player.HaveStamina(cost))
             {
                 wanted = false;
@@ -258,6 +258,31 @@ namespace RowingMod
             return rested ? 1f - Mathf.Clamp01(RowingPlugin.RestedDiscount.Value) : 1f;
         }
 
+        /// <summary>
+        /// Rough weather makes rowing harder: a storm (any weather whose name contains "Storm") adds
+        /// Stamina.StormFactor, and strong wind of any direction (which also raises the waves) adds up to
+        /// Stamina.RoughSeaFactor as it goes from 60% to full strength. The larger of the two applies.
+        /// </summary>
+        private static float WeatherMultiplier(out string reason)
+        {
+            reason = null;
+            EnvMan env = EnvMan.instance;
+            if (env == null)
+            {
+                return 1f;
+            }
+            EnvSetup weather = env.GetCurrentEnvironment();
+            bool storm = weather != null && weather.m_name.IndexOf("Storm", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            float stormExtra = storm ? Mathf.Max(0f, RowingPlugin.StormFactor.Value) : 0f;
+            float roughExtra = Mathf.Max(0f, RowingPlugin.RoughSeaFactor.Value) * Mathf.Clamp01((env.GetWindIntensity() - 0.6f) / 0.4f);
+            if (stormExtra <= 0f && roughExtra <= 0f)
+            {
+                return 1f;
+            }
+            reason = stormExtra >= roughExtra ? "Storm" : "Rough sea";
+            return 1f + Mathf.Max(stormExtra, roughExtra);
+        }
+
         private static string RowHint()
         {
             return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake.";
@@ -355,6 +380,11 @@ namespace RowingMod
             if (staminaMultiplier > 1.05f)
             {
                 title += $"   Headwind: +{(staminaMultiplier - 1f) * 100f:0}% stamina";
+            }
+            float weather = WeatherMultiplier(out string weatherReason);
+            if (weather > 1.05f)
+            {
+                title += $"   {weatherReason}: +{(weather - 1f) * 100f:0}% stamina";
             }
             float rested = RestedMultiplier(Player.m_localPlayer);
             if (rested < 0.999f)

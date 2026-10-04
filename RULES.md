@@ -48,6 +48,7 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 - **Rowing into the wind costs more,** up to **double** when rowing straight into a strong wind.
   - A side wind or tailwind costs the normal amount.
   - While backing, "into the wind" means the wind you're backing into.
+- **Rough weather costs more:** **+30% in a storm**, and up to **+25% in strong wind** from any direction (rough seas); the larger applies, on top of the headwind cost. It covers braking too.
 - **Rested rowers pay 10% less,** for strokes and braking: sleep or rest by a fire before a voyage.
 - **Extra cost and discounts are shown** in the bar title, e.g. `Headwind: +60% stamina` or `Rested: -10% stamina`.
 

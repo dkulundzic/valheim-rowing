@@ -53,6 +53,8 @@ namespace RowingMod
         internal static ConfigEntry<string> DrumSound;
         internal static ConfigEntry<KeyCode> DrumKey;
         internal static ConfigEntry<float> RestedDiscount;
+        internal static ConfigEntry<float> StormFactor;
+        internal static ConfigEntry<float> RoughSeaFactor;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
@@ -87,6 +89,10 @@ namespace RowingMod
 
             StaminaPerStroke = Config.Bind("Stamina", "StaminaPerStroke", 6f,
                 "Stamina each stroke costs, including a wasted second press in the same beat.");
+            StormFactor = Config.Bind("Stamina", "StormFactor", 0.3f,
+                "Extra stamina cost for strokes and braking during a storm, as a fraction (0.3 = 30% more). 0 turns it off.");
+            RoughSeaFactor = Config.Bind("Stamina", "RoughSeaFactor", 0.25f,
+                "Extra stamina cost in strong wind of any direction (rough seas), up to this fraction at full wind strength, starting at 60% wind. The larger of this and the storm cost applies.");
             RestedDiscount = Config.Bind("Stamina", "RestedDiscount", 0.1f,
                 "Rowers with the Rested buff pay this fraction less stamina for strokes and braking (0.1 = 10% less).");
             HeadwindStaminaFactor = Config.Bind("Stamina", "HeadwindStaminaFactor", 1f,
