@@ -54,6 +54,7 @@ namespace RowingMod
         internal static ConfigEntry<KeyCode> DrumKey;
         internal static ConfigEntry<float> RestedDiscount;
         internal static ConfigEntry<bool> ShowWakes;
+        internal static ConfigEntry<bool> ColorblindMode;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
 
@@ -142,6 +143,8 @@ namespace RowingMod
                 "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
             DrumSound = Config.Bind("Sounds", "DrumSound", "",
                 "The war drum's sound. Empty uses a recorded drum (sounds/dundun.wav next to the mod) if present, otherwise a drum made by the mod; \"generated\" always uses the one made by the mod.");
+            ColorblindMode = Config.Bind("UI", "ColorblindMode", false,
+                "Crew panel colours that stay distinct with colour blindness (Okabe-Ito), plus a symbol on each stroke: check strong, dash weak, cross clash, star in sync, equals braking.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
                 "Show subtle wakes on the water where blades sweep through.");
             WakeEffect = Config.Bind("UI", "WakeEffect", "",

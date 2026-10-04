@@ -35,6 +35,15 @@ namespace RowingMod
         private static readonly Color SyncColor = new Color(1f, 0.72f, 0.1f, 1f);
         private static readonly Color OarColor = new Color(0.86f, 0.66f, 0.4f, 0.95f);
         private static readonly Color BrakeColor = new Color(0.35f, 0.6f, 1f, 1f);
+
+        // Colour-blind mode (UI.ColorblindMode): the Okabe-Ito palette, which stays distinct for the common kinds of
+        // colour blindness, plus a symbol on each stroke flash so its meaning never rests on colour alone.
+        private static readonly Color SafeStrong = new Color(0f, 0.62f, 0.45f, 1f);      // bluish green
+        private static readonly Color SafeWeak = new Color(0.94f, 0.89f, 0.26f, 1f);     // yellow
+        private static readonly Color SafeClash = new Color(0.84f, 0.37f, 0f, 1f);       // vermillion
+        private static readonly Color SafeSync = new Color(0.34f, 0.71f, 0.91f, 1f);     // sky blue
+        private static readonly Color SafeBrake = new Color(0f, 0.45f, 0.7f, 1f);        // blue
+        private static readonly Color GlyphColor = new Color(0f, 0f, 0f, 0.85f);
         private static readonly Color BoostColor = new Color(0.4f, 0.8f, 1f, 0.95f);
 
         private readonly List<ShipOars.Bench> m_benches = new List<ShipOars.Bench>();
@@ -188,6 +197,10 @@ namespace RowingMod
                     continue;
                 }
                 RowingUI.DrawTexture(Centred(seat, BenchSize), RowingUI.Disc, BenchColor(bench));
+                if (RowingPlugin.ColorblindMode.Value)
+                {
+                    DrawGlyph(seat, bench);
+                }
                 if (bench.Occupant == Player.m_localPlayer)
                 {
                     RowingUI.DrawTexture(Centred(seat, LocalRingSize), RowingUI.Ring, Color.white);
@@ -283,29 +296,68 @@ namespace RowingMod
 
         private static Color BenchColor(ShipOars.Bench bench)
         {
+            bool safe = RowingPlugin.ColorblindMode.Value;
             if (bench.Braking)
             {
-                return BrakeColor;
+                return safe ? SafeBrake : BrakeColor;
             }
             Color flash;
             switch (bench.Kind)
             {
                 case ShipOars.StrokeKind.Strong:
-                    flash = StrongColor;
+                    flash = safe ? SafeStrong : StrongColor;
                     break;
                 case ShipOars.StrokeKind.Weak:
-                    flash = WeakColor;
+                    flash = safe ? SafeWeak : WeakColor;
                     break;
                 case ShipOars.StrokeKind.Clash:
-                    flash = ClashColor;
+                    flash = safe ? SafeClash : ClashColor;
                     break;
                 case ShipOars.StrokeKind.Sync:
-                    flash = SyncColor;
+                    flash = safe ? SafeSync : SyncColor;
                     break;
                 default:
                     return Idle;
             }
             return Color.Lerp(flash, Idle, Mathf.Clamp01(bench.KindAge / FlashTime));
+        }
+
+        /// <summary>
+        /// Colour-blind mode: a symbol on the bench while its stroke flash shows (and while braking), so the result
+        /// reads without colour: ✓ strong, — weak, ✕ clash, ✱ in sync, = braking.
+        /// </summary>
+        private static void DrawGlyph(Vector2 c, ShipOars.Bench bench)
+        {
+            const float t = 1.6f;
+            if (bench.Braking)
+            {
+                RowingUI.DrawLine(c + new Vector2(-4f, -2f), c + new Vector2(4f, -2f), t, GlyphColor);
+                RowingUI.DrawLine(c + new Vector2(-4f, 2f), c + new Vector2(4f, 2f), t, GlyphColor);
+                return;
+            }
+            if (bench.Kind == ShipOars.StrokeKind.None || bench.KindAge > FlashTime)
+            {
+                return;
+            }
+            switch (bench.Kind)
+            {
+                case ShipOars.StrokeKind.Strong:
+                    RowingUI.DrawLine(c + new Vector2(-4f, 0f), c + new Vector2(-1f, 3f), t, GlyphColor);
+                    RowingUI.DrawLine(c + new Vector2(-1f, 3f), c + new Vector2(4f, -3f), t, GlyphColor);
+                    break;
+                case ShipOars.StrokeKind.Weak:
+                    RowingUI.DrawLine(c + new Vector2(-4f, 0f), c + new Vector2(4f, 0f), t, GlyphColor);
+                    break;
+                case ShipOars.StrokeKind.Clash:
+                    RowingUI.DrawLine(c + new Vector2(-3.5f, -3.5f), c + new Vector2(3.5f, 3.5f), t, GlyphColor);
+                    RowingUI.DrawLine(c + new Vector2(-3.5f, 3.5f), c + new Vector2(3.5f, -3.5f), t, GlyphColor);
+                    break;
+                case ShipOars.StrokeKind.Sync:
+                    RowingUI.DrawLine(c + new Vector2(-4f, 0f), c + new Vector2(4f, 0f), t, GlyphColor);
+                    RowingUI.DrawLine(c + new Vector2(-2.5f, -3.5f), c + new Vector2(2.5f, 3.5f), t, GlyphColor);
+                    RowingUI.DrawLine(c + new Vector2(-2.5f, 3.5f), c + new Vector2(2.5f, -3.5f), t, GlyphColor);
+                    break;
+            }
         }
 
         private static Rect Centred(Vector2 centre, float size)

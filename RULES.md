@@ -112,6 +112,7 @@ While you row or steer, a small top-down view of the ship sits in the bottom-rig
 
 - **Benches:** a dim ring is an empty bench, and a disc is a rower. After each stroke the disc flashes **green** (strong), **yellow** (weak), **red** (clash) or **gold** (in sync with others). It's **blue** while braking. Your own bench has a white ring.
 - **Oars:** little oars swing just like the real ones, and stowed oars lie inside the hull.
+- **Colour-blind mode** (`UI.ColorblindMode`): colours that stay distinct with colour blindness, and a symbol on each stroke: ✓ strong, — weak, ✕ clash, ✱ in sync, = braking.
 - **Crew boost:** the blue bar along the middle fills with the crew's push.
 - **The beat:** the ship's outline pulses on every beat, so you can see the rhythm even with the drum off.
 - **Drum:** the footer shows whether the war drum is on, and for the helmsman, which key turns it on or off.
