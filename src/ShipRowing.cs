@@ -18,6 +18,9 @@ namespace RowingMod
         public const string BoostKey = "RowingMod_Boost";
         // A rower holding water (braking) or letting go; repeated every second while braking.
         public const string BrakeRpc = "RowingMod_Brake";
+        // The helmsman turning the war drum on or off; sent to the owner, who stores it on the ship.
+        public const string DrumRpc = "RowingMod_Drum";
+        public const string DrumKey = "RowingMod_Drum";
         // A brake not repeated for this long is dropped, in case its "off" got lost.
         private const float BrakeTimeout = 2.5f;
         // Below this speed (m/s) braking also adds a small constant deceleration, so the ship comes to a halt.
@@ -89,6 +92,7 @@ namespace RowingMod
             m_nview.Register<float, long>(StrokeRpc, RPC_Stroke);
             m_nview.Register<float>(LegacyStrokeRpc, RPC_LegacyStroke);
             m_nview.Register<bool>(BrakeRpc, RPC_Brake);
+            m_nview.Register<bool>(DrumRpc, RPC_Drum);
             m_topSpeed = EstimateTopSailSpeed(m_ship);
             LogSeats();
         }
@@ -315,6 +319,29 @@ namespace RowingMod
             m_brake = Mathf.Max(0f, m_brake + brake - strokes.AppliedBrake);
             strokes.AppliedBoost = boost;
             strokes.AppliedBrake = brake;
+        }
+
+        /// <summary>Whether the ship's war drum is playing (set by the helmsman; off by default). Readable on every client.</summary>
+        public bool IsDrumOn()
+        {
+            return m_nview != null && m_nview.IsValid() && m_nview.GetZDO().GetBool(DrumKey);
+        }
+
+        /// <summary>The helmsman asks the ship's owner to turn the drum on or off.</summary>
+        public void RequestDrum(bool on)
+        {
+            if (m_nview != null && m_nview.IsValid())
+            {
+                m_nview.InvokeRPC(DrumRpc, on);
+            }
+        }
+
+        private void RPC_Drum(long sender, bool on)
+        {
+            if (m_nview.IsOwner())
+            {
+                m_nview.GetZDO().Set(DrumKey, on);
+            }
         }
 
         /// <summary>A rower starting or stopping to hold water. Every client tracks it (oars, sound, panel); the owner brakes.</summary>

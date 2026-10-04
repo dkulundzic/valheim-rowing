@@ -16,7 +16,7 @@ namespace RowingMod
         private const float PanelHeight = 270f;
         private const float Margin = 24f;
         private const float Padding = 10f;
-        private const float FooterHeight = 38f;
+        private const float FooterHeight = 56f;
         // Room left beside the hull for oars, in metres. Oars reaching further are clipped at the panel's edge,
         // which keeps the ship itself big in the panel.
         private const float OarRoom = 1.2f;
@@ -38,6 +38,30 @@ namespace RowingMod
         private static readonly Color BoostColor = new Color(0.4f, 0.8f, 1f, 0.95f);
 
         private readonly List<ShipOars.Bench> m_benches = new List<ShipOars.Bench>();
+
+        /// <summary>At the helm, the drum key turns the ship's war drum on or off.</summary>
+        private void Update()
+        {
+            Player player = Player.m_localPlayer;
+            Ship ship = player != null ? player.GetControlledShip() : null;
+            if (ship == null || !ZInput.GetKeyDown(RowingPlugin.DrumKey.Value, logWarning: false))
+            {
+                return;
+            }
+            if (Console.IsVisible() || (Chat.instance != null && Chat.instance.HasFocus()) || TextInput.IsVisible()
+                || Menu.IsVisible() || InventoryGui.IsVisible())
+            {
+                return;
+            }
+            ShipRowing rowing = ship.GetComponent<ShipRowing>();
+            if (rowing == null)
+            {
+                return;
+            }
+            bool on = !rowing.IsDrumOn();
+            rowing.RequestDrum(on);
+            player.Message(MessageHud.MessageType.Center, on ? "War drum on" : "War drum off");
+        }
 
         private void OnGUI()
         {
@@ -186,7 +210,7 @@ namespace RowingMod
             // how many were in sync.
             GUIStyle footer = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false, fontSize = 11, clipping = TextClipping.Overflow };
             float boost = rowing.GetSyncedBoost();
-            Rect line1 = new Rect(panel.x, panel.yMax - Padding - FooterHeight, panel.width, FooterHeight / 2f);
+            Rect line1 = new Rect(panel.x, panel.yMax - Padding - FooterHeight, panel.width, FooterHeight / 3f);
             RowingUI.Label(line1, $"{SpeedSettingName(ship.GetSpeedSetting())} · Crew boost {boost * 100f:0}%", footer);
             long nearestMs = nowMs - beatMs <= periodMs / 2 ? beatMs : beatMs + periodMs;
             int inSync = rowing.GetStrongCount(nearestMs);
@@ -197,6 +221,12 @@ namespace RowingMod
                 RowingUI.Label(new Rect(line1.x, line1.yMax, line1.width, line1.height), $"In sync ×{inSync}", footer);
                 GUI.color = previousColor;
             }
+
+            // The war drum, and for the helmsman how to change it.
+            bool drumOn = rowing.IsDrumOn();
+            bool atHelm = Player.m_localPlayer != null && Player.m_localPlayer.GetControlledShip() == ship;
+            string drum = $"Drum: {(drumOn ? "on" : "off")}" + (atHelm ? $" ({RowingPlugin.DrumKey.Value} to turn {(drumOn ? "off" : "on")})" : "");
+            RowingUI.Label(new Rect(line1.x, line1.yMax + line1.height, line1.width, line1.height), drum, footer);
         }
 
         /// <summary>

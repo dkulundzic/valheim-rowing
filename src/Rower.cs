@@ -9,10 +9,6 @@ namespace RowingMod
     public class Rower : MonoBehaviour
     {
         private const float MessageTime = 1.2f;
-        // Holding the row key this long turns the beat tick on or off.
-        private const float HoldToToggle = 3f;
-        // A hold only counts as one (and shows its countdown) after this long, so ordinary strokes don't flash it.
-        private const float HoldShowAfter = 0.4f;
         // Space between the bottom of the rowing UI and the top of the game's stamina bars.
         private const float BarGap = 12f;
         // Vertical space between the stacked pieces: snackbar, title, bar and message.
@@ -36,11 +32,6 @@ namespace RowingMod
         private ShipRowing m_shipRowing;
         // The beat (network-clock ms) of this rower's latest stroke; one stroke per beat.
         private long m_lastStrokeBeat;
-        // The latest beat this rower heard a tick for.
-        private long m_lastTickBeat;
-        // When the row key went down for the current hold (-1 when not held), and whether this hold already toggled.
-        private float m_holdStart = -1f;
-        private bool m_holdToggled;
         private bool m_lastStrokeStrong;
         private bool m_lastStrokeEarly;
         private string m_message;
@@ -65,8 +56,6 @@ namespace RowingMod
                 return;
             }
             UpdateNotices();
-            UpdateTick();
-            UpdateHold();
             UpdateBrake(player);
 
             if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
@@ -79,7 +68,7 @@ namespace RowingMod
                 return;
             }
 
-            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship);
+            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player);
             if (!player.HaveStamina(cost))
             {
                 Show("Too tired to row");
@@ -115,7 +104,7 @@ namespace RowingMod
         private void UpdateBrake(Player player)
         {
             bool wanted = ZInput.GetKey(RowingPlugin.BrakeKey.Value, logWarning: false) && !IsTyping();
-            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * Time.deltaTime;
+            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * Time.deltaTime;
             if (wanted && cost > 0f && !player.HaveStamina(cost))
             {
                 wanted = false;
@@ -154,21 +143,6 @@ namespace RowingMod
             {
                 nview.InvokeRPC(ZNetView.Everybody, ShipRowing.BrakeRpc, braking);
             }
-        }
-
-        /// <summary>Ticks once on each of the ship's beats, starting with the first beat after sitting down.</summary>
-        private void UpdateTick()
-        {
-            m_shipRowing.GetBeat(ShipRowing.NowMs(), out long beatMs, out _);
-            if (beatMs == m_lastTickBeat)
-            {
-                return;
-            }
-            if (m_lastTickBeat != 0)
-            {
-                RowingSounds.PlayTick();
-            }
-            m_lastTickBeat = beatMs;
         }
 
         /// <summary>
@@ -221,7 +195,6 @@ namespace RowingMod
             m_ship = ship;
             m_shipRowing = shipRowing;
             m_lastStrokeBeat = 0;
-            m_lastTickBeat = 0;
 
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
@@ -274,53 +247,20 @@ namespace RowingMod
             return 1f + Mathf.Max(0f, RowingPlugin.HeadwindStaminaFactor.Value) * headwind * Mathf.Clamp01(env.GetWindIntensity());
         }
 
+        /// <summary>
+        /// Rowers with Valheim's Rested buff (from sleeping or resting by a fire) pay a little less stamina for
+        /// strokes and braking: 1 - Stamina.RestedDiscount, otherwise 1.
+        /// </summary>
+        private static float RestedMultiplier(Player player)
+        {
+            SEMan seman = player != null ? player.GetSEMan() : null;
+            bool rested = seman != null && seman.HaveStatusEffect(SEMan.s_statusEffectRested);
+            return rested ? 1f - Mathf.Clamp01(RowingPlugin.RestedDiscount.Value) : 1f;
+        }
+
         private static string RowHint()
         {
-            return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake. " +
-                $"Hold {RowingPlugin.RowKey.Value} for {HoldToToggle:0} s to turn the beat tick {(RowingPlugin.BeatTick.Value ? "off" : "on")}.";
-        }
-
-        /// <summary>
-        /// Holding the row key for HoldToToggle seconds turns the beat tick on or off (saved to the config).
-        /// The press that starts the hold is still a stroke, since strokes happen the moment the key goes down.
-        /// </summary>
-        private void UpdateHold()
-        {
-            if (!ZInput.GetKey(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
-            {
-                m_holdStart = -1f;
-                m_holdToggled = false;
-                return;
-            }
-            if (m_holdStart < 0f)
-            {
-                m_holdStart = Time.time;
-                return;
-            }
-            if (!m_holdToggled && Time.time - m_holdStart >= HoldToToggle)
-            {
-                m_holdToggled = true;
-                RowingPlugin.BeatTick.Value = !RowingPlugin.BeatTick.Value;
-                string key = RowingPlugin.RowKey.Value.ToString();
-                Toast(RowingPlugin.BeatTick.Value ? "Beat tick on" : "Beat tick off",
-                    $"Hold {key} for {HoldToToggle:0} s to turn it {(RowingPlugin.BeatTick.Value ? "off" : "on")} again");
-            }
-        }
-
-        /// <summary>While the row key is held long enough to look intentional: the countdown to toggling the tick.</summary>
-        private string HoldMessage()
-        {
-            if (m_holdStart < 0f || m_holdToggled)
-            {
-                return null;
-            }
-            float held = Time.time - m_holdStart;
-            if (held < HoldShowAfter)
-            {
-                return null;
-            }
-            string action = RowingPlugin.BeatTick.Value ? "off" : "on";
-            return $"Keep holding to turn the beat tick {action}... {Mathf.Max(0f, HoldToToggle - held):0.0} s";
+            return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake.";
         }
 
         private void Toast(string title, string body)
@@ -407,16 +347,6 @@ namespace RowingMod
             Color markerColor = nearestMs == m_lastStrokeBeat ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
             DrawRect(new Rect(x + width * markerPos - 2f, y - 4f, 4f, height + 8f), markerColor);
 
-            // Beside the bar: whether the beat tick is on, and how to change it.
-            GUIStyle hintStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft, wordWrap = false };
-            bool tickOn = RowingPlugin.BeatTick.Value;
-            string hint = $"Beat tick: {(tickOn ? "on" : "off")} (hold {RowingPlugin.RowKey.Value} {HoldToToggle:0} s to turn {(tickOn ? "off" : "on")})";
-            Color previousColor = GUI.color;
-            GUI.color = new Color(1f, 1f, 1f, 0.92f);
-            float hintHeight = hintStyle.CalcHeight(new GUIContent(hint), 400f);
-            RowingUI.Label(new Rect(x + width + 10f, y + height / 2f - hintHeight / 2f, 400f, hintHeight), hint, hintStyle);
-            GUI.color = previousColor;
-
             // Labels
             string title = m_braking
                 ? $"Holding water [{RowingPlugin.BrakeKey.Value}]"
@@ -425,6 +355,11 @@ namespace RowingMod
             if (staminaMultiplier > 1.05f)
             {
                 title += $"   Headwind: +{(staminaMultiplier - 1f) * 100f:0}% stamina";
+            }
+            float rested = RestedMultiplier(Player.m_localPlayer);
+            if (rested < 0.999f)
+            {
+                title += $"   Rested: -{(1f - rested) * 100f:0}% stamina";
             }
             float boost = m_shipRowing != null ? m_shipRowing.GetSyncedBoost() : 0f;
             if (boost > 0.01f)
@@ -435,12 +370,7 @@ namespace RowingMod
             float titleY = y - 4f - StackGap - titleHeight;
             RowingUI.Label(new Rect(textX, titleY, TextWidth, titleHeight), title, style);
 
-            string holdMessage = HoldMessage();
-            if (holdMessage != null)
-            {
-                RowingUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), holdMessage, style);
-            }
-            else if (Time.time < m_messageUntil)
+            if (Time.time < m_messageUntil)
             {
                 string message = m_messageIsStroke ? StrokeMessage() : m_message;
                 RowingUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), message, style);

@@ -9,7 +9,7 @@ namespace RowingMod
     /// Rowing sounds and the blade's splash effect. Every stroke is built from layers with randomness, so no two
     /// strokes sound alike: a splash, sometimes water running off, a deeper splash when the crew hits the beat
     /// together, a creak of wood under load, a knock in the oarlock and drips as the blade lifts. A clash is a
-    /// wooden thud. The seated rower also hears a soft tick on the ship's beat.
+    /// wooden thud. A war drum can play the ship's beat for everyone aboard; blades leave subtle wakes.
     ///
     /// Sounds reuse clips from the game's own prefabs, played through our own AudioSource so volume, pitch and
     /// length are ours. Each Sounds.* setting names one or more prefabs (comma-separated; their clips are pooled),
@@ -27,10 +27,13 @@ namespace RowingMod
         public const string DefaultCreak = "sfx_bogwitch_creak,sfx_ship_sailposition_change_vibration_only";
         public const string DefaultSync = "sfx_land_water";
         public const string DefaultSplashEffect = "fx_footstep_water";
+        public const string DefaultWakeEffect = "vfx_water_surface";
         private const string Generated = "generated";
 
         private const int SampleRate = 44100;
         private const float MaxDistance = 40f;
+        // The drum carries further than oars: heard across the ship and by nearby ships.
+        private const float DrumMaxDistance = 70f;
         private const float EffectLifetime = 4f;
 
         private static bool s_initialized;
@@ -42,9 +45,10 @@ namespace RowingMod
         private static AudioClip[] s_clash;
         private static AudioClip[] s_creak;
         private static AudioClip[] s_sync;
-        private static AudioClip s_tickClip;
-        private static AudioSource s_tickSource;
+        private static AudioClip s_drum;
+        private static AudioClip s_drumAccent;
         private static GameObject s_splashEffect;
+        private static GameObject s_wakeEffect;
         private static GameObject s_effectHolder;
         // Effect prefabs that aren't registered in ZNetScene but hang off other prefabs (footsteps, ship effects).
         private static readonly Dictionary<string, GameObject> s_extraPrefabs = new Dictionary<string, GameObject>();
@@ -73,16 +77,15 @@ namespace RowingMod
             s_clash = LoadClips(RowingPlugin.ClashSound.Value, DefaultClash, () => MakeKnock("RowingMod_Clash", 420f, 0.09f, 0.55f));
             s_creak = LoadClips(RowingPlugin.CreakSound.Value, DefaultCreak, MakeCreak);
             s_sync = LoadClips(RowingPlugin.SyncSound.Value, DefaultSync, MakeSplash);
-            s_tickClip = MakeKnock("RowingMod_Tick", 1250f, 0.035f, 0.25f);
+            s_drum = MakeDrum("RowingMod_Drum", accent: false);
+            s_drumAccent = MakeDrum("RowingMod_DrumAccent", accent: true);
             s_sfxGroup = FindSfxGroup();
-            s_splashEffect = FindSplashEffect();
 
-            GameObject tickObject = new GameObject("RowingMod_Tick");
-            Object.DontDestroyOnLoad(tickObject);
-            s_tickSource = tickObject.AddComponent<AudioSource>();
-            s_tickSource.spatialBlend = 0f;
-            s_tickSource.playOnAwake = false;
-            s_tickSource.outputAudioMixerGroup = s_sfxGroup;
+            s_effectHolder = new GameObject("RowingMod_EffectHolder");
+            s_effectHolder.SetActive(false);
+            Object.DontDestroyOnLoad(s_effectHolder);
+            s_splashEffect = FindEffect(RowingPlugin.SplashEffect.Value, DefaultSplashEffect, "Splash");
+            s_wakeEffect = FindEffect(RowingPlugin.WakeEffect.Value, DefaultWakeEffect, "Wake");
             return true;
         }
 
@@ -208,14 +211,24 @@ namespace RowingMod
             ShowSplash(position, strong: false);
         }
 
-        /// <summary>The ship's beat, heard only by the local seated rower.</summary>
-        public static void PlayTick()
+        /// <summary>One beat of the ship's war drum, from the ship itself; <paramref name="accent"/> marks the first of four.</summary>
+        public static void PlayDrum(Vector3 position, bool accent)
         {
-            if (!EnsureInitialized() || !RowingPlugin.BeatTick.Value)
+            if (!EnsureInitialized())
             {
                 return;
             }
-            s_tickSource.PlayOneShot(s_tickClip, RowingPlugin.BeatTickVolume.Value);
+            float volume = RowingPlugin.DrumVolume.Value * (accent ? 1f : 0.72f);
+            PlayAt(accent ? s_drumAccent : s_drum, position, volume, Random.Range(0.97f, 1.03f), 0f, 0f, 0f, DrumMaxDistance);
+        }
+
+        /// <summary>A subtle wake on the water where a blade swept through (UI.ShowWakes).</summary>
+        public static void ShowWake(Vector3 position, float scale)
+        {
+            if (EnsureInitialized() && RowingPlugin.ShowWakes.Value)
+            {
+                SpawnEffect(s_wakeEffect, position, scale);
+            }
         }
 
         private static AudioClip Pick(AudioClip[] clips)
@@ -240,7 +253,8 @@ namespace RowingMod
         /// Plays a clip at a position (3D) after <paramref name="delay"/> seconds. With a <paramref name="length"/>
         /// above zero it plays only that slice, starting at <paramref name="start"/> seconds, faded in and out.
         /// </summary>
-        private static void PlayAt(AudioClip clip, Vector3 position, float volume, float pitch, float start, float length, float delay)
+        private static void PlayAt(AudioClip clip, Vector3 position, float volume, float pitch, float start, float length, float delay,
+            float maxDistance = MaxDistance)
         {
             if (clip == null || volume <= 0f)
             {
@@ -255,7 +269,7 @@ namespace RowingMod
             source.spatialBlend = 1f;
             source.rolloffMode = AudioRolloffMode.Linear;
             source.minDistance = 2f;
-            source.maxDistance = MaxDistance;
+            source.maxDistance = maxDistance;
             source.outputAudioMixerGroup = s_sfxGroup;
             source.time = Mathf.Clamp(start, 0f, Mathf.Max(0f, clip.length - 0.05f));
             source.PlayDelayed(delay);
@@ -304,13 +318,24 @@ namespace RowingMod
         /// </summary>
         private static void ShowSplash(Vector3 position, bool strong)
         {
-            if (s_splashEffect == null || !RowingPlugin.ShowSplashes.Value)
+            if (RowingPlugin.ShowSplashes.Value)
+            {
+                SpawnEffect(s_splashEffect, position, strong ? 1f : 0.7f);
+            }
+        }
+
+        /// <summary>
+        /// Shows a game effect's particles at a position, with its own sounds removed (ours play separately).
+        /// </summary>
+        private static void SpawnEffect(GameObject prefab, Vector3 position, float scale)
+        {
+            if (prefab == null)
             {
                 return;
             }
             // Instantiate under an inactive holder so the effect's own components don't wake up (and play their
             // sound) before the sound components are removed.
-            GameObject effect = Object.Instantiate(s_splashEffect, s_effectHolder.transform);
+            GameObject effect = Object.Instantiate(prefab, s_effectHolder.transform);
             foreach (ZSFX sfx in effect.GetComponentsInChildren<ZSFX>(includeInactive: true))
             {
                 Object.DestroyImmediate(sfx);
@@ -321,32 +346,28 @@ namespace RowingMod
             }
             effect.transform.SetParent(null, worldPositionStays: false);
             effect.transform.position = position;
-            effect.transform.localScale *= strong ? 1f : 0.7f;
+            effect.transform.localScale *= scale;
             Object.Destroy(effect, EffectLifetime);
         }
 
         /// <summary>
-        /// The splash effect prefab, if it has particles and isn't networked (instantiating a networked prefab
-        /// would create a world object for everyone).
+        /// A game effect prefab from a setting (empty = the default), if it has particles and isn't networked
+        /// (instantiating a networked prefab would create a world object for everyone).
         /// </summary>
-        private static GameObject FindSplashEffect()
+        private static GameObject FindEffect(string setting, string defaultName, string what)
         {
-            string setting = RowingPlugin.SplashEffect.Value?.Trim();
-            string name = string.IsNullOrEmpty(setting) ? DefaultSplashEffect : setting;
+            string name = string.IsNullOrEmpty(setting?.Trim()) ? defaultName : setting.Trim();
             GameObject prefab = FindPrefab(name);
             if (prefab == null || prefab.GetComponentInChildren<ParticleSystem>(includeInactive: true) == null)
             {
-                RowingPlugin.Log.LogWarning($"Splash effect '{name}' not found or has no particles; no visible splash");
+                RowingPlugin.Log.LogWarning($"{what} effect '{name}' not found or has no particles; it won't show");
                 return null;
             }
             if (prefab.GetComponent<ZNetView>() != null)
             {
-                RowingPlugin.Log.LogWarning($"Splash effect '{name}' is a networked object; no visible splash");
+                RowingPlugin.Log.LogWarning($"{what} effect '{name}' is a networked object; it won't show");
                 return null;
             }
-            s_effectHolder = new GameObject("RowingMod_EffectHolder");
-            s_effectHolder.SetActive(false);
-            Object.DontDestroyOnLoad(s_effectHolder);
             return prefab;
         }
 
@@ -726,6 +747,40 @@ namespace RowingMod
                 samples[i] = low * envelope * 1.6f;
             }
             return MakeClip("RowingMod_Splash", samples);
+        }
+
+        /// <summary>
+        /// A war drum hit made in code, until a recorded drum replaces it: a deep tom whose pitch drops quickly,
+        /// an overtone, and a skin slap. The accent (first of four beats) is deeper and longer.
+        /// </summary>
+        private static AudioClip MakeDrum(string name, bool accent)
+        {
+            float duration = accent ? 0.9f : 0.7f;
+            float startFrequency = accent ? 150f : 175f;
+            float endFrequency = accent ? 52f : 64f;
+            float decay = accent ? 0.32f : 0.24f;
+            int length = (int)(SampleRate * duration);
+            float[] samples = new float[length];
+            System.Random random = new System.Random(name.GetHashCode());
+            float phase = 0f;
+            float overtonePhase = 0f;
+            float slap = 0f;
+            for (int i = 0; i < length; i++)
+            {
+                float t = i / (float)SampleRate;
+                float frequency = endFrequency + (startFrequency - endFrequency) * Mathf.Exp(-t / 0.045f);
+                phase += 2f * Mathf.PI * frequency / SampleRate;
+                overtonePhase += 2f * Mathf.PI * frequency * 1.58f / SampleRate;
+                float body = Mathf.Sin(phase) * Mathf.Exp(-t / decay);
+                float overtone = 0.35f * Mathf.Sin(overtonePhase) * Mathf.Exp(-t / (decay * 0.35f));
+                // The skin: a short burst of low-passed noise.
+                slap += ((float)(random.NextDouble() * 2.0 - 1.0) - slap) * 0.25f;
+                float skin = slap * Mathf.Exp(-t / 0.012f) * 0.9f;
+                float attack = Mathf.Clamp01(t / 0.002f);
+                // Soft saturation gives it weight without clipping.
+                samples[i] = (float)System.Math.Tanh((body + overtone + skin) * 1.6f * attack) * 0.85f;
+            }
+            return MakeClip(name, samples);
         }
 
         /// <summary>A stand-in creak: a low, wavering tone with a rough, stick-slip texture.</summary>

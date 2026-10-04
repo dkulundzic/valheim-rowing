@@ -49,8 +49,11 @@ namespace RowingMod
         internal static ConfigEntry<string> SplashEffect;
         internal static ConfigEntry<bool> ShowSplashes;
         internal static ConfigEntry<float> CreakVolume;
-        internal static ConfigEntry<bool> BeatTick;
-        internal static ConfigEntry<float> BeatTickVolume;
+        internal static ConfigEntry<float> DrumVolume;
+        internal static ConfigEntry<KeyCode> DrumKey;
+        internal static ConfigEntry<float> RestedDiscount;
+        internal static ConfigEntry<bool> ShowWakes;
+        internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
         internal static ConfigEntry<bool> Audition;
 
@@ -61,6 +64,8 @@ namespace RowingMod
             RowKey = Config.Bind("Controls", "RowKey", KeyCode.H,
                 "Key a seated passenger presses to make a stroke. Movement, attack, jump and crouch keys stand you up, so don't use those.");
 
+            DrumKey = Config.Bind("Controls", "DrumKey", KeyCode.H,
+                "Key the helmsman presses to turn the ship's war drum on or off. At the helm it doesn't clash with rowing.");
             BrakeKey = Config.Bind("Controls", "BrakeKey", KeyCode.J,
                 "Key a seated rower holds to hold water (brake with the oar). Movement, attack, jump and crouch keys stand you up, so don't use those.");
 
@@ -82,6 +87,8 @@ namespace RowingMod
 
             StaminaPerStroke = Config.Bind("Stamina", "StaminaPerStroke", 6f,
                 "Stamina each stroke costs, including a wasted second press in the same beat.");
+            RestedDiscount = Config.Bind("Stamina", "RestedDiscount", 0.1f,
+                "Rowers with the Rested buff pay this fraction less stamina for strokes and braking (0.1 = 10% less).");
             HeadwindStaminaFactor = Config.Bind("Stamina", "HeadwindStaminaFactor", 1f,
                 "Extra stamina cost when rowing into the wind, as a fraction of StaminaPerStroke. 1 means up to double straight into a full-strength wind; it scales with the wind's strength and angle. 0 turns it off.");
 
@@ -131,10 +138,12 @@ namespace RowingMod
                 "Volume of the creak (0 to 1; 0 turns it off). Louder when the crew pushes harder.");
             SplashVolume = Config.Bind("Sounds", "SplashVolume", 0.8f,
                 "Volume of the stroke splash (0 to 1); weak strokes are quieter. Everyone nearby hears it.");
-            BeatTick = Config.Bind("Sounds", "BeatTick", true,
-                "Play a soft tick on the ship's beat while you're seated at an oar. Only you hear it. In game, hold the row key for 3 s to turn it on or off.");
-            BeatTickVolume = Config.Bind("Sounds", "BeatTickVolume", 0.35f,
-                "Volume of the beat tick (0 to 1).");
+            DrumVolume = Config.Bind("Sounds", "DrumVolume", 0.8f,
+                "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
+            ShowWakes = Config.Bind("UI", "ShowWakes", true,
+                "Show subtle wakes on the water where blades sweep through.");
+            WakeEffect = Config.Bind("UI", "WakeEffect", "",
+                $"Game effect prefab whose particles show as the wake (its sound is removed). Empty uses the default ({RowingSounds.DefaultWakeEffect}).");
             ShowSplashes = Config.Bind("UI", "ShowSplashes", true,
                 "Show water spray at the blade on each stroke.");
             SplashEffect = Config.Bind("UI", "SplashEffect", "",

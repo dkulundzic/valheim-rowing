@@ -38,7 +38,9 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
   - **Pressing elsewhere** gives an off-beat stroke: weak when rowing alone, a **clash** when others hit the beat (see section 5).
   - **Pressing again in the same beat** is mashing: it wastes stamina and gives no stroke. The marker turns grey once you've rowed on the current beat.
 
-**Oars:** every rowing bench has an oar. On an empty bench it's pulled in and stowed inside the hull; when someone sits down, it swings out and rests in the water. Each stroke swings it through the water and back. A crew in sync rows visibly together, and you can hear it: every oar splashes where it is, and a crew hitting the beat together sounds fuller and deeper. Wood creaks under strong strokes. Only players with the mod see and hear the oars.
+**Oars:** every rowing bench has an oar. On an empty bench it's pulled in and stowed inside the hull; when someone sits down, it swings out and rests in the water. Each stroke swings it through the water and back. A crew in sync rows visibly together, and you can hear it: every oar splashes where it is, and a crew hitting the beat together sounds fuller and deeper. Wood creaks under strong strokes, and each blade leaves a subtle wake on the water. Only players with the mod see and hear the oars.
+
+**War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
 ## 3. Stamina
 
@@ -46,7 +48,8 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 - **Rowing into the wind costs more,** up to **double** when rowing straight into a strong wind.
   - A side wind or tailwind costs the normal amount.
   - While backing, "into the wind" means the wind you're backing into.
-- **Extra cost is shown** in the bar title, e.g. `Headwind: +60% stamina`.
+- **Rested rowers pay 10% less,** for strokes and braking: sleep or rest by a fire before a voyage.
+- **Extra cost and discounts are shown** in the bar title, e.g. `Headwind: +60% stamina` or `Rested: -10% stamina`.
 
 ## 4. How strokes speed up the ship
 
@@ -110,7 +113,8 @@ While you row or steer, a small top-down view of the ship sits in the bottom-rig
 - **Benches:** a dim ring is an empty bench, and a disc is a rower. After each stroke the disc flashes **green** (strong), **yellow** (weak), **red** (clash) or **gold** (in sync with others). It's **blue** while braking. Your own bench has a white ring.
 - **Oars:** little oars swing just like the real ones, and stowed oars lie inside the hull.
 - **Crew boost:** the blue bar along the middle fills with the crew's push.
-- **The beat:** the ship's outline pulses on every beat, so you can see the rhythm even with the tick off.
+- **The beat:** the ship's outline pulses on every beat, so you can see the rhythm even with the drum off.
+- **Drum:** the footer shows whether the war drum is on, and for the helmsman, which key turns it on or off.
 - **Helmsman:** a diamond at the helm, with no oar. It's an outline when nobody steers and filled when someone does, with a white ring when it's you.
 - **Footer:** the ship's speed setting and the crew's boost (e.g. "Half sail · Crew boost 40%"), and "In sync ×N" when N rowers hit the same beat.
 
@@ -127,7 +131,7 @@ The helmsman sees the panel too, which shows who's rowing and who's in time.
 | **Clash!** | Your off-beat stroke fought the crew's rhythm. |
 | Strong stroke! / Early / Late | How your last press went. |
 | Too fast! One stroke per beat | You already rowed on this beat. |
-| **Beat tick on / off** | You held H for 3 seconds, which turns the beat tick on or off. The label beside the stroke bar always shows which. |
+| **War drum on / off** | The helmsman turned the drum on or off. |
 | Too tired to row | Not enough stamina for a stroke. |
 
 ## The numbers (default settings)

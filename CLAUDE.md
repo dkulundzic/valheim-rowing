@@ -15,7 +15,8 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
   - **Clash:** if anyone hit the beat, each off-beat stroke on it adds no boost and adds `ClashBrake` to a separate brake pool. The brake only slows the ship and never reverses it. If nobody hit the beat, off-beat strokes are weak (`WeakStrokeFactor`).
   - **Late strokes:** strokes arrive one at a time, so the owner re-applies the difference for the beat.
-- **Stamina:** each stroke costs `StaminaPerStroke` × the headwind multiplier. An exhausted rower can't row.
+- **Stamina:** each stroke costs `StaminaPerStroke` × the headwind multiplier × the Rested multiplier. An exhausted rower can't row.
+  - **Rested:** rowers with the Rested buff (`SEMan.s_statusEffectRested`) pay `Stamina.RestedDiscount` less (10% by default; the user asked for a small bonus) for strokes and braking.
   - Headwind multiplier: `1 + HeadwindStaminaFactor × headwind × wind intensity`. `headwind` is `max(0, dot(windDir, −rowing direction))` on the horizontal plane (`EnvMan.GetWindDir` points where the wind blows to). A tailwind gives no discount. The bar title shows "Headwind: +N% stamina" above 5%.
 - **When rowing works:** always, at every speed setting including `Stop` and with the sail open. While backing (`Back`) strokes push backward, otherwise forward. Changing direction clears the boost (`ShipRowing.m_lastDirection`). Stop was blocked until 1.0.1; the user changed the rule because rowing a stopped boat makes sense, and a seated passenger can't change the speed setting.
 - **Who rows:** only passengers on rowing benches (`Chair` with `attach_sitship`): Karve 2, Longship 4. Not the back seat, not Hold fast spots, not the helmsman.
@@ -41,10 +42,13 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - Config `UI.ShowOars`.
 - `src/RowingSounds.cs`: sounds and the blade spray.
   - **Mixer:** everything plays through the game's SFX mixer group, taken from a game sfx prefab's AudioSource.
-  - **3D, heard by every crew member with the mod:** each stroke's sounds play at that oar, since strokes are broadcast. Only the beat tick is local.
-  - **Beat tick:** generated, heard only by the local seated rower (`Sounds.BeatTick`).
-    - **Toggle:** holding the row key for 3 s toggles it (`Rower.UpdateHold`, saved to the config). The press that starts the hold still counts as a stroke.
-    - **UI:** a label beside the bar shows "Beat tick on/off · hold H 3 s", the message line counts down after 0.4 s of holding, and the "Rowing ready" snackbar mentions the hold.
+  - **3D, heard by every crew member with the mod:** each stroke's sounds play at that oar, since strokes are broadcast.
+  - **War drum** (replaced the private beat tick on 2026-10-04, at the user's request):
+    - **Who controls it:** the helmsman presses `Controls.DrumKey` (H) at the helm. That sends RPC `RowingMod_Drum(bool)` to the owner, who stores it in ZDO bool `RowingMod_Drum`. It's off by default.
+    - **Playback:** every client plays it from the ship (`ShipOars.UpdateDrum`) on each beat from the shared schedule, while someone is aboard, accenting every fourth beat.
+    - **Sound:** a generated tom (`MakeDrum`) until a recorded drum replaces it; volume `Sounds.DrumVolume`, heard up to 70 m.
+    - **UI:** the panel footer shows "Drum: on/off", plus the key for the helmsman.
+  - **Wakes** (`UI.ShowWakes`, `UI.WakeEffect`, default `vfx_water_surface` at half scale): three ripples along each stroke's drive at the blade on the water line, and every ~0.5 s while braking above 1 m/s.
   - **Each stroke is layered** (the user wants believable, non-repeating sounds; values are defaults, each a `Sounds.*` setting):
     - **Splash** (`fx_footstep_water`, 7 wading clips): random clip, pitch 0.9–1.12, volume jitter.
     - **Run-off** (`sfx_ship_waterimpact` after-splash): a 0.7 s slice, 50% of strokes.
@@ -130,11 +134,10 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - [x] Speed-based strength, backing and headwind stamina are playtested.
 - [x] Rowing at Stop, the shared beat with speed-based tempo, sync/clash, Hold fast and back-seat exclusion, and oars (gunwale placement, stowing that fits the Karve) are playtested (2026-10-03).
 - [x] Layered stroke sounds and spray are playtested; the user is happy with the sounds as they are. The spray uses `fx_footstep_water` (4 particle systems, not networked); `fx_land_water` has a bigger spray.
-- [x] Hold-to-toggle beat tick: built, and its label shows in the playtest screenshots.
+- [x] Hold-to-toggle beat tick: playtested, then **replaced by the helmsman's war drum** (2026-10-04).
 - [x] The crew panel and UI scale are playtested; the user says it "looks great" as is (2026-10-04).
   - **Polish done after review:**
     - all mod text has a drop shadow (`RowingUI.Label`);
-    - the hint reads "Beat tick: on (hold H 3 s to turn off)";
     - stowed oars in the panel are thin and faint;
     - oar room is 1.2 m, with oars clipped at the panel edge (`RowingUI.ClipLine`), so the hull is bigger;
     - the boost bar is outlined.

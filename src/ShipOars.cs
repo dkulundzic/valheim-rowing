@@ -83,6 +83,9 @@ namespace RowingMod
             public float BrakeBlend;
             public float NextGurgle;
             public float NextSpray;
+            public float NextWake;
+            // How many wakes this stroke has left so far.
+            public int Wakes = WakesPerStroke;
         }
 
         public enum StrokeKind
@@ -127,8 +130,16 @@ namespace RowingMod
         // Creaks come at most this often per ship, so a full crew doesn't creak on every oar at once.
         private const float CreakInterval = 0.7f;
 
+        // Wakes: small ripples along each stroke's path through the water.
+        private const int WakesPerStroke = 3;
+        private const float WakeScale = 0.5f;
+
         private Ship m_ship;
+        private ShipRowing m_rowing;
         private float m_lastCreak = -100f;
+        // The war drum: the beat it last played, and a count for accenting every fourth beat.
+        private long m_lastDrumBeat;
+        private int m_drumCount;
         // The ship's forward speed, from how far it moved since the last frame, so it works on every client
         // (only the owner simulates the ship's physics).
         private float m_speed;
@@ -140,6 +151,11 @@ namespace RowingMod
         private void Awake()
         {
             m_ship = GetComponent<Ship>();
+        }
+
+        private void Start()
+        {
+            m_rowing = GetComponent<ShipRowing>();
         }
 
         /// <summary>Called for every stroke the ship receives, from any rower including the local one.</summary>
@@ -175,6 +191,7 @@ namespace RowingMod
                     oar.SweepAtStrokeStart = oar.Sweep;
                     oar.StrokeStart = Time.time;
                     oar.Amplitude = strong ? 1f : WeakSweepFactor;
+                    oar.Wakes = 0;
                     oar.Direction = ShipRowing.RowDirection(m_ship);
                     Vector3 blade = oar.Root.TransformPoint(new Vector3(oar.Outboard - BladeLength / 2f, 0f, 0f));
                     Vector3 oarlock = oar.Root.position;
@@ -382,6 +399,7 @@ namespace RowingMod
             }
 
             UpdateSpeed();
+            UpdateDrum();
             foreach (Oar oar in m_oars)
             {
                 if (!oar.Root.gameObject.activeSelf)
@@ -395,11 +413,79 @@ namespace RowingMod
                     oar.Braking = false;
                 }
                 Animate(oar);
+                StrokeWakes(oar);
                 if (oar.Braking && oar.BrakeBlend > 0.8f)
                 {
                     BrakeEffects(oar);
                 }
             }
+        }
+
+        /// <summary>
+        /// The war drum: while the helmsman has it on and someone is aboard, every client plays it on each of the
+        /// ship's beats (from the shared beat schedule, so everyone hears it in time), accenting every fourth beat.
+        /// </summary>
+        private void UpdateDrum()
+        {
+            if (m_rowing == null || !m_rowing.IsDrumOn() || !AnyPlayerAboard())
+            {
+                m_lastDrumBeat = 0;
+                m_drumCount = 0;
+                return;
+            }
+            m_rowing.GetBeat(ShipRowing.NowMs(), out long beatMs, out _);
+            if (beatMs == m_lastDrumBeat)
+            {
+                return;
+            }
+            // Start on the next beat rather than the one already under way when the drum was turned on.
+            if (m_lastDrumBeat != 0)
+            {
+                RowingSounds.PlayDrum(transform.position + transform.up * 1.5f, m_drumCount % 4 == 0);
+                m_drumCount++;
+            }
+            m_lastDrumBeat = beatMs;
+        }
+
+        private bool AnyPlayerAboard()
+        {
+            foreach (Player player in Player.GetAllPlayers())
+            {
+                if (player != null && m_ship.IsPlayerInBoat(player))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Leaves a few small ripples on the water along the blade's path during a stroke's drive.</summary>
+        private void StrokeWakes(Oar oar)
+        {
+            if (oar.Wakes >= WakesPerStroke || oar.Occupant == null || oar.Braking)
+            {
+                return;
+            }
+            float t = Time.time - oar.StrokeStart;
+            if (t > DriveTime)
+            {
+                oar.Wakes = WakesPerStroke;
+                return;
+            }
+            // Spread across the drive: at about 20%, 50% and 80% of it.
+            if (t < DriveTime * (0.2f + 0.3f * oar.Wakes))
+            {
+                return;
+            }
+            oar.Wakes++;
+            RowingSounds.ShowWake(BladeOnWater(oar), WakeScale * oar.Amplitude);
+        }
+
+        private Vector3 BladeOnWater(Oar oar)
+        {
+            Vector3 blade = oar.Root.TransformPoint(new Vector3(oar.Outboard - BladeLength / 2f, 0f, 0f));
+            blade.y = Floating.GetWaterLevel(blade, ref oar.WaterVolume);
+            return blade;
         }
 
         private void UpdateSpeed()
@@ -427,6 +513,11 @@ namespace RowingMod
             {
                 oar.NextGurgle = Time.time + Random.Range(0.3f, 0.55f);
                 RowingSounds.PlayGurgle(blade, Mathf.Clamp01(speed / 4f));
+            }
+            if (speed >= 1f && Time.time >= oar.NextWake)
+            {
+                oar.NextWake = Time.time + Random.Range(0.4f, 0.6f);
+                RowingSounds.ShowWake(BladeOnWater(oar), WakeScale * 1.2f);
             }
             if (speed >= SprayMinSpeed && Time.time >= oar.NextSpray)
             {
