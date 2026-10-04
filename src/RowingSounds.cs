@@ -144,12 +144,48 @@ namespace RowingMod
             {
                 return;
             }
-            float volume = RowingPlugin.SplashVolume.Value * Mathf.Lerp(0.12f, 0.45f, Mathf.Clamp01(intensity));
-            PlaySlice(s_drip, position, volume, Random.Range(0.85f, 1.1f), 0.55f, 0f);
+            float volume = RowingPlugin.SplashVolume.Value * Mathf.Lerp(0.35f, 0.75f, Mathf.Clamp01(intensity));
+            // Alternate between the start of a swim splash (where its energy is; the tails are quiet) and a
+            // wading splash pitched down, so the rush keeps changing.
+            if (Random.value < 0.5f)
+            {
+                PlaySliceFromStart(s_drip, position, volume, Random.Range(0.85f, 1.05f), 0.6f, 0.4f);
+            }
+            else
+            {
+                PlayAt(Pick(s_splash), position, volume * 0.8f, Random.Range(0.7f, 0.85f), 0f, 0f, 0f);
+            }
             if (Random.value < 0.3f)
             {
-                PlaySlice(s_runoff, position, volume * 0.6f, Random.Range(0.9f, 1.1f), 0.5f, Random.Range(0.05f, 0.2f));
+                PlaySliceFromStart(s_runoff, position, volume * 0.5f, Random.Range(0.9f, 1.1f), 0.5f, 0.4f);
             }
+        }
+
+        /// <summary>The blade digging into the water as a rower starts to brake: a firm splash and spray.</summary>
+        public static void PlayBrakeCatch(Vector3 position)
+        {
+            if (!EnsureInitialized())
+            {
+                return;
+            }
+            PlayAt(Pick(s_splash), position, RowingPlugin.SplashVolume.Value * Random.Range(0.8f, 1f), Random.Range(0.8f, 0.95f), 0f, 0f, 0f);
+            ShowSplash(position, strong: true);
+        }
+
+        /// <summary>
+        /// Like PlaySlice, but the slice starts within the first <paramref name="startWithin"/> fraction of the
+        /// clip, where splash recordings are loud; their tails are often near silent.
+        /// </summary>
+        private static void PlaySliceFromStart(AudioClip[] clips, Vector3 position, float volume, float pitch, float length, float startWithin)
+        {
+            AudioClip clip = Pick(clips);
+            if (clip == null)
+            {
+                return;
+            }
+            float slice = Mathf.Min(length, clip.length);
+            float start = Random.Range(0f, Mathf.Max(0f, Mathf.Min(clip.length * startWithin, clip.length - slice)));
+            PlayAt(clip, position, volume, pitch, start, slice, 0f);
         }
 
         /// <summary>Spray at a blade, outside a stroke (e.g. while braking at speed).</summary>

@@ -52,7 +52,7 @@ namespace RowingMod
         private const float BrakeTime = 0.3f;
         private const float BrakeExtraPitch = 8f;
         // While braking at speed: water rushing past the blade, and some spray.
-        private const float GurgleMinSpeed = 0.4f;
+        private const float GurgleMinSpeed = 0.15f;
         private const float SprayMinSpeed = 1.5f;
 
         private class Oar
@@ -331,6 +331,13 @@ namespace RowingMod
             {
                 if (oar.Occupant != null && OwnerOf(oar.Occupant) == sender)
                 {
+                    // The blade digs in: a splash at any speed, so braking always sounds. Repeats ("still braking")
+                    // don't splash again.
+                    if (braking && !oar.Braking)
+                    {
+                        RowingSounds.PlayBrakeCatch(oar.Root.TransformPoint(new Vector3(oar.Outboard - BladeLength / 2f, 0f, 0f)));
+                        oar.NextGurgle = Time.time + 0.4f;
+                    }
                     oar.Braking = braking;
                     return;
                 }
@@ -419,7 +426,7 @@ namespace RowingMod
             if (Time.time >= oar.NextGurgle)
             {
                 oar.NextGurgle = Time.time + Random.Range(0.3f, 0.55f);
-                RowingSounds.PlayGurgle(blade, Mathf.Clamp01(speed / 6f));
+                RowingSounds.PlayGurgle(blade, Mathf.Clamp01(speed / 4f));
             }
             if (speed >= SprayMinSpeed && Time.time >= oar.NextSpray)
             {
