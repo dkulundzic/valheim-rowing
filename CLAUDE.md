@@ -48,7 +48,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
     - **Playback:** every client plays it from the ship (`ShipOars.UpdateDrum`) on each beat from the shared schedule, while someone is aboard, accenting every fourth beat.
     - **Sound:** a real dundunba hit, `assets/sounds/dundun.wav`. It's CC0, by JIMMYJAMES112 on Freesound (see `samples/SOURCES.md`).
       - **Loading:** from a `sounds` folder next to the DLL (`LoadBundledWav`).
-      - **Not released yet:** the dundun lives in `assets/sounds/` (local testing only; the user kept it out of 1.2.0). The csproj copies `package/sounds` and `assets/sounds` into the local game, but `package.sh` only packs `package/sounds`. To release it, move it to `package/sounds/` and add the credit to the package README.
+      - **Not released or installed:** the dundun waits in `assets/sounds/`. The user kept it out of 1.2.0 and removed it from the local game too, so local = 1.2.0 with the generated drum. The csproj and `package.sh` only use `package/sounds` (empty now). To use the dundun, move it to `package/sounds/` and add the credit to the package README.
       - **Variation:** accents are pitched 0.92–0.95, other beats 0.98–1.04, with volume jitter.
       - **Fallback:** the generated tom (`MakeDrum`), used if the file is missing or `Sounds.DrumSound = generated`. Volume `Sounds.DrumVolume`, heard up to 70 m.
       - **History:** the user found synthesized drum patterns "boring" and "not good enough" and asked for a dundun; richer patterns are shelved for now.
@@ -153,6 +153,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Oars:** `ShipOars` swings the oar square and dug in, with a gurgle and spray from frame-to-frame speed. The panel shows the bench blue.
   - **To tune by playtest:** `Brake.Strength`, and how strong the turning torque is.
 - [x] **Released 1.1.0** on GitHub (2026-10-04), bundling everything since 1.0.0; 1.0.1 was never published. `Debug.LogSoundCandidates` is off by default for release.
+- [x] **Released 1.2.0** on GitHub (2026-10-04): the helmsman's war drum (generated sound), oar wakes, a 10% Rested discount; the beat tick is removed. The recorded dundun is not included.
 - [ ] **Next:** discuss grunting or effort sounds for rowers.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.

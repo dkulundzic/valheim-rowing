@@ -44,10 +44,10 @@
 
   <Target Name="CopyToBepInEx" AfterTargets="Build" Condition="Exists('$(ValheimDir)/BepInEx/plugins')">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ValheimDir)/BepInEx/plugins/RowingMod" />
-    <!-- Sounds the mod loads from a "sounds" folder next to its DLL: released ones (package/sounds) and ones only
-         being tried out locally (assets/sounds, not in the release zip). -->
+    <!-- Released sounds the mod loads from a "sounds" folder next to its DLL. Sounds not released yet wait in
+         assets/sounds; to try one locally, copy it into the game's BepInEx/plugins/RowingMod/sounds by hand. -->
     <ItemGroup>
-      <ModSounds Include="package/sounds/*.wav;assets/sounds/*.wav" />
+      <ModSounds Include="package/sounds/*.wav" />
     </ItemGroup>
     <Copy SourceFiles="@(ModSounds)" DestinationFolder="$(ValheimDir)/BepInEx/plugins/RowingMod/sounds" />
     <Message Importance="high" Text="Copied $(TargetFileName) to $(ValheimDir)/BepInEx/plugins/RowingMod" />
