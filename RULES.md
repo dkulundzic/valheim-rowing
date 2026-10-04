@@ -125,6 +125,7 @@ The helmsman sees the panel too, which shows who's rowing and who's in time.
 | Message | Meaning |
 |---|---|
 | **Rowing ready** | You sat down in a seat and can row. |
+| **Rowing: …** (four in a row) | The first time you sit at an oar: a short tutorial on the beat, rowing together, braking and the crew panel. Set `Tutorial.Seen` to false to see it again. |
 | **Your strokes won't count** | The ship's owner doesn't have the mod. |
 | **Your strokes count again** | The ship's owner now has the mod. |
 | **In sync ×N!** | Your strong stroke landed on the same beat as N−1 others. |

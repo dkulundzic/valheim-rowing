@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RowingMod
@@ -21,6 +22,8 @@ namespace RowingMod
         // Snackbar timing in seconds.
         private const float ToastFadeIn = 0.25f;
         private const float ToastHold = 3.5f;
+        // Tutorial snackbars stay up longer, so there's time to read them.
+        private const float TutorialHold = 6f;
         private const float ToastFadeOut = 0.6f;
         // How long the ship's owner may go without announcing the mod before rowers are warned.
         private const float OwnerGraceTime = 3f;
@@ -47,6 +50,10 @@ namespace RowingMod
         private string m_toastTitle;
         private string m_toastBody;
         private float m_toastStart;
+        private float m_toastHold = ToastHold;
+        // Snackbars waiting their turn (the tutorial), and whether the last one finishes the tutorial.
+        private readonly Queue<(string Title, string Body, float Hold, bool Last)> m_toastQueue = new Queue<(string, string, float, bool)>();
+        private bool m_toastFinishesTutorial;
 
         private void Update()
         {
@@ -56,6 +63,7 @@ namespace RowingMod
                 return;
             }
             UpdateNotices();
+            UpdateToastQueue();
             UpdateBrake(player);
 
             if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
@@ -198,7 +206,15 @@ namespace RowingMod
 
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
-            Toast("Rowing ready", RowHint());
+            m_toastQueue.Clear();
+            if (RowingPlugin.TutorialSeen.Value)
+            {
+                Toast("Rowing ready", RowHint());
+            }
+            else
+            {
+                QueueTutorial();
+            }
             return true;
         }
 
@@ -265,9 +281,41 @@ namespace RowingMod
 
         private void Toast(string title, string body)
         {
+            Toast(title, body, ToastHold);
+        }
+
+        private void Toast(string title, string body, float hold)
+        {
             m_toastTitle = title;
             m_toastBody = body;
             m_toastStart = Time.time;
+            m_toastHold = hold;
+            m_toastFinishesTutorial = false;
+        }
+
+        /// <summary>
+        /// The first time someone sits at an oar: a few snackbars, one after another, explaining rowing. It's marked as
+        /// seen (Tutorial.Seen) once the last one has shown; standing up before then starts it over next time.
+        /// </summary>
+        private void QueueTutorial()
+        {
+            string row = RowingPlugin.RowKey.Value.ToString();
+            string brake = RowingPlugin.BrakeKey.Value.ToString();
+            m_toastQueue.Enqueue(("Rowing: row on the beat", $"Press {row} when the white marker crosses the green zone. That's the ship's beat; it speeds up as the ship does.", TutorialHold, false));
+            m_toastQueue.Enqueue(("Rowing: row together", "Hit the same beat as your crew for a sync bonus. An off-beat stroke when others are on the beat clashes and slows the ship.", TutorialHold, false));
+            m_toastQueue.Enqueue(("Rowing: brake", $"Hold {brake} to hold water and slow the ship. Braking on one side swings the bow toward that side.", TutorialHold, false));
+            m_toastQueue.Enqueue(("Rowing: your crew", $"Bottom right: the ship, its rowers, the beat and the speed. The helmsman can beat a war drum with {RowingPlugin.DrumKey.Value} at the helm.", TutorialHold, true));
+        }
+
+        private void UpdateToastQueue()
+        {
+            if (m_toastTitle != null || m_toastQueue.Count == 0)
+            {
+                return;
+            }
+            (string title, string body, float hold, bool last) = m_toastQueue.Dequeue();
+            Toast(title, body, hold);
+            m_toastFinishesTutorial = last;
         }
 
         private static bool IsShipSeat(Ship ship, Transform attachPoint)
@@ -388,13 +436,18 @@ namespace RowingMod
             }
 
             float t = Time.time - m_toastStart;
-            if (t > ToastFadeIn + ToastHold + ToastFadeOut)
+            if (t > ToastFadeIn + m_toastHold + ToastFadeOut)
             {
                 m_toastTitle = null;
+                if (m_toastFinishesTutorial)
+                {
+                    m_toastFinishesTutorial = false;
+                    RowingPlugin.TutorialSeen.Value = true;
+                }
                 return;
             }
             float fadeIn = Mathf.Clamp01(t / ToastFadeIn);
-            float fadeOut = Mathf.Clamp01((ToastFadeIn + ToastHold + ToastFadeOut - t) / ToastFadeOut);
+            float fadeOut = Mathf.Clamp01((ToastFadeIn + m_toastHold + ToastFadeOut - t) / ToastFadeOut);
             float alpha = Mathf.Min(fadeIn, fadeOut);
             // Slides down into place from above, so it never covers the bar's title below it.
             float slide = (1f - fadeIn) * (1f - fadeIn) * 12f;
