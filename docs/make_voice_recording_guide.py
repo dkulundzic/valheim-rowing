@@ -125,7 +125,7 @@ story = [
         ("8", "crew-sync", "Several rowers hitting the same beat", "A shared, punchy \"hup!\"", "0.2-0.5 s", "8-10"),
     ]),
     Spacer(1, 5 * mm),
-    Paragraph("Every take is cleaned (trimmed, denoised, levelled, EQ'd), varied in pitch, and auditioned in game (N / B / L) before anything goes into the mod.", note),
+    Paragraph("Every take is cleaned (trimmed, denoised, levelled, EQ'd), and varied in pitch; you listen to them and pick the keepers before anything goes into the mod.", note),
 ]
 
 

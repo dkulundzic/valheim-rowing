@@ -419,43 +419,6 @@ namespace RowingMod
             return new[] { generate() };
         }
 
-        /// <summary>The clips of a game sound prefab (also ones only referenced by the player or ships), for auditioning.</summary>
-        internal static AudioClip[] FindGameClips(string prefabName)
-        {
-            if (!EnsureInitialized())
-            {
-                return null;
-            }
-            GameObject prefab = FindPrefab(prefabName);
-            ZSFX sfx = prefab != null ? prefab.GetComponentInChildren<ZSFX>(includeInactive: true) : null;
-            return sfx != null ? sfx.m_audioClips : null;
-        }
-
-        private static AudioSource s_previewSource;
-
-        /// <summary>Plays a clip in 2D (not positioned) through the SFX mixer, stopping any previous preview.</summary>
-        internal static void Preview(AudioClip clip, float pitch, float volume)
-        {
-            if (clip == null || !EnsureInitialized())
-            {
-                return;
-            }
-            if (s_previewSource == null)
-            {
-                GameObject previewObject = new GameObject("RowingMod_Preview");
-                Object.DontDestroyOnLoad(previewObject);
-                s_previewSource = previewObject.AddComponent<AudioSource>();
-                s_previewSource.spatialBlend = 0f;
-                s_previewSource.playOnAwake = false;
-                s_previewSource.outputAudioMixerGroup = s_sfxGroup;
-            }
-            s_previewSource.Stop();
-            s_previewSource.clip = clip;
-            s_previewSource.pitch = pitch;
-            s_previewSource.volume = Mathf.Clamp01(volume);
-            s_previewSource.Play();
-        }
-
         private static GameObject FindPrefab(string name)
         {
             GameObject prefab = ZNetScene.instance.GetPrefab(name);
@@ -809,13 +772,8 @@ namespace RowingMod
         /// </summary>
         private static AudioClip MakeClip(string name, float[] samples)
         {
-            return MakeClip(name, samples, SampleRate);
-        }
-
-        internal static AudioClip MakeClip(string name, float[] samples, int sampleRate)
-        {
             int position = 0;
-            return AudioClip.Create(name, samples.Length, 1, sampleRate, false,
+            return AudioClip.Create(name, samples.Length, 1, SampleRate, false,
                 data =>
                 {
                     for (int i = 0; i < data.Length; i++)

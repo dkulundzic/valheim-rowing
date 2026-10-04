@@ -55,7 +55,6 @@ namespace RowingMod
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
-        internal static ConfigEntry<bool> Audition;
 
         private void Awake()
         {
@@ -150,12 +149,9 @@ namespace RowingMod
                 $"Game effect prefab whose particles show as the spray (its sound is removed). Empty uses the default ({RowingSounds.DefaultSplashEffect}).");
             LogSoundCandidates = Config.Bind("Debug", "LogSoundCandidates", false,
                 "Log the game's water, splash and wood sounds once per session, to pick a SplashSound.");
-            Audition = Config.Bind("Debug", "Audition", false,
-                "Sound audition for choosing voice sounds: in a world, N plays the next sample, B the previous, L replays. Plays game voice candidates and WAV files in BepInEx/plugins/RowingMod/audition/.");
 
             gameObject.AddComponent<Rower>();
             gameObject.AddComponent<CrewPanel>();
-            gameObject.AddComponent<SoundAudition>();
             new Harmony(Guid).PatchAll();
             Log.LogInfo($"{Name} {Version} loaded");
         }
