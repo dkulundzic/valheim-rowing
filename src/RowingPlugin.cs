@@ -54,6 +54,7 @@ namespace RowingMod
         internal static ConfigEntry<KeyCode> DrumKey;
         internal static ConfigEntry<float> RestedDiscount;
         internal static ConfigEntry<bool> ShowWakes;
+        internal static ConfigEntry<bool> ShowVoyageSummary;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
 
@@ -142,6 +143,8 @@ namespace RowingMod
                 "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
             DrumSound = Config.Bind("Sounds", "DrumSound", "",
                 "The war drum's sound. Empty uses a recorded drum (sounds/dundun.wav next to the mod) if present, otherwise a drum made by the mod; \"generated\" always uses the one made by the mod.");
+            ShowVoyageSummary = Config.Bind("UI", "ShowVoyageSummary", true,
+                "When you stand up from an oar, show a short summary of the stint (distance, strokes, on-beat %, syncs, clashes) and your lifetime totals.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
                 "Show subtle wakes on the water where blades sweep through.");
             WakeEffect = Config.Bind("UI", "WakeEffect", "",

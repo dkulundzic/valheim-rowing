@@ -74,6 +74,9 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Also:** a crew-boost bar along the centre line, and a footer with the speed setting ("Paddling · Crew boost N%") and "In sync ×N".
   - Config: `UI.ShowCrewPanel`, and `UI.CrewNames` (off by default).
 - `src/RowingUI.cs`: IMGUI scaling and helpers. All mod UI draws in virtual pixels scaled by `UI.Scale` (0 = automatic, `Screen.height / 1080`, at least 1). `DrawLine` builds its own rotation matrix, because `GUIUtility.RotateAroundPivot` takes the pivot in unscaled pixels.
+- `src/VoyageStats.cs` (branch `feature/voyage-stats`): per stint at an oar.
+  - **Tracking:** the ship's horizontal distance (jumps over 20 m per frame are ignored) and strokes, with sync and clash settled 2 s later via `GetStrongCount`.
+  - **On standing up:** a 2-line top-left summary, and lifetime totals in `Player.m_customData` (`RowingMod_TotalMeters`, `RowingMod_TotalStrokes`), which are saved with the character. Config `UI.ShowVoyageSummary`.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.
