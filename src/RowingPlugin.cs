@@ -29,6 +29,7 @@ namespace RowingMod
         internal static ConfigEntry<float> SyncBonusPerRower;
         internal static ConfigEntry<float> MaxSyncBonus;
         internal static ConfigEntry<float> ClashBrake;
+        internal static ConfigEntry<float> RhythmBonusMax;
         internal static ConfigEntry<float> BarOffset;
         internal static ConfigEntry<KeyCode> BrakeKey;
         internal static ConfigEntry<float> BrakeStrength;
@@ -105,6 +106,8 @@ namespace RowingMod
                 "Extra strength of a well-timed stroke for each other rower who also hit the same beat.");
             MaxSyncBonus = Config.Bind("Crew", "MaxSyncBonus", 0.45f,
                 "Most extra strength the sync bonus can give one stroke.");
+            RhythmBonusMax = Config.Bind("Crew", "RhythmBonusMax", 0.15f,
+                "Push bonus for a long rhythm streak (beats in a row the crew rowed together): a third of this at 5 beats, two thirds at 10, all of it at 20. 0 turns it off.");
             ClashBrake = Config.Bind("Crew", "ClashBrake", 0.2f,
                 "Braking from an off-beat stroke on a beat someone else hit (clashing oars), as a fraction of the ship's paddle force. It only slows the ship, never reverses it.");
 

@@ -11,6 +11,10 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Clients:** extend the schedule with `GetBeat`. A stale schedule (more than 2 s past the next beat, e.g. after sleeping) restarts.
   - **A press belongs to the nearest beat:** within ±`SweetSpotWidth`/2 of the beat it's strong, otherwise off-beat.
   - **One stroke per beat;** a second press is mashing (stamina spent, no stroke).
+- **Rhythm streak** (branch `feature/rhythm-streak`):
+  - **Judging:** the owner's `JudgeBeat` judges each beat 300 ms after its stroke window closes. 2 or more strong and no off-beat strokes adds 1; any off-beat stroke or a lone strong stroke resets it; 3 empty beats in a row reset it.
+  - **Bonus:** `RhythmBonus` (`Crew.RhythmBonusMax` 0.15, in thirds at 5, 10 and 20 beats) multiplies the boost, capped at `MaxBoost`.
+  - **Display:** published in ZDO int `RowingMod_Streak`; the panel footer and rower milestone toasts show it.
 - **Sync and clash,** computed by the owner per beat in `ApplyBeat`:
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
   - **Clash:** if anyone hit the beat, each off-beat stroke on it adds no boost and adds `ClashBrake` to a separate brake pool. The brake only slows the ship and never reverses it. If nobody hit the beat, off-beat strokes are weak (`WeakStrokeFactor`).

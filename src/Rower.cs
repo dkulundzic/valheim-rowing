@@ -39,6 +39,8 @@ namespace RowingMod
         private float m_messageUntil;
         private float m_ownerMissingSince = -1f;
         private bool m_ownerWarned;
+        // The crew's rhythm streak as last seen, for milestone messages.
+        private int m_lastStreak;
         // Holding water: braking with the oar while the brake key is held.
         private bool m_braking;
         private float m_brakeHeartbeat;
@@ -195,6 +197,7 @@ namespace RowingMod
             m_ship = ship;
             m_shipRowing = shipRowing;
             m_lastStrokeBeat = 0;
+            m_lastStreak = shipRowing.GetStreak();
 
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
@@ -202,9 +205,26 @@ namespace RowingMod
             return true;
         }
 
-        /// <summary>Shows a snackbar when strokes won't count, and again once they do.</summary>
+        /// <summary>Shows a snackbar when strokes won't count, and again once they do; and rhythm milestones.</summary>
         private void UpdateNotices()
         {
+            int streak = m_shipRowing != null ? m_shipRowing.GetStreak() : 0;
+            if (streak != m_lastStreak)
+            {
+                foreach (int milestone in new[] { 5, 10, 20 })
+                {
+                    if (m_lastStreak < milestone && streak >= milestone)
+                    {
+                        Toast($"Rhythm ×{streak}", $"+{ShipRowing.RhythmBonus(streak) * 100f:0}% push while the crew keeps in sync");
+                    }
+                }
+                if (streak == 0 && m_lastStreak >= 5)
+                {
+                    Show("Rhythm lost");
+                }
+                m_lastStreak = streak;
+            }
+
             // Strokes go to the ship's owner, so they do nothing if that player doesn't run the mod.
             // Wait a moment before warning, since a new owner takes a sync or two to announce itself.
             if (m_shipRowing != null && m_shipRowing.HasModdedOwner())

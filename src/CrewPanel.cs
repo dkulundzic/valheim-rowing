@@ -214,11 +214,19 @@ namespace RowingMod
             RowingUI.Label(line1, $"{SpeedSettingName(ship.GetSpeedSetting())} · Crew boost {boost * 100f:0}%", footer);
             long nearestMs = nowMs - beatMs <= periodMs / 2 ? beatMs : beatMs + periodMs;
             int inSync = rowing.GetStrongCount(nearestMs);
-            if (inSync >= 2)
+            int streak = rowing.GetStreak();
+            string syncLine = inSync >= 2 ? $"In sync ×{inSync}" : "";
+            if (streak > 0)
+            {
+                float bonus = ShipRowing.RhythmBonus(streak);
+                string rhythm = bonus > 0f ? $"Rhythm {streak} (+{bonus * 100f:0}%)" : $"Rhythm {streak}";
+                syncLine = syncLine.Length > 0 ? $"{syncLine} · {rhythm}" : rhythm;
+            }
+            if (syncLine.Length > 0)
             {
                 Color previousColor = GUI.color;
-                GUI.color = SyncColor;
-                RowingUI.Label(new Rect(line1.x, line1.yMax, line1.width, line1.height), $"In sync ×{inSync}", footer);
+                GUI.color = inSync >= 2 || streak >= 5 ? SyncColor : Color.white;
+                RowingUI.Label(new Rect(line1.x, line1.yMax, line1.width, line1.height), syncLine, footer);
                 GUI.color = previousColor;
             }
 

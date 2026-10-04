@@ -84,6 +84,8 @@ How much the crew pushes, on average (ship still, in units of the ship's paddle 
 | 2 in sync + 1 clashing | 0.79 |
 | 3 rowers all off beat | 0.42 |
 
+**Rhythm streak:** every beat where the crew rows together (at least two strong strokes, with no weak strokes or clashes) adds to the ship's rhythm streak. A long streak pushes harder: **+5% at 5 beats, +10% at 10, +15% at 20**, still within the crew's limit. A weak stroke, a clash, or a beat where only one rower hits it breaks the streak. A rower resting doesn't break it, but if nobody rows for three beats, it ends. The crew panel shows "Rhythm 12 (+10%)", and you get a message at 5, 10 and 20.
+
 Solo rowing is meant to be hard work. A crew in sync is far stronger than the same crew rowing sloppily.
 
 ## 6. Playing together

@@ -21,6 +21,12 @@ namespace RowingMod
         // The helmsman turning the war drum on or off; sent to the owner, who stores it on the ship.
         public const string DrumRpc = "RowingMod_Drum";
         public const string DrumKey = "RowingMod_Drum";
+        // The crew's rhythm streak: beats in a row the crew rowed together. Kept by the owner, readable by everyone.
+        public const string StreakKey = "RowingMod_Streak";
+        // A beat's strokes are judged this long after its stroke window closes, so late network arrivals count.
+        private const long StreakJudgeDelayMs = 300;
+        // This many beats in a row with nobody rowing end the streak.
+        private const int StreakEmptyBeats = 3;
         // A brake not repeated for this long is dropped, in case its "off" got lost.
         private const float BrakeTimeout = 2.5f;
         // Below this speed (m/s) braking also adds a small constant deceleration, so the ship comes to a halt.
@@ -75,6 +81,10 @@ namespace RowingMod
         // Rowers holding water, by sender, with when each was last heard.
         private readonly Dictionary<long, float> m_brakers = new Dictionary<long, float>();
         private readonly List<long> m_staleBrakers = new List<long>();
+        // Owner's rhythm streak state.
+        private int m_streak;
+        private long m_lastJudgedBeat;
+        private int m_emptyBeats;
         // Ship types whose seat spots have been logged, so each type is described once per session.
         private static readonly HashSet<string> s_loggedShipTypes = new HashSet<string>();
 
@@ -239,6 +249,29 @@ namespace RowingMod
         }
 
         /// <summary>How many rowers hit the given beat in the green zone, as seen by this client.</summary>
+        /// <summary>The crew's rhythm streak (beats in a row rowed together), as the owner last published it.</summary>
+        public int GetStreak()
+        {
+            return m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetInt(StreakKey) : 0;
+        }
+
+        /// <summary>
+        /// The push bonus for a rhythm streak: a third of Crew.RhythmBonusMax at 5 beats, two thirds at 10, all of it at 20.
+        /// </summary>
+        public static float RhythmBonus(int streak)
+        {
+            float max = Mathf.Max(0f, RowingPlugin.RhythmBonusMax.Value);
+            if (streak >= 20)
+            {
+                return max;
+            }
+            if (streak >= 10)
+            {
+                return max * 2f / 3f;
+            }
+            return streak >= 5 ? max / 3f : 0f;
+        }
+
         public int GetStrongCount(long beatMs)
         {
             return m_beats.TryGetValue(beatMs, out BeatStrokes strokes) ? strokes.StrongCount : 0;
@@ -448,15 +481,19 @@ namespace RowingMod
                 m_boost = 0f;
                 m_brake = 0f;
                 m_beats.Clear();
+                SetStreak(0);
             }
 
             UpdateBeat(direction);
+            JudgeBeat();
 
             if ((m_boost > 0.001f || m_brake > 0.001f) && IsInWater())
             {
                 // Same units as the game's paddle force (m_backwardForce): a velocity change per second.
                 // Pushed through the centre of mass so rowing doesn't turn the ship.
-                float speedChange = m_ship.m_backwardForce * m_boost * SpeedFactor(direction) * dt;
+                // A crew keeping its rhythm pushes harder, still within the crew cap.
+                float boost = Mathf.Min(m_boost * (1f + RhythmBonus(m_streak)), RowingPlugin.MaxBoost.Value);
+                float speedChange = m_ship.m_backwardForce * boost * SpeedFactor(direction) * dt;
                 // Clashes only slow the ship down; they never push it the other way.
                 float speed = Mathf.Max(0f, m_ship.GetSpeed() * direction);
                 speedChange -= Mathf.Min(m_ship.m_backwardForce * m_brake * dt, speed);
@@ -518,6 +555,44 @@ namespace RowingMod
             float topSpeed = TopSpeed();
             float speedRatio = topSpeed > 0.01f ? Mathf.Clamp01(Mathf.Abs(m_ship.GetSpeed()) / topSpeed) : 0f;
             return SecondsToMs(Mathf.Lerp(RowingPlugin.StrokeCycleStill.Value, RowingPlugin.StrokeCycleTopSpeed.Value, speedRatio));
+        }
+
+        /// <summary>
+        /// Owner: once the latest beat's stroke window has closed (half a beat after it, plus a little for strokes still
+        /// on the network), judge it for the rhythm streak. Two or more well-timed strokes and no weak or clashing ones
+        /// add a beat; any weak stroke, clash or lone strong stroke breaks it. Beats nobody rowed pause it, and a few
+        /// in a row end it, so a rower resting doesn't break the crew's rhythm but a crew that stopped does.
+        /// </summary>
+        private void JudgeBeat()
+        {
+            long nowMs = NowMs();
+            GetBeat(nowMs, out long beatMs, out long periodMs);
+            if (beatMs <= m_lastJudgedBeat || nowMs < beatMs + periodMs / 2 + StreakJudgeDelayMs)
+            {
+                return;
+            }
+            m_lastJudgedBeat = beatMs;
+            if (!m_beats.TryGetValue(beatMs, out BeatStrokes strokes) || strokes.StrongBySender.Count == 0)
+            {
+                if (++m_emptyBeats >= StreakEmptyBeats)
+                {
+                    SetStreak(0);
+                }
+                return;
+            }
+            m_emptyBeats = 0;
+            int strong = strokes.StrongCount;
+            int offBeat = strokes.StrongBySender.Count - strong;
+            SetStreak(strong >= 2 && offBeat == 0 ? m_streak + 1 : 0);
+        }
+
+        private void SetStreak(int streak)
+        {
+            m_streak = streak;
+            if (m_nview != null && m_nview.IsValid() && m_nview.IsOwner())
+            {
+                m_nview.GetZDO().Set(StreakKey, streak);
+            }
         }
 
         private void ForgetOldBeats()
