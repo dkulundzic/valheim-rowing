@@ -262,7 +262,7 @@ All by JIMMYJAMES112 on Freesound: a dunun set (replicas from oil drums, and a c
 
 | File | Page | License | Used |
 |---|---|---|---|
-| `170180` Dundunba.WAV | https://freesound.org/people/JIMMYJAMES112/sounds/170180/ | CC0 1.0 | **Yes:** `package/sounds/dundun.wav` (the war drum), tail trimmed below -60 dB, normalized to -1 dBFS |
+| `170180` Dundunba.WAV | https://freesound.org/people/JIMMYJAMES112/sounds/170180/ | CC0 1.0 | **Yes:** `assets/sounds/dundun.wav` (the war drum), tail trimmed below -60 dB, normalized to -1 dBFS |
 | `170177` Sangban.WAV | https://freesound.org/people/JIMMYJAMES112/sounds/170177/ | CC0 1.0 | Not yet |
 | `170178` Sangban mute.WAV | https://freesound.org/people/JIMMYJAMES112/sounds/170178/ | CC0 1.0 | Not yet |
 | `170179` Kenkeni.WAV | https://freesound.org/people/JIMMYJAMES112/sounds/170179/ | CC0 1.0 | Not yet |

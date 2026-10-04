@@ -739,7 +739,8 @@ namespace RowingMod
             {
                 if (!File.Exists(path))
                 {
-                    RowingPlugin.Log.LogWarning($"Sound file {path} is missing; using a generated sound");
+                    // Expected when a sound isn't part of this release.
+                    RowingPlugin.Log.LogInfo($"No {fileName} next to the mod; using a generated sound");
                     return null;
                 }
                 byte[] bytes = File.ReadAllBytes(path);

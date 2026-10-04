@@ -46,8 +46,9 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **War drum** (replaced the private beat tick on 2026-10-04, at the user's request):
     - **Who controls it:** the helmsman presses `Controls.DrumKey` (H) at the helm. That sends RPC `RowingMod_Drum(bool)` to the owner, who stores it in ZDO bool `RowingMod_Drum`. It's off by default.
     - **Playback:** every client plays it from the ship (`ShipOars.UpdateDrum`) on each beat from the shared schedule, while someone is aboard, accenting every fourth beat.
-    - **Sound:** a real dundunba hit shipped as `package/sounds/dundun.wav`. It's CC0, by JIMMYJAMES112 on Freesound (see `samples/SOURCES.md`).
-      - **Loading:** from a `sounds` folder next to the DLL (`LoadBundledWav`). The csproj copies it into the game, and `package.sh` puts `sounds/` in the zip.
+    - **Sound:** a real dundunba hit, `assets/sounds/dundun.wav`. It's CC0, by JIMMYJAMES112 on Freesound (see `samples/SOURCES.md`).
+      - **Loading:** from a `sounds` folder next to the DLL (`LoadBundledWav`).
+      - **Not released yet:** the dundun lives in `assets/sounds/` (local testing only; the user kept it out of 1.2.0). The csproj copies `package/sounds` and `assets/sounds` into the local game, but `package.sh` only packs `package/sounds`. To release it, move it to `package/sounds/` and add the credit to the package README.
       - **Variation:** accents are pitched 0.92–0.95, other beats 0.98–1.04, with volume jitter.
       - **Fallback:** the generated tom (`MakeDrum`), used if the file is missing or `Sounds.DrumSound = generated`. Volume `Sounds.DrumVolume`, heard up to 70 m.
       - **History:** the user found synthesized drum patterns "boring" and "not good enough" and asked for a dundun; richer patterns are shelved for now.

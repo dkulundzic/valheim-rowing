@@ -11,7 +11,7 @@ namespace RowingMod
     {
         public const string Guid = "com.dkulundzic.rowingmod";
         public const string Name = "Rowing";
-        public const string Version = "1.1.0";
+        public const string Version = "1.2.0";
 
         internal static ManualLogSource Log;
 
@@ -141,7 +141,7 @@ namespace RowingMod
             DrumVolume = Config.Bind("Sounds", "DrumVolume", 0.8f,
                 "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
             DrumSound = Config.Bind("Sounds", "DrumSound", "",
-                "The war drum's sound. Empty uses the recorded dundun drum shipped with the mod (sounds/dundun.wav); \"generated\" uses a drum made by the mod.");
+                "The war drum's sound. Empty uses a recorded drum (sounds/dundun.wav next to the mod) if present, otherwise a drum made by the mod; \"generated\" always uses the one made by the mod.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
                 "Show subtle wakes on the water where blades sweep through.");
             WakeEffect = Config.Bind("UI", "WakeEffect", "",
