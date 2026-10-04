@@ -1,8 +1,8 @@
 {
   "name": "RowingMod",
-  "version_number": "1.0.1",
+  "version_number": "1.1.0",
   "website_url": "",
-  "description": "Passengers can row to speed up the ship. Press H in rhythm with the stroke bar; strokes cost stamina (more into a headwind) and fade near the ship's top sail speed.",
+  "description": "Passengers row ships to the ship's shared beat: timed strokes, crew sync, oars, splashes, braking and a crew panel. Rowing fades near the ship's top sail speed.",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2351"
   ]

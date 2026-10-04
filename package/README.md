@@ -30,7 +30,7 @@ Passengers can row to speed up the ship.
 **With r2modman or the Thunderstore Mod Manager (recommended):**
 
 1. Install [r2modman](https://thunderstore.io/package/ebkr/r2modman/) and select Valheim.
-2. Create or select a profile, then go to **Settings → Profile → Import local mod** and pick the `RowingMod-1.0.1.zip` file.
+2. Create or select a profile, then go to **Settings → Profile → Import local mod** and pick the `RowingMod-1.1.0.zip` file.
 3. When asked, let it install the dependency **BepInExPack_Valheim**.
 4. Start the game with **Start modded**.
 

@@ -11,7 +11,7 @@ namespace RowingMod
     {
         public const string Guid = "com.dkulundzic.rowingmod";
         public const string Name = "Rowing";
-        public const string Version = "1.0.1";
+        public const string Version = "1.1.0";
 
         internal static ManualLogSource Log;
 
@@ -138,7 +138,7 @@ namespace RowingMod
                 "Show water spray at the blade on each stroke.");
             SplashEffect = Config.Bind("UI", "SplashEffect", "",
                 $"Game effect prefab whose particles show as the spray (its sound is removed). Empty uses the default ({RowingSounds.DefaultSplashEffect}).");
-            LogSoundCandidates = Config.Bind("Debug", "LogSoundCandidates", true,
+            LogSoundCandidates = Config.Bind("Debug", "LogSoundCandidates", false,
                 "Log the game's water, splash and wood sounds once per session, to pick a SplashSound.");
 
             gameObject.AddComponent<Rower>();
