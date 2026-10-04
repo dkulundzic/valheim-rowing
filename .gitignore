@@ -9,3 +9,5 @@ decompiled/
 .DS_Store
 dist/
 ._*
+samples/originals/
+samples/wav/
