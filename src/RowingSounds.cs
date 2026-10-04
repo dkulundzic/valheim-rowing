@@ -476,6 +476,22 @@ namespace RowingMod
                 {
                     AddExtra(character.m_waterEffects, "player water effects");
                 }
+                // Every effect list on the player (hurt, jump, death...), which is where any voice sounds would be.
+                foreach (MonoBehaviour component in player.GetComponents<MonoBehaviour>())
+                {
+                    if (component == null)
+                    {
+                        continue;
+                    }
+                    foreach (System.Reflection.FieldInfo field in component.GetType().GetFields(
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic))
+                    {
+                        if (field.FieldType == typeof(EffectList))
+                        {
+                            AddExtra((EffectList)field.GetValue(component), $"player {field.Name}");
+                        }
+                    }
+                }
             }
             foreach (string shipName in new[] { "Karve", "VikingShip", "Raft" })
             {
@@ -551,6 +567,60 @@ namespace RowingMod
             }
             log.Append($"\n  ({count} found)");
             RowingPlugin.Log.LogInfo(log.ToString());
+            LogVoiceCandidates();
+        }
+
+        /// <summary>
+        /// Game sound clips whose names suggest a voice (grunts, effort, breathing...), with the prefab they're in,
+        /// to find rowing grunts among the game's own sounds.
+        /// </summary>
+        private static void LogVoiceCandidates()
+        {
+            string[] keywords = { "grunt", "effort", "exert", "breath", "pant", "hurt", "pain", "jump", "voice", "male", "female",
+                "vocal", "vox", "groan", "sigh", "strain", "attack_m", "attack_f", "player" };
+            StringBuilder log = new StringBuilder("Voice candidates for rowing grunts (clip names):");
+            int count = 0;
+            HashSet<string> seen = new HashSet<string>();
+            foreach (GameObject prefab in AllPrefabs())
+            {
+                AppendVoice(log, prefab, null, keywords, seen, ref count);
+            }
+            foreach (KeyValuePair<string, GameObject> extra in s_extraPrefabs)
+            {
+                AppendVoice(log, extra.Value, s_extraSources[extra.Key], keywords, seen, ref count);
+            }
+            log.Append($"\n  ({count} prefab(s) with matching clips)");
+            RowingPlugin.Log.LogInfo(log.ToString());
+        }
+
+        private static void AppendVoice(StringBuilder log, GameObject prefab, string source, string[] keywords, HashSet<string> seen, ref int count)
+        {
+            if (prefab == null || !seen.Add(prefab.name))
+            {
+                return;
+            }
+            List<string> matches = new List<string>();
+            foreach (ZSFX sfx in prefab.GetComponentsInChildren<ZSFX>(includeInactive: true))
+            {
+                if (sfx.m_audioClips == null)
+                {
+                    continue;
+                }
+                foreach (AudioClip clip in sfx.m_audioClips)
+                {
+                    if (clip != null && ContainsAny(clip.name.ToLowerInvariant(), keywords))
+                    {
+                        matches.Add($"{clip.name} ({clip.length:0.00} s)");
+                    }
+                }
+            }
+            if (matches.Count == 0)
+            {
+                return;
+            }
+            string from = source != null ? $" [{source}]" : "";
+            log.Append($"\n  {prefab.name}{from}: {string.Join(", ", matches.ToArray())}");
+            count++;
         }
 
         private static bool ContainsAny(string text, string[] keywords)
