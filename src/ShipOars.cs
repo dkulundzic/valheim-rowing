@@ -91,6 +91,8 @@ namespace RowingMod
             public Player Occupant;
             public StrokeKind Kind;
             public float KindAge;
+            // 0 = out in the water, 1 = stowed inside the hull.
+            public float Stowed;
         }
 
         // Hull outlines seen from above, per ship type: half-width of the gunwale every HullStep metres along the ship.
@@ -195,6 +197,7 @@ namespace RowingMod
                     Occupant = oar.Occupant,
                     Kind = oar.Kind,
                     KindAge = Time.time - oar.KindTime,
+                    Stowed = oar.Stowed,
                 });
             }
         }

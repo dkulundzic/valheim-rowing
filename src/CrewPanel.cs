@@ -16,8 +16,9 @@ namespace RowingMod
         private const float Margin = 24f;
         private const float Padding = 10f;
         private const float FooterHeight = 38f;
-        // How far the oars can reach past the hull, in metres, so the panel leaves room for them.
-        private const float OarRoom = 2.6f;
+        // Room left beside the hull for oars, in metres. Oars reaching further are clipped at the panel's edge,
+        // which keeps the ship itself big in the panel.
+        private const float OarRoom = 1.2f;
         // How long a stroke's colour lingers on its bench.
         private const float FlashTime = 0.9f;
         private const float BenchSize = 12f;
@@ -133,6 +134,7 @@ namespace RowingMod
                 Vector2 barBottom = Map(new Vector2(0f, minZ));
                 Rect bar = new Rect(barTop.x - 3f, barTop.y, 6f, barBottom.y - barTop.y);
                 RowingUI.DrawRect(bar, new Color(0f, 0f, 0f, 0.5f));
+                RowingUI.DrawOutline(new Rect(bar.x - 1f, bar.y - 1f, bar.width + 2f, bar.height + 2f), 1f, new Color(BoostColor.r, BoostColor.g, BoostColor.b, 0.5f));
                 float fill = Mathf.Clamp01(rowing.GetSyncedBoost() / Mathf.Max(0.1f, RowingPlugin.MaxBoost.Value));
                 RowingUI.DrawRect(new Rect(bar.x, bar.yMax - bar.height * fill, bar.width, bar.height * fill), BoostColor);
             }
@@ -141,7 +143,15 @@ namespace RowingMod
             foreach (ShipOars.Bench bench in m_benches)
             {
                 bool occupied = bench.Occupant != null;
-                RowingUI.DrawLine(Map(bench.OarFrom), Map(bench.OarTo), 2.5f, occupied ? OarColor : new Color(OarColor.r, OarColor.g, OarColor.b, 0.45f));
+                // Oars out in the water stand out; stowed ones are thin and faint, so empty benches read as rings.
+                Vector2 oarFrom = Map(bench.OarFrom);
+                Vector2 oarTo = Map(bench.OarTo);
+                if (RowingUI.ClipLine(panel, ref oarFrom, ref oarTo))
+                {
+                    float stowed = Mathf.Clamp01(bench.Stowed);
+                    Color oarColor = new Color(OarColor.r, OarColor.g, OarColor.b, Mathf.Lerp(OarColor.a, 0.25f, stowed));
+                    RowingUI.DrawLine(oarFrom, oarTo, Mathf.Lerp(2.5f, 1.2f, stowed), oarColor);
+                }
 
                 Vector2 seat = Map(bench.Seat);
                 if (!occupied)
@@ -162,7 +172,7 @@ namespace RowingMod
                     Rect label = left
                         ? new Rect(seat.x - 12f - 120f, seat.y - 9f, 120f, 18f)
                         : new Rect(seat.x + 12f, seat.y - 9f, 120f, 18f);
-                    GUI.Label(label, playerName, nameStyle);
+                    RowingUI.Label(label, playerName, nameStyle);
                 }
             }
 
@@ -170,14 +180,14 @@ namespace RowingMod
             GUIStyle footer = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false };
             float boost = rowing.GetSyncedBoost();
             Rect line1 = new Rect(panel.x, panel.yMax - Padding - FooterHeight, panel.width, FooterHeight / 2f);
-            GUI.Label(line1, $"Crew boost {boost * 100f:0}%", footer);
+            RowingUI.Label(line1, $"Crew boost {boost * 100f:0}%", footer);
             long nearestMs = nowMs - beatMs <= periodMs / 2 ? beatMs : beatMs + periodMs;
             int inSync = rowing.GetStrongCount(nearestMs);
             if (inSync >= 2)
             {
                 Color previousColor = GUI.color;
                 GUI.color = SyncColor;
-                GUI.Label(new Rect(line1.x, line1.yMax, line1.width, line1.height), $"In sync ×{inSync}", footer);
+                RowingUI.Label(new Rect(line1.x, line1.yMax, line1.width, line1.height), $"In sync ×{inSync}", footer);
                 GUI.color = previousColor;
             }
         }

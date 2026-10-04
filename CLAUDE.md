@@ -130,7 +130,12 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - [x] Layered stroke sounds and spray are playtested; the user is happy with the sounds as they are. The spray uses `fx_footstep_water` (4 particle systems, not networked); `fx_land_water` has a bigger spray.
 - [x] Hold-to-toggle beat tick: built, and its label shows in the playtest screenshots.
 - [x] The crew panel and UI scale are playtested; the user says it "looks great" as is (2026-10-04).
-  - **Optional polish, not requested:** a text shadow for readability on bright backgrounds, fainter stowed oars in the panel, less oar room so the hull is bigger, and an outline for the boost bar.
+  - **Polish done after review:**
+    - all mod text has a drop shadow (`RowingUI.Label`);
+    - the hint reads "Beat tick: on (hold H 3 s to turn off)";
+    - stowed oars in the panel are thin and faint;
+    - oar room is 1.2 m, with oars clipped at the panel edge (`RowingUI.ClipLine`), so the hull is bigger;
+    - the boost bar is outlined.
 - [ ] **Next, 1.1.0:** decide on oar braking (proposal: hold J, drag grows with speed, about 3 stamina/s, optional one-sided turning; questions still open), then release 1.1.0, bundling everything since 1.0.0; 1.0.1 was never published.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.

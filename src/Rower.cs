@@ -344,11 +344,12 @@ namespace RowingMod
 
             // Beside the bar: whether the beat tick is on, and how to change it.
             GUIStyle hintStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleLeft, wordWrap = false };
-            string hint = $"Beat tick {(RowingPlugin.BeatTick.Value ? "on" : "off")} · hold {RowingPlugin.RowKey.Value} {HoldToToggle:0} s";
+            bool tickOn = RowingPlugin.BeatTick.Value;
+            string hint = $"Beat tick: {(tickOn ? "on" : "off")} (hold {RowingPlugin.RowKey.Value} {HoldToToggle:0} s to turn {(tickOn ? "off" : "on")})";
             Color previousColor = GUI.color;
-            GUI.color = new Color(1f, 1f, 1f, 0.7f);
+            GUI.color = new Color(1f, 1f, 1f, 0.92f);
             float hintHeight = hintStyle.CalcHeight(new GUIContent(hint), 400f);
-            GUI.Label(new Rect(x + width + 10f, y + height / 2f - hintHeight / 2f, 400f, hintHeight), hint, hintStyle);
+            RowingUI.Label(new Rect(x + width + 10f, y + height / 2f - hintHeight / 2f, 400f, hintHeight), hint, hintStyle);
             GUI.color = previousColor;
 
             // Labels
@@ -365,17 +366,17 @@ namespace RowingMod
             }
             float titleHeight = style.CalcHeight(new GUIContent(title), TextWidth);
             float titleY = y - 4f - StackGap - titleHeight;
-            GUI.Label(new Rect(textX, titleY, TextWidth, titleHeight), title, style);
+            RowingUI.Label(new Rect(textX, titleY, TextWidth, titleHeight), title, style);
 
             string holdMessage = HoldMessage();
             if (holdMessage != null)
             {
-                GUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), holdMessage, style);
+                RowingUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), holdMessage, style);
             }
             else if (Time.time < m_messageUntil)
             {
                 string message = m_messageIsStroke ? StrokeMessage() : m_message;
-                GUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), message, style);
+                RowingUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), message, style);
             }
 
             DrawToast(titleY - StackGap);
@@ -415,8 +416,8 @@ namespace RowingMod
             Color previous = GUI.color;
             GUI.color = new Color(1f, 1f, 1f, alpha);
             float textX = panel.x + ToastPadding;
-            GUI.Label(new Rect(textX, panel.y + ToastPadding, textWidth, titleHeight), m_toastTitle, titleStyle);
-            GUI.Label(new Rect(textX, panel.y + ToastPadding + titleHeight, textWidth, bodyHeight), m_toastBody, bodyStyle);
+            RowingUI.Label(new Rect(textX, panel.y + ToastPadding, textWidth, titleHeight), m_toastTitle, titleStyle);
+            RowingUI.Label(new Rect(textX, panel.y + ToastPadding + titleHeight, textWidth, bodyHeight), m_toastBody, bodyStyle);
             GUI.color = previous;
         }
 

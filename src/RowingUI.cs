@@ -34,6 +34,65 @@ namespace RowingMod
             return previous;
         }
 
+        /// <summary>A label with a dark drop shadow, so it stays readable over bright sand, water or sky.</summary>
+        public static void Label(Rect rect, string text, GUIStyle style)
+        {
+            Color previous = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.8f * previous.a);
+            GUI.Label(new Rect(rect.x + 1.2f, rect.y + 1.2f, rect.width, rect.height), text, style);
+            GUI.color = previous;
+            GUI.Label(rect, text, style);
+        }
+
+        /// <summary>A rectangle's outline, <paramref name="thickness"/> wide.</summary>
+        public static void DrawOutline(Rect rect, float thickness, Color color)
+        {
+            DrawRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
+            DrawRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
+            DrawRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
+            DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
+        }
+
+        /// <summary>
+        /// Clips the line a-b to a rectangle (Liang-Barsky). Returns false when it lies entirely outside.
+        /// </summary>
+        public static bool ClipLine(Rect rect, ref Vector2 a, ref Vector2 b)
+        {
+            float t0 = 0f;
+            float t1 = 1f;
+            Vector2 d = b - a;
+            float[] p = { -d.x, d.x, -d.y, d.y };
+            float[] q = { a.x - rect.xMin, rect.xMax - a.x, a.y - rect.yMin, rect.yMax - a.y };
+            for (int i = 0; i < 4; i++)
+            {
+                if (Mathf.Approximately(p[i], 0f))
+                {
+                    if (q[i] < 0f)
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+                float t = q[i] / p[i];
+                if (p[i] < 0f)
+                {
+                    t0 = Mathf.Max(t0, t);
+                }
+                else
+                {
+                    t1 = Mathf.Min(t1, t);
+                }
+            }
+            if (t0 > t1)
+            {
+                return false;
+            }
+            Vector2 start = a;
+            a = start + d * t0;
+            b = start + d * t1;
+            return true;
+        }
+
         public static void DrawRect(Rect rect, Color color)
         {
             DrawTexture(rect, Texture2D.whiteTexture, color);
