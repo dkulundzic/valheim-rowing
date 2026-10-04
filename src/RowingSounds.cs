@@ -134,6 +134,33 @@ namespace RowingMod
             ShowSplash(blade, strong);
         }
 
+        /// <summary>
+        /// Water rushing past a blade held in the water (braking): a short slice of the swim splashes, and now and
+        /// then a bit of after-splash. <paramref name="intensity"/> (0..1) grows with the ship's speed.
+        /// </summary>
+        public static void PlayGurgle(Vector3 position, float intensity)
+        {
+            if (!EnsureInitialized())
+            {
+                return;
+            }
+            float volume = RowingPlugin.SplashVolume.Value * Mathf.Lerp(0.12f, 0.45f, Mathf.Clamp01(intensity));
+            PlaySlice(s_drip, position, volume, Random.Range(0.85f, 1.1f), 0.55f, 0f);
+            if (Random.value < 0.3f)
+            {
+                PlaySlice(s_runoff, position, volume * 0.6f, Random.Range(0.9f, 1.1f), 0.5f, Random.Range(0.05f, 0.2f));
+            }
+        }
+
+        /// <summary>Spray at a blade, outside a stroke (e.g. while braking at speed).</summary>
+        public static void ShowSpray(Vector3 position, bool strong)
+        {
+            if (EnsureInitialized())
+            {
+                ShowSplash(position, strong);
+            }
+        }
+
         /// <summary>A wooden thud: an oar clashing with the crew's rhythm.</summary>
         public static void PlayClash(Vector3 position)
         {

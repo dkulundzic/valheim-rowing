@@ -16,6 +16,13 @@ namespace RowingMod
         // The 1.0 stroke (quality only, sent to the owner). Still accepted from rowers who haven't updated.
         public const string LegacyStrokeRpc = "RowingMod_Stroke";
         public const string BoostKey = "RowingMod_Boost";
+        // A rower holding water (braking) or letting go; repeated every second while braking.
+        public const string BrakeRpc = "RowingMod_Brake";
+        // A brake not repeated for this long is dropped, in case its "off" got lost.
+        private const float BrakeTimeout = 2.5f;
+        // Below this speed (m/s) braking also adds a small constant deceleration, so the ship comes to a halt.
+        private const float BrakeStopSpeed = 0.3f;
+        private const float BrakeStopDeceleration = 0.3f;
         // Session ID of the last owner that ran this mod. If it differs from the ZDO's owner, the owner is vanilla.
         public const string ModdedOwnerKey = "RowingMod_Owner";
         // The ship's beat: time of the latest beat and the time to the next one, both in network-clock milliseconds.
@@ -62,6 +69,9 @@ namespace RowingMod
         private float m_lastDirection = 1f;
         private readonly Dictionary<long, BeatStrokes> m_beats = new Dictionary<long, BeatStrokes>();
         private readonly List<long> m_staleBeats = new List<long>();
+        // Rowers holding water, by sender, with when each was last heard.
+        private readonly Dictionary<long, float> m_brakers = new Dictionary<long, float>();
+        private readonly List<long> m_staleBrakers = new List<long>();
         // Ship types whose seat spots have been logged, so each type is described once per session.
         private static readonly HashSet<string> s_loggedShipTypes = new HashSet<string>();
 
@@ -78,6 +88,7 @@ namespace RowingMod
 
             m_nview.Register<float, long>(StrokeRpc, RPC_Stroke);
             m_nview.Register<float>(LegacyStrokeRpc, RPC_LegacyStroke);
+            m_nview.Register<bool>(BrakeRpc, RPC_Brake);
             m_topSpeed = EstimateTopSailSpeed(m_ship);
             LogSeats();
         }
@@ -306,6 +317,78 @@ namespace RowingMod
             strokes.AppliedBrake = brake;
         }
 
+        /// <summary>A rower starting or stopping to hold water. Every client tracks it (oars, sound, panel); the owner brakes.</summary>
+        private void RPC_Brake(long sender, bool braking)
+        {
+            if (braking)
+            {
+                m_brakers[sender] = Time.time;
+            }
+            else
+            {
+                m_brakers.Remove(sender);
+            }
+            m_oars?.SetBraking(sender, braking);
+        }
+
+        private void ForgetStaleBrakes()
+        {
+            if (m_brakers.Count == 0)
+            {
+                return;
+            }
+            m_staleBrakers.Clear();
+            foreach (KeyValuePair<long, float> braker in m_brakers)
+            {
+                if (Time.time - braker.Value > BrakeTimeout)
+                {
+                    m_staleBrakers.Add(braker.Key);
+                }
+            }
+            foreach (long sender in m_staleBrakers)
+            {
+                m_brakers.Remove(sender);
+                m_oars?.SetBraking(sender, false);
+            }
+        }
+
+        /// <summary>
+        /// Holding water: each braking rower decelerates the ship by BrakeStrength × speed per second (plus a little
+        /// near a standstill to finish the stop), and together they never take more than the ship's speed, so
+        /// braking never pushes it backward. With Brake.Turning the drag acts at the rower's oarlock, so braking on
+        /// one side swings the bow toward that side.
+        /// </summary>
+        private void ApplyBrakes(float dt)
+        {
+            float speed = m_ship.GetSpeed();
+            float remaining = Mathf.Abs(speed);
+            if (remaining < 0.01f)
+            {
+                return;
+            }
+            float against = -Mathf.Sign(speed);
+            foreach (long sender in m_brakers.Keys)
+            {
+                float deceleration = RowingPlugin.BrakeStrength.Value * Mathf.Abs(speed);
+                if (Mathf.Abs(speed) < BrakeStopSpeed)
+                {
+                    deceleration += BrakeStopDeceleration;
+                }
+                float change = Mathf.Min(deceleration * dt, remaining);
+                remaining -= change;
+                Vector3 point = m_body.worldCenterOfMass;
+                if (RowingPlugin.BrakeTurning.Value && m_oars != null && m_oars.TryGetOarlock(sender, out Vector3 oarlock))
+                {
+                    point = oarlock;
+                }
+                m_body.AddForceAtPosition(transform.forward * (against * change * m_body.mass), point, ForceMode.Impulse);
+                if (remaining <= 0f)
+                {
+                    break;
+                }
+            }
+        }
+
         private void RPC_LegacyStroke(long sender, float quality)
         {
             if (!m_nview.IsOwner())
@@ -324,6 +407,7 @@ namespace RowingMod
                 return;
             }
             ForgetOldBeats();
+            ForgetStaleBrakes();
             if (!m_nview.IsOwner())
             {
                 return;
@@ -350,6 +434,11 @@ namespace RowingMod
                 float speed = Mathf.Max(0f, m_ship.GetSpeed() * direction);
                 speedChange -= Mathf.Min(m_ship.m_backwardForce * m_brake * dt, speed);
                 m_body.AddForceAtPosition(transform.forward * (direction * speedChange * m_body.mass), m_body.worldCenterOfMass, ForceMode.Impulse);
+            }
+
+            if (m_brakers.Count > 0 && IsInWater())
+            {
+                ApplyBrakes(dt);
             }
 
             float fade = Mathf.Exp(-dt / Mathf.Max(0.05f, RowingPlugin.StrokeFade.Value));

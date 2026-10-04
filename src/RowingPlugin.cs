@@ -30,6 +30,10 @@ namespace RowingMod
         internal static ConfigEntry<float> MaxSyncBonus;
         internal static ConfigEntry<float> ClashBrake;
         internal static ConfigEntry<float> BarOffset;
+        internal static ConfigEntry<KeyCode> BrakeKey;
+        internal static ConfigEntry<float> BrakeStrength;
+        internal static ConfigEntry<float> BrakeStaminaPerSecond;
+        internal static ConfigEntry<bool> BrakeTurning;
         internal static ConfigEntry<bool> ShowOars;
         internal static ConfigEntry<float> UIScale;
         internal static ConfigEntry<bool> ShowCrewPanel;
@@ -55,6 +59,16 @@ namespace RowingMod
 
             RowKey = Config.Bind("Controls", "RowKey", KeyCode.H,
                 "Key a seated passenger presses to make a stroke. Movement, attack, jump and crouch keys stand you up, so don't use those.");
+
+            BrakeKey = Config.Bind("Controls", "BrakeKey", KeyCode.J,
+                "Key a seated rower holds to hold water (brake with the oar). Movement, attack, jump and crouch keys stand you up, so don't use those.");
+
+            BrakeStrength = Config.Bind("Brake", "Strength", 0.1f,
+                "How hard one braking rower slows the ship: a deceleration of this times the ship's speed, per second. The crew's braking adds up.");
+            BrakeStaminaPerSecond = Config.Bind("Brake", "StaminaPerSecond", 3f,
+                "Stamina braking costs per second.");
+            BrakeTurning = Config.Bind("Brake", "Turning", true,
+                "Braking drags at the oar's side of the hull, so braking on one side swings the bow toward that side. Off: braking slows the ship straight. The ship owner's setting decides.");
 
             StrokeCycleStill = Config.Bind("Timing", "StrokeCycleStill", 1.8f,
                 "Seconds between the ship's beats when it's still. The beat speeds up with the ship.");

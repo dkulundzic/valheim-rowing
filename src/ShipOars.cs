@@ -48,6 +48,13 @@ namespace RowingMod
         // Seconds to swing the oar out when someone sits down, or in when they leave.
         private const float StowTime = 0.8f;
 
+        // Holding water (braking): the oar swings square to the hull, blade dug deeper and held still.
+        private const float BrakeTime = 0.3f;
+        private const float BrakeExtraPitch = 8f;
+        // While braking at speed: water rushing past the blade, and some spray.
+        private const float GurgleMinSpeed = 0.4f;
+        private const float SprayMinSpeed = 1.5f;
+
         private class Oar
         {
             public Chair Seat;
@@ -71,6 +78,11 @@ namespace RowingMod
             public long StrokeBeat;
             public StrokeKind Kind;
             public float KindTime = -100f;
+            // Holding water, and how far into the braking pose the oar is (0..1).
+            public bool Braking;
+            public float BrakeBlend;
+            public float NextGurgle;
+            public float NextSpray;
         }
 
         public enum StrokeKind
@@ -93,6 +105,7 @@ namespace RowingMod
             public float KindAge;
             // 0 = out in the water, 1 = stowed inside the hull.
             public float Stowed;
+            public bool Braking;
         }
 
         // Hull outlines seen from above, per ship type: half-width of the gunwale every HullStep metres along the ship.
@@ -116,6 +129,11 @@ namespace RowingMod
 
         private Ship m_ship;
         private float m_lastCreak = -100f;
+        // The ship's forward speed, from how far it moved since the last frame, so it works on every client
+        // (only the owner simulates the ship's physics).
+        private float m_speed;
+        private Vector3 m_lastPosition;
+        private bool m_hasLastPosition;
         private readonly List<Oar> m_oars = new List<Oar>();
         private bool m_built;
 
@@ -198,6 +216,7 @@ namespace RowingMod
                     Kind = oar.Kind,
                     KindAge = Time.time - oar.KindTime,
                     Stowed = oar.Stowed,
+                    Braking = oar.Braking,
                 });
             }
         }
@@ -305,6 +324,34 @@ namespace RowingMod
             return texture;
         }
 
+        /// <summary>A rower starting or stopping to hold water (from the broadcast brake RPC).</summary>
+        public void SetBraking(long sender, bool braking)
+        {
+            foreach (Oar oar in m_oars)
+            {
+                if (oar.Occupant != null && OwnerOf(oar.Occupant) == sender)
+                {
+                    oar.Braking = braking;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Where a rower's oar meets the hull (world space), for applying their braking drag.</summary>
+        public bool TryGetOarlock(long sender, out Vector3 position)
+        {
+            foreach (Oar oar in m_oars)
+            {
+                if (oar.Occupant != null && OwnerOf(oar.Occupant) == sender)
+                {
+                    position = transform.TransformPoint(oar.RowPosition);
+                    return true;
+                }
+            }
+            position = Vector3.zero;
+            return false;
+        }
+
         private static long OwnerOf(Player player)
         {
             ZNetView nview = player.GetComponent<ZNetView>();
@@ -327,15 +374,57 @@ namespace RowingMod
                 Build();
             }
 
+            UpdateSpeed();
             foreach (Oar oar in m_oars)
             {
                 if (!oar.Root.gameObject.activeSelf)
                 {
                     oar.Root.gameObject.SetActive(true);
                 }
-                // Who sits here decides whose strokes swing this oar.
+                // Who sits here decides whose strokes swing this oar. An empty bench can't be braking.
                 oar.Occupant = FindOccupant(oar.Seat);
+                if (oar.Occupant == null)
+                {
+                    oar.Braking = false;
+                }
                 Animate(oar);
+                if (oar.Braking && oar.BrakeBlend > 0.8f)
+                {
+                    BrakeEffects(oar);
+                }
+            }
+        }
+
+        private void UpdateSpeed()
+        {
+            Vector3 position = transform.position;
+            if (m_hasLastPosition && Time.deltaTime > 0f)
+            {
+                float speed = Vector3.Dot(position - m_lastPosition, transform.forward) / Time.deltaTime;
+                m_speed = Mathf.Lerp(m_speed, speed, Mathf.Clamp01(Time.deltaTime * 5f));
+            }
+            m_lastPosition = position;
+            m_hasLastPosition = true;
+        }
+
+        /// <summary>While a blade is held in the water at speed: rushing, gurgling water, and spray now and then.</summary>
+        private void BrakeEffects(Oar oar)
+        {
+            float speed = Mathf.Abs(m_speed);
+            if (speed < GurgleMinSpeed)
+            {
+                return;
+            }
+            Vector3 blade = oar.Root.TransformPoint(new Vector3(oar.Outboard - BladeLength / 2f, 0f, 0f));
+            if (Time.time >= oar.NextGurgle)
+            {
+                oar.NextGurgle = Time.time + Random.Range(0.3f, 0.55f);
+                RowingSounds.PlayGurgle(blade, Mathf.Clamp01(speed / 6f));
+            }
+            if (speed >= SprayMinSpeed && Time.time >= oar.NextSpray)
+            {
+                oar.NextSpray = Time.time + Random.Range(0.6f, 1f);
+                RowingSounds.ShowSpray(blade, speed > 4f);
             }
         }
 
@@ -627,8 +716,14 @@ namespace RowingMod
             float waterLevel = Floating.GetWaterLevel(oarlockWorld, ref oar.WaterVolume);
             float drop = oarlockWorld.y - waterLevel;
             float reach = oar.Outboard - BladeLength / 2f;
-            float pitch = Mathf.Asin(Mathf.Clamp(drop / reach, -1f, 1f)) * Mathf.Rad2Deg;
-            pitch = Mathf.Clamp(pitch, RestPitchMin, RestPitchMax) - lift;
+            float waterPitch = Mathf.Clamp(Mathf.Asin(Mathf.Clamp(drop / reach, -1f, 1f)) * Mathf.Rad2Deg, RestPitchMin, RestPitchMax);
+            float pitch = waterPitch - lift;
+
+            // Holding water: square to the hull, blade dug in deeper, held still.
+            oar.BrakeBlend = Mathf.MoveTowards(oar.BrakeBlend, oar.Braking ? 1f : 0f, Time.deltaTime / BrakeTime);
+            float brake = Mathf.SmoothStep(0f, 1f, oar.BrakeBlend);
+            sweep = Mathf.Lerp(sweep, 0f, brake);
+            pitch = Mathf.Lerp(pitch, Mathf.Min(waterPitch + BrakeExtraPitch, RestPitchMax), brake);
 
             // Root axes: +X outward. Starboard oars use the ship's axes; port oars are turned 180° so +X points left.
             // Turning about Y by a negative angle moves +X toward +Z, so "toward the bow" is -sweep on starboard

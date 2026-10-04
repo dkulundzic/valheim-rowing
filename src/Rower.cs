@@ -48,6 +48,11 @@ namespace RowingMod
         private float m_messageUntil;
         private float m_ownerMissingSince = -1f;
         private bool m_ownerWarned;
+        // Holding water: braking with the oar while the brake key is held.
+        private bool m_braking;
+        private float m_brakeHeartbeat;
+        // How often a braking rower repeats "still braking", so the owner can drop a brake whose "off" got lost.
+        private const float BrakeHeartbeatInterval = 1f;
         private string m_toastTitle;
         private string m_toastBody;
         private float m_toastStart;
@@ -62,9 +67,15 @@ namespace RowingMod
             UpdateNotices();
             UpdateTick();
             UpdateHold();
+            UpdateBrake(player);
 
             if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
             {
+                return;
+            }
+            if (m_braking)
+            {
+                Show($"Holding water. Let go of {RowingPlugin.BrakeKey.Value} to row");
                 return;
             }
 
@@ -94,6 +105,55 @@ namespace RowingMod
             m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.StrokeRpc, quality, nearestMs);
             m_messageIsStroke = true;
             m_messageUntil = Time.time + MessageTime;
+        }
+
+        /// <summary>
+        /// Holding water: while the brake key is held (and there's stamina), the rower brakes instead of rowing.
+        /// The change is broadcast, and repeated every second while braking so the owner can drop a brake whose
+        /// "off" was lost.
+        /// </summary>
+        private void UpdateBrake(Player player)
+        {
+            bool wanted = ZInput.GetKey(RowingPlugin.BrakeKey.Value, logWarning: false) && !IsTyping();
+            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * Time.deltaTime;
+            if (wanted && cost > 0f && !player.HaveStamina(cost))
+            {
+                wanted = false;
+                if (m_braking || ZInput.GetKeyDown(RowingPlugin.BrakeKey.Value, logWarning: false))
+                {
+                    Show("Too tired to brake");
+                }
+            }
+            if (wanted && cost > 0f)
+            {
+                player.UseStamina(cost);
+            }
+
+            if (wanted != m_braking)
+            {
+                SetBraking(wanted);
+                return;
+            }
+            if (m_braking)
+            {
+                m_brakeHeartbeat += Time.deltaTime;
+                if (m_brakeHeartbeat >= BrakeHeartbeatInterval)
+                {
+                    m_brakeHeartbeat = 0f;
+                    m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.BrakeRpc, true);
+                }
+            }
+        }
+
+        private void SetBraking(bool braking)
+        {
+            m_braking = braking;
+            m_brakeHeartbeat = 0f;
+            ZNetView nview = m_ship != null ? m_ship.GetComponent<ZNetView>() : null;
+            if (nview != null && nview.IsValid())
+            {
+                nview.InvokeRPC(ZNetView.Everybody, ShipRowing.BrakeRpc, braking);
+            }
         }
 
         /// <summary>Ticks once on each of the ship's beats, starting with the first beat after sitting down.</summary>
@@ -138,6 +198,11 @@ namespace RowingMod
                 return m_ship != null;
             }
 
+            // Leaving the bench (or switching seats) ends any braking on the old ship.
+            if (m_braking)
+            {
+                SetBraking(false);
+            }
             m_seat = attachPoint;
             m_ship = null;
             m_shipRowing = null;
@@ -211,7 +276,7 @@ namespace RowingMod
 
         private static string RowHint()
         {
-            return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. " +
+            return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake. " +
                 $"Hold {RowingPlugin.RowKey.Value} for {HoldToToggle:0} s to turn the beat tick {(RowingPlugin.BeatTick.Value ? "off" : "on")}.";
         }
 
@@ -353,7 +418,9 @@ namespace RowingMod
             GUI.color = previousColor;
 
             // Labels
-            string title = ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
+            string title = m_braking
+                ? $"Holding water [{RowingPlugin.BrakeKey.Value}]"
+                : ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
             float staminaMultiplier = StaminaMultiplier(m_ship);
             if (staminaMultiplier > 1.05f)
             {

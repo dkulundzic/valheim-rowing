@@ -1,6 +1,6 @@
 # Oar braking ("holding water")
 
-**Status:** agreed on 2026-10-04, not implemented yet. The braking strength will be tuned by playtesting.
+**Status:** agreed and implemented on 2026-10-04. The braking strength will be tuned by playtesting.
 
 ## Idea
 

@@ -34,6 +34,7 @@ namespace RowingMod
         private static readonly Color ClashColor = new Color(0.95f, 0.3f, 0.25f, 1f);
         private static readonly Color SyncColor = new Color(1f, 0.72f, 0.1f, 1f);
         private static readonly Color OarColor = new Color(0.86f, 0.66f, 0.4f, 0.95f);
+        private static readonly Color BrakeColor = new Color(0.35f, 0.6f, 1f, 1f);
         private static readonly Color BoostColor = new Color(0.4f, 0.8f, 1f, 0.95f);
 
         private readonly List<ShipOars.Bench> m_benches = new List<ShipOars.Bench>();
@@ -252,6 +253,10 @@ namespace RowingMod
 
         private static Color BenchColor(ShipOars.Bench bench)
         {
+            if (bench.Braking)
+            {
+                return BrakeColor;
+            }
             Color flash;
             switch (bench.Kind)
             {

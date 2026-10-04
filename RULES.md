@@ -92,11 +92,22 @@ Solo rowing is meant to be hard work. A crew in sync is far stronger than the sa
   - **Easiest rule: the whole crew installs the mod.**
 - **The owner's settings decide.** If someone changes their config, ships they own row differently. Keep the defaults to keep it fair.
 
-## 7. The crew panel
+## 7. Braking: holding water
+
+Hold **J** on a rowing bench to dig your blade into the water and hold it there. This slows the ship much faster than drifting.
+
+- **Strength:** braking is strong at speed and gentle when slow, so the ship glides to a halt. It never pushes the ship backward.
+- **Crew:** each braking rower adds drag. A full crew stops a Longship from cruising speed in a few seconds; one rower takes much longer.
+- **Turning:** braking on **one side only swings the bow toward that side**, like a real crew turning sharply.
+- **Cost:** braking costs **3 stamina per second**, and you can't row while braking. Let go of J to row again.
+- **When it works:** any time, including under sail and while backing.
+- **What you'll see and hear:** the bar title says "Holding water", your bench shows blue in the crew panel, and you hear water rushing past the blade.
+
+## 8. The crew panel
 
 While you row or steer, a small top-down view of the ship sits in the bottom-right corner:
 
-- **Benches:** a dim ring is an empty bench, and a disc is a rower. After each stroke the disc flashes **green** (strong), **yellow** (weak), **red** (clash) or **gold** (in sync with others). Your own bench has a white ring.
+- **Benches:** a dim ring is an empty bench, and a disc is a rower. After each stroke the disc flashes **green** (strong), **yellow** (weak), **red** (clash) or **gold** (in sync with others). It's **blue** while braking. Your own bench has a white ring.
 - **Oars:** little oars swing just like the real ones, and stowed oars lie inside the hull.
 - **Crew boost:** the blue bar along the middle fills with the crew's push.
 - **The beat:** the ship's outline pulses on every beat, so you can see the rhythm even with the tick off.
@@ -105,7 +116,7 @@ While you row or steer, a small top-down view of the ship sits in the bottom-rig
 
 The helmsman sees the panel too, which shows who's rowing and who's in time.
 
-## 8. Messages you'll see
+## 9. Messages you'll see
 
 | Message | Meaning |
 |---|---|
@@ -143,6 +154,10 @@ All of these can be changed in `BepInEx/config/com.dkulundzic.rowingmod.cfg`.
 - How much a stroke helps = `1 − (speed ÷ top speed)²`.
 - Top speed is estimated per ship from its sail strength and water drag, then multiplied by `TopSpeedMultiplier` (default **1**).
 - Estimated top speeds: **Karve 7.4 m/s**, **Longship 9.6 m/s**. Other ships appear in the BepInEx log when they load.
+
+**Braking:**
+- Each braking rower decelerates the ship by **0.1 × its speed** per second (`Brake.Strength`), plus a little near a standstill to finish the stop. The crew's braking adds up, but never reverses the ship.
+- **3 stamina per second** (`Brake.StaminaPerSecond`). With `Brake.Turning` on (the default), the drag acts at the rower's side of the hull.
 
 **Stamina:**
 - Cost per press = **6** × (1 + headwind), where headwind runs from 0 (side or tailwind) to 1 (straight into a full-strength wind). That gives 6 to 12 stamina.

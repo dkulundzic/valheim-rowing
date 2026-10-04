@@ -139,7 +139,12 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
     - oar room is 1.2 m, with oars clipped at the panel edge (`RowingUI.ClipLine`), so the hull is bigger;
     - the boost bar is outlined.
 - [ ] The helmsman diamond and the speed setting in the panel footer are built; the user will test them.
-- [ ] **Next, 1.1.0:** implement oar braking as agreed in `docs/proposals/oar-braking.md`; its strength gets tuned by playtest. Then release 1.1.0, bundling everything since 1.0.0; 1.0.1 was never published.
+- [ ] **Oar braking is built** (`docs/proposals/oar-braking.md`), not yet tested in game.
+  - **Rower:** `Rower.UpdateBrake` holds J; it broadcasts `RowingMod_Brake(bool)` with a 1 s heartbeat and drains stamina.
+  - **Ship:** `ShipRowing` tracks brakers and drops them after 2.5 s of silence. The owner's `ApplyBrakes` applies drag at each oarlock (`ShipOars.TryGetOarlock`); the drag never exceeds the speed.
+  - **Oars:** `ShipOars` swings the oar square and dug in, with a gurgle and spray from frame-to-frame speed. The panel shows the bench blue.
+  - **To tune by playtest:** `Brake.Strength`, and how strong the turning torque is.
+- [ ] **Next:** release 1.1.0, bundling everything since 1.0.0; 1.0.1 was never published.
 - [ ] **To discuss after braking:** grunting or effort sounds for rowers. No voice sounds turned up in the game's sound list, so this may need bundled audio.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.

@@ -8,6 +8,7 @@ Passengers can row to speed up the ship.
 2. Press **H** when the white marker crosses the green zone. That's the ship's beat, and a strong stroke.
    - **Off the beat:** a weak stroke, or a **clash** if others hit the beat, which brakes the boat a little.
    - **Twice in one beat:** wastes stamina.
+   - **Hold J** to brake: the oar digs into the water and slows the ship. Braking on one side turns it.
 3. The whole ship shares one beat, slow when still and quicker at speed. Rowers who hit the same beat get a sync bonus of up to +45%.
 
 ## Rules
@@ -46,6 +47,10 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | Setting | Default | What it does |
 |---|---|---|
 | `Controls.RowKey` | H | Key for a stroke. Don't use movement, attack, jump or crouch keys; they make you stand up. |
+| `Controls.BrakeKey` | J | Hold to brake (hold water with your oar). |
+| `Brake.Strength` | 0.1 | How hard one braking rower slows the ship. |
+| `Brake.StaminaPerSecond` | 3 | Stamina braking costs per second. |
+| `Brake.Turning` | true | Braking on one side swings the bow toward that side. |
 | `Timing.StrokeCycleStill` | 1.8 | Seconds between beats when the ship is still. |
 | `Timing.StrokeCycleTopSpeed` | 1.2 | Seconds between beats at top sail speed. |
 | `Timing.SweetSpotWidth` | 0.2 | Width of the green zone around each beat, as a fraction of the beat. |
