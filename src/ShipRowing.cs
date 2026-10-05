@@ -21,6 +21,8 @@ namespace RowingMod
         // The helmsman turning the war drum on or off; sent to the owner, who stores it on the ship.
         public const string DrumRpc = "RowingMod_Drum";
         public const string DrumKey = "RowingMod_Drum";
+        // Whether the owner allows assisted rowing (Crew.AllowAssistedRowing), published so rowers can be told.
+        public const string AssistAllowedKey = "RowingMod_AssistAllowed";
         // A brake not repeated for this long is dropped, in case its "off" got lost.
         private const float BrakeTimeout = 2.5f;
         // Below this speed (m/s) braking also adds a small constant deceleration, so the ship comes to a halt.
@@ -264,8 +266,25 @@ namespace RowingMod
         /// A stroke from any rower, broadcast to every client. Each client records it (for "In sync" and "Clash"
         /// messages and, later, oar animation); only the owner turns it into force.
         /// </summary>
+        /// <summary>Whether this ship's owner allows assisted rowing. Readable on every client; true until known.</summary>
+        public bool IsAssistAllowed()
+        {
+            return m_nview == null || !m_nview.IsValid() || m_nview.GetZDO().GetBool(AssistAllowedKey, true);
+        }
+
         private void RPC_Stroke(long sender, float quality, long beatMs)
         {
+            // Assisted strokes (quality sent as a negative strength) give a plain push and stay out of sync and
+            // clashes, so they can't spoil the crew's rhythm. The owner applies them only if it allows them.
+            if (quality < 0f)
+            {
+                m_oars?.OnStroke(sender, strong: false, clash: false, strongOnBeat: 0, beatMs);
+                if (m_nview.IsOwner() && RowingPlugin.AllowAssistedRowing.Value)
+                {
+                    m_boost = Mathf.Min(m_boost + Mathf.Clamp01(-quality) * RowingPlugin.StrokeStrength.Value, RowingPlugin.MaxBoost.Value);
+                }
+                return;
+            }
             if (!m_beats.TryGetValue(beatMs, out BeatStrokes strokes))
             {
                 strokes = new BeatStrokes();
@@ -480,6 +499,7 @@ namespace RowingMod
             }
             // Unchanged values aren't resent, so this costs nothing after the first frame as owner.
             m_nview.GetZDO().Set(ModdedOwnerKey, ZDOMan.GetSessionID());
+            m_nview.GetZDO().Set(AssistAllowedKey, RowingPlugin.AllowAssistedRowing.Value);
         }
 
         /// <summary>

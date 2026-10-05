@@ -58,6 +58,12 @@ namespace RowingMod
             UpdateNotices();
             UpdateBrake(player);
 
+            if (RowingPlugin.AssistedRowing.Value)
+            {
+                UpdateAssisted(player);
+                return;
+            }
+
             if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
             {
                 return;
@@ -258,7 +264,56 @@ namespace RowingMod
             return rested ? 1f - Mathf.Clamp01(RowingPlugin.RestedDiscount.Value) : 1f;
         }
 
+        /// <summary>
+        /// Assisted rowing (Controls.AssistedRowing): while the row key is held, a stroke goes out right on each beat,
+        /// at Crew.AssistedStrength of a strong stroke, for the normal stamina. Assisted strokes are sent with a
+        /// negative strength, so the owner keeps them out of sync and clashes, and ignores them if it doesn't allow them.
+        /// </summary>
+        private void UpdateAssisted(Player player)
+        {
+            if (m_braking || IsTyping() || !ZInput.GetKey(RowingPlugin.RowKey.Value, logWarning: false))
+            {
+                return;
+            }
+            if (!m_shipRowing.IsAssistAllowed())
+            {
+                if (ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false))
+                {
+                    Show("Assisted rowing isn't allowed on this ship");
+                }
+                return;
+            }
+            long nowMs = ShipRowing.NowMs();
+            m_shipRowing.GetBeat(nowMs, out long beatMs, out _);
+            // Row just as the beat comes, once per beat.
+            if (beatMs == m_lastStrokeBeat || nowMs - beatMs > 150)
+            {
+                return;
+            }
+            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player);
+            if (!player.HaveStamina(cost))
+            {
+                Show("Too tired to row");
+                m_lastStrokeBeat = beatMs;
+                return;
+            }
+            player.UseStamina(cost);
+            m_lastStrokeBeat = beatMs;
+            float strength = Mathf.Clamp(RowingPlugin.AssistedStrength.Value, 0.01f, 1f);
+            m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.StrokeRpc, -strength, beatMs);
+            Show("Assisted stroke");
+        }
+
         private static string RowHint()
+        {
+            if (RowingPlugin.AssistedRowing.Value)
+            {
+                return $"Assisted rowing: hold {RowingPlugin.RowKey.Value} to row on every beat. Hold {RowingPlugin.BrakeKey.Value} to brake.";
+            }
+            return RowHintManual();
+        }
+
+        private static string RowHintManual()
         {
             return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake.";
         }
@@ -351,6 +406,10 @@ namespace RowingMod
             string title = m_braking
                 ? $"Holding water [{RowingPlugin.BrakeKey.Value}]"
                 : ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
+            if (RowingPlugin.AssistedRowing.Value && !m_braking)
+            {
+                title += " (assisted: hold)";
+            }
             float staminaMultiplier = StaminaMultiplier(m_ship);
             if (staminaMultiplier > 1.05f)
             {

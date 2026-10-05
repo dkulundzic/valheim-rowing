@@ -11,6 +11,10 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Clients:** extend the schedule with `GetBeat`. A stale schedule (more than 2 s past the next beat, e.g. after sleeping) restarts.
   - **A press belongs to the nearest beat:** within ±`SweetSpotWidth`/2 of the beat it's strong, otherwise off-beat.
   - **One stroke per beat;** a second press is mashing (stamina spent, no stroke).
+- **Assisted rowing** (branch `feature/assisted-rowing`):
+  - **Rower:** with `Controls.AssistedRowing`, holding the row key sends a stroke at each beat (within 150 ms after it, once per beat) with **negative** quality = -`Crew.AssistedStrength`.
+  - **Receiving:** `RPC_Stroke` treats negative quality as assisted. It animates the oar but stays out of `m_beats` (no sync or clash). The owner adds the plain push only if `Crew.AllowAssistedRowing`, published in ZDO bool `RowingMod_AssistAllowed`.
+  - **Versions:** a 1.2.0 owner would treat assisted strokes as weak.
 - **Sync and clash,** computed by the owner per beat in `ApplyBeat`:
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
   - **Clash:** if anyone hit the beat, each off-beat stroke on it adds no boost and adds `ClashBrake` to a separate brake pool. The brake only slows the ship and never reverses it. If nobody hit the beat, off-beat strokes are weak (`WeakStrokeFactor`).

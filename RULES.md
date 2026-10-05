@@ -42,6 +42,8 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
+**Assisted rowing** (optional, `Controls.AssistedRowing`): for players who don't want the rhythm game. Hold **H** and you row automatically on every beat, at **half the strength** of a strong stroke and for the normal stamina. Assisted strokes never count toward sync or clashes, so they can't spoil the crew's rhythm. The ship's owner can disallow it (`Crew.AllowAssistedRowing`).
+
 ## 3. Stamina
 
 - **Every press costs stamina,** including wasted ones.

@@ -29,6 +29,9 @@ namespace RowingMod
         internal static ConfigEntry<float> SyncBonusPerRower;
         internal static ConfigEntry<float> MaxSyncBonus;
         internal static ConfigEntry<float> ClashBrake;
+        internal static ConfigEntry<bool> AssistedRowing;
+        internal static ConfigEntry<bool> AllowAssistedRowing;
+        internal static ConfigEntry<float> AssistedStrength;
         internal static ConfigEntry<float> BarOffset;
         internal static ConfigEntry<KeyCode> BrakeKey;
         internal static ConfigEntry<float> BrakeStrength;
@@ -66,6 +69,8 @@ namespace RowingMod
 
             DrumKey = Config.Bind("Controls", "DrumKey", KeyCode.H,
                 "Key the helmsman presses to turn the ship's war drum on or off. At the helm it doesn't clash with rowing.");
+            AssistedRowing = Config.Bind("Controls", "AssistedRowing", false,
+                "Casual rowing: hold the row key to row automatically on every beat, at reduced strength (Crew.AssistedStrength) and without sync or clashes. Off: the rhythm game.");
             BrakeKey = Config.Bind("Controls", "BrakeKey", KeyCode.J,
                 "Key a seated rower holds to hold water (brake with the oar). Movement, attack, jump and crouch keys stand you up, so don't use those.");
 
@@ -105,6 +110,10 @@ namespace RowingMod
                 "Extra strength of a well-timed stroke for each other rower who also hit the same beat.");
             MaxSyncBonus = Config.Bind("Crew", "MaxSyncBonus", 0.45f,
                 "Most extra strength the sync bonus can give one stroke.");
+            AllowAssistedRowing = Config.Bind("Crew", "AllowAssistedRowing", true,
+                "Whether ships you own accept assisted strokes from rowers who use assisted rowing. The ship owner's setting decides.");
+            AssistedStrength = Config.Bind("Crew", "AssistedStrength", 0.5f,
+                "Strength of an assisted stroke, as a fraction of a strong stroke. Assisted strokes never count toward sync or clashes.");
             ClashBrake = Config.Bind("Crew", "ClashBrake", 0.2f,
                 "Braking from an off-beat stroke on a beat someone else hit (clashing oars), as a fraction of the ship's paddle force. It only slows the ship, never reverses it.");
 
