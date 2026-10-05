@@ -238,6 +238,7 @@ namespace RowingMod
             else
             {
                 QueueTutorial();
+                RowingPlugin.Log.LogInfo($"Tutorial: queued {m_toastQueue.Count} tips");
             }
             return true;
         }
@@ -338,6 +339,7 @@ namespace RowingMod
             (string title, string body, float hold, bool last) = m_toastQueue.Dequeue();
             Toast(title, body, hold);
             m_toastFinishesTutorial = last;
+            RowingPlugin.Log.LogInfo($"Tutorial: showing \"{title}\" for {hold:0.0} s");
         }
 
         private static bool IsShipSeat(Ship ship, Transform attachPoint)
@@ -483,6 +485,7 @@ namespace RowingMod
                 {
                     m_toastFinishesTutorial = false;
                     RowingPlugin.TutorialSeen.Value = true;
+                    RowingPlugin.Log.LogInfo("Tutorial: finished");
                 }
                 return;
             }
