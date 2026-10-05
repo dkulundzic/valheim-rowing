@@ -314,7 +314,117 @@ def shaman(track, index, start, period):
         place(track, KENKENI, start + period * 7 / 8, 0.4)
 
 
+def heavy_stroke(track, start):
+    """Battle march's stroke: the deep drum doubled with the middle drum."""
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.4, exact=True)
+
+
+def pulse(track, start, period, steps, gains):
+    """A steady pulse of dry taps: `steps` per measure (skipping ONE), with gains cycling through `gains`."""
+    for step in range(1, steps):
+        place(track, SANGBAN_MUTE, start + period * step / steps, gains[step % len(gains)])
+
+
+# U: sixteenth drive. The pulse doubles to sixteenths, with the eighths accented; at the fastest beat it falls back to
+# eighths so it doesn't blur.
+def march_sixteenths(track, index, start, period):
+    heavy_stroke(track, start)
+    if period >= 1.4:
+        pulse(track, start, period, 16, (0.2, 0.11))
+    else:
+        pulse(track, start, period, 8, (0.22, 0.16))
+    place(track, SANGBAN, start + period * 5 / 8, 0.32)
+    place(track, KENKENI, start + period * 3 / 4, 0.3)
+    if index % 4 == 3:
+        place(track, SANGBAN, start + period * 7 / 8, 0.46)
+
+
+# V: march with rolls. Battle march, plus L's high-drum counts and a three-hit roll into ONE every fourth measure.
+def march_rolls(track, index, start, period):
+    heavy_stroke(track, start)
+    pulse(track, start, period, 8, (0.22, 0.16))
+    place(track, KENKENI, start + period * 1 / 4, 0.22)
+    place(track, KENKENI, start + period * 2 / 4, 0.28)
+    if index % 4 == 3:
+        for k, gain in enumerate((0.28, 0.36, 0.48)):
+            place(track, SANGBAN, start + period * (3 / 4 + k / 12), gain)
+    else:
+        place(track, SANGBAN, start + period * 5 / 8, 0.32)
+        place(track, KENKENI, start + period * 3 / 4, 0.3)
+
+
+# W: heavy march. Battle march with a lower deep drum answering on three: two hits of weight per measure.
+def march_heavy(track, index, start, period):
+    heavy_stroke(track, start)
+    pulse(track, start, period, 8, (0.22, 0.16))
+    place(track, DUNDUNBA, start + period * 2 / 4, 0.34, pitch=0.9)
+    place(track, SANGBAN, start + period * 5 / 8, 0.3)
+    place(track, KENKENI, start + period * 3 / 4, 0.3)
+    if index % 4 == 3:
+        place(track, SANGBAN, start + period * 7 / 8, 0.46)
+
+
+# X: stomp. The pulse accents the "and"s instead of the counts, pushing against the beat like stamping feet.
+def march_stomp(track, index, start, period):
+    heavy_stroke(track, start)
+    pulse(track, start, period, 8, (0.12, 0.26))
+    place(track, SANGBAN, start + period * 3 / 8, 0.3)
+    place(track, SANGBAN, start + period * 7 / 8, 0.4)
+    place(track, KENKENI, start + period * 2 / 4, 0.26)
+
+
+# Y: march gallop. The pulse in triplets (six per measure) for a rolling, charging feel.
+def march_gallop(track, index, start, period):
+    heavy_stroke(track, start)
+    pulse(track, start, period, 6, (0.22, 0.14, 0.16))
+    place(track, KENKENI, start + period * 2 / 6, 0.26)
+    place(track, SANGBAN, start + period * 4 / 6, 0.34)
+    if index % 4 == 3:
+        place(track, SANGBAN, start + period * 5 / 6, 0.46)
+
+
+# Z: crescendo march. The pulse swells across each measure, quiet just after the stroke and loud right before the next.
+def march_crescendo(track, index, start, period):
+    heavy_stroke(track, start)
+    for eighth in range(1, 8):
+        place(track, SANGBAN_MUTE, start + period * eighth / 8, 0.08 + 0.03 * eighth)
+    place(track, KENKENI, start + period * 3 / 4, 0.3)
+    if index % 4 == 3:
+        place(track, SANGBAN, start + period * 7 / 8, 0.48)
+    else:
+        place(track, SANGBAN, start + period * 7 / 8, 0.34)
+
+
+# AA: charge. Battle march with a deep hit on "four-and" as well: relentless, like a ram hitting a gate.
+def march_charge(track, index, start, period):
+    heavy_stroke(track, start)
+    pulse(track, start, period, 8, (0.22, 0.16))
+    place(track, SANGBAN, start + period * 5 / 8, 0.32)
+    place(track, KENKENI, start + period * 3 / 4, 0.28)
+    place(track, DUNDUNBA, start + period * 7 / 8, 0.34, pitch=0.94)
+
+
+# AB: rising tension. Silence right after the stroke, then the pulse starts at three and drives into the next ONE.
+def march_tension(track, index, start, period):
+    heavy_stroke(track, start)
+    for eighth in range(4, 8):
+        place(track, SANGBAN_MUTE, start + period * eighth / 8, 0.16 + 0.03 * (eighth - 4))
+    place(track, KENKENI, start + period * 2 / 4, 0.24)
+    place(track, SANGBAN, start + period * 3 / 4, 0.36)
+    if index % 4 == 3:
+        place(track, SANGBAN, start + period * 7 / 8, 0.48)
+
+
 if __name__ == "__main__":
+    render("measure_U_march_sixteenths", march_sixteenths)
+    render("measure_V_march_rolls", march_rolls)
+    render("measure_W_march_heavy", march_heavy)
+    render("measure_X_march_stomp", march_stomp)
+    render("measure_Y_march_gallop", march_gallop)
+    render("measure_Z_march_crescendo", march_crescendo)
+    render("measure_AA_march_charge", march_charge)
+    render("measure_AB_march_tension", march_tension)
     render("measure_M_war_party_gallop", war_party_gallop)
     render("measure_N_war_party_heavy", war_party_heavy)
     render("measure_O_war_party_groove", war_party_groove)
