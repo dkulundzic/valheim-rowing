@@ -162,7 +162,16 @@ namespace RowingMod
 
         private void OnGUITimed()
         {
-            if (!RowingPlugin.ShowCrewPanel.Value || !RowingUI.IsRepaint)
+            if (!RowingUI.IsRepaint)
+            {
+                return;
+            }
+            // The UI's first-time work, once, as soon as the player exists (under the loading fade).
+            if (Player.m_localPlayer != null)
+            {
+                RowingUI.WarmUp();
+            }
+            if (!RowingPlugin.ShowCrewPanel.Value)
             {
                 return;
             }
@@ -238,6 +247,7 @@ namespace RowingMod
             Vector2 Map(Vector2 p) => new Vector2(centreX + p.x * scale, top + (hull.MaxZ - p.y) * scale);
 
             // The hull, pulsing on each of the ship's beats.
+            double section = HitchLog.Begin();
             long nowMs = ShipRowing.NowMs();
             rowing.GetBeat(nowMs, out long beatMs, out long periodMs);
             float pulse = Mathf.Exp(-(nowMs - beatMs) / 160f);
@@ -248,6 +258,8 @@ namespace RowingMod
                 RowingUI.DrawTexture(hullRect, hull.Texture, new Color(1f, 0.85f, 0.5f, 0.6f * pulse));
             }
 
+            HitchLog.End("crew panel: hull", section);
+            section = HitchLog.Begin();
             oars.GetBenches(m_benches);
 
             // The crew's boost, along the centre line between the benches.
@@ -311,8 +323,12 @@ namespace RowingMod
                 }
             }
 
+            HitchLog.End("crew panel: benches", section);
+            section = HitchLog.Begin();
             DrawHelm(ship, Map, nameStyle);
             DrawSpeedGauge(new Rect(area.x, area.yMax + 2f, area.width, GaugeHeight - 4f), oars.Speed, rowing.GetTopSpeed());
+            HitchLog.End("crew panel: helm and gauge", section);
+            section = HitchLog.Begin();
 
             // Footer: the ship's speed setting and the crew's boost and, right around a beat the crew hit together,
             // how many were in sync.
@@ -341,6 +357,7 @@ namespace RowingMod
             string beat = TempoName(rowing.GetTempo());
             string drum = $"Drum: {(drumOn ? "on" : "off")}" + (atHelm ? $" ({RowingPlugin.DrumKey.Value})" : "") + $" · Beat: {beat}";
             RowingUI.Label(new Rect(line1.x, line1.yMax + line1.height, line1.width, line1.height), drum, footer);
+            HitchLog.End("crew panel: footer", section);
         }
 
         /// <summary>
