@@ -78,7 +78,7 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Controls.TempoUpKey` / `TempoDownKey` | U / N | At the helm: call a quicker or slower beat (Easy, Steady, Hard). |
 | `Controls.RammingKey` | K | At the helm: call ramming speed. Two strokes later, about 10 s of a very quick beat; strokes +25%, stamina ×2; 60 s cooldown. The war drum plays a ramming rhythm. |
 | `Controls.HoldWaterCallKey` | J | At the helm: call "Hold water!" to tell the crew to brake. |
-| `Sounds.DrumVolume` | 0.8 | Volume of the war drum. |
+| `Sounds.DrumVolume` | 1.25 | Volume of the war drum, 0 to 2. Above 1, the quieter hits get louder while the stroke boom stays at full, so the rhythm stands out more. |
 | `Stamina.RestedDiscount` | 0.1 | Rested rowers pay this fraction less stamina. |
 | `UI.ShowWakes` | true | Show subtle wakes where blades sweep through the water. |
 

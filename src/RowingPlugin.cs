@@ -177,8 +177,8 @@ namespace RowingMod
                 "Volume of the creak (0 to 1; 0 turns it off). Louder when the crew pushes harder.");
             SplashVolume = Config.Bind("Sounds", "SplashVolume", 0.8f,
                 "Volume of the stroke splash (0 to 1); weak strokes are quieter. Everyone nearby hears it.");
-            DrumVolume = Config.Bind("Sounds", "DrumVolume", 0.8f,
-                "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
+            DrumVolume = Config.Bind("Sounds", "DrumVolume", 1.25f,
+                "Volume of the ship's war drum (0 to 2). No hit plays louder than full volume, so above 1 the quieter hits that make up each rhythm get louder while the heavy stroke boom stays at full: the rhythm stands out more. The helmsman turns the drum on or off with the drum key.");
             DrumSound = Config.Bind("Sounds", "DrumSound", "",
                 "The war drum's sound. Empty uses the recorded drums (sounds/drum_*.wav next to the mod) and the helmsman's rhythm if they're present, otherwise one drum made by the mod on each beat; \"generated\" always uses the one made by the mod.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
