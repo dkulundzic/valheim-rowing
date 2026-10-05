@@ -42,7 +42,6 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **The helmsman calls the beat:** at the helm,
 - **U** calls a quicker beat and **N** a slower one, stepping through Easy (a slower beat, easier on stamina), Steady (automatic, the default) and Hard (a quicker beat, more push and more stamina).
-- **K** calls **ramming speed:** for 10 seconds the beat is very quick (0.8 s), strokes are 25% stronger and cost double stamina. The crew then needs 60 seconds before the next one.
 - **J** calls **"Hold water!"**, telling the crew to brake. Each rower brakes themselves with J.
 
 Rowers get a message for every call, and the crew panel shows the current beat.

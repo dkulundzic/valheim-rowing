@@ -54,15 +54,9 @@ namespace RowingMod
         internal static ConfigEntry<KeyCode> DrumKey;
         internal static ConfigEntry<KeyCode> TempoUpKey;
         internal static ConfigEntry<KeyCode> TempoDownKey;
-        internal static ConfigEntry<KeyCode> RammingKey;
         internal static ConfigEntry<KeyCode> HoldWaterCallKey;
         internal static ConfigEntry<float> EasyTempoFactor;
         internal static ConfigEntry<float> HardTempoFactor;
-        internal static ConfigEntry<float> RammingCycle;
-        internal static ConfigEntry<float> RammingDuration;
-        internal static ConfigEntry<float> RammingCooldown;
-        internal static ConfigEntry<float> RammingStrength;
-        internal static ConfigEntry<float> RammingStamina;
         internal static ConfigEntry<float> RestedDiscount;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
@@ -81,8 +75,6 @@ namespace RowingMod
                 "At the helm: call a quicker beat (Easy, Steady, Hard).");
             TempoDownKey = Config.Bind("Controls", "TempoDownKey", KeyCode.N,
                 "At the helm: call a slower beat (Hard, Steady, Easy).");
-            RammingKey = Config.Bind("Controls", "RammingKey", KeyCode.K,
-                "At the helm: call ramming speed, a short burst of very quick, stronger strokes.");
             HoldWaterCallKey = Config.Bind("Controls", "HoldWaterCallKey", KeyCode.J,
                 "At the helm: call \"Hold water!\", telling the crew to brake. Rowers brake themselves with the brake key.");
 
@@ -90,16 +82,6 @@ namespace RowingMod
                 "The helmsman's Easy call: the beat is this many times longer than the automatic one.");
             HardTempoFactor = Config.Bind("Helm", "HardTempoFactor", 0.8f,
                 "The helmsman's Hard call: the beat is this many times the automatic one.");
-            RammingCycle = Config.Bind("Helm", "RammingCycle", 0.8f,
-                "Seconds between beats during ramming speed.");
-            RammingDuration = Config.Bind("Helm", "RammingDuration", 10f,
-                "How long ramming speed lasts, in seconds.");
-            RammingCooldown = Config.Bind("Helm", "RammingCooldown", 60f,
-                "Seconds after ramming speed ends before it can be called again.");
-            RammingStrength = Config.Bind("Helm", "RammingStrength", 0.25f,
-                "Extra stroke strength during ramming speed (0.25 = 25% stronger).");
-            RammingStamina = Config.Bind("Helm", "RammingStamina", 2f,
-                "Stamina cost multiplier for strokes during ramming speed.");
 
             BrakeKey = Config.Bind("Controls", "BrakeKey", KeyCode.J,
                 "Key a seated rower holds to hold water (brake with the oar). Movement, attack, jump and crouch keys stand you up, so don't use those.");

@@ -24,12 +24,10 @@ namespace RowingMod
         // The helmsman's calls: commands go to the owner, who keeps the state on the ship for everyone.
         public const string HelmRpc = "RowingMod_Helm";
         public const string TempoKey = "RowingMod_Tempo";                // -1 Easy, 0 Steady, 1 Hard
-        public const string RammingUntilKey = "RowingMod_RammingUntil";  // network-clock ms
-        public const string RammingReadyKey = "RowingMod_RammingReady";  // network-clock ms
         public const string HoldWaterCallKey = "RowingMod_HoldWater";    // network-clock ms of the latest call
         public const int HelmFaster = 1;
         public const int HelmSlower = 2;
-        public const int HelmRamming = 3;
+        // 3 is kept for ramming speed, which comes back with the drum rhythms (feature/ramming-drum).
         public const int HelmHoldWater = 4;
         // A brake not repeated for this long is dropped, in case its "off" got lost.
         private const float BrakeTimeout = 2.5f;
@@ -352,7 +350,7 @@ namespace RowingMod
         {
             int strong = strokes.StrongCount;
             int weak = strokes.StrongBySender.Count - strong;
-            float strength = RowingPlugin.StrokeStrength.Value * (IsRamming() ? 1f + Mathf.Max(0f, RowingPlugin.RammingStrength.Value) : 1f);
+            float strength = RowingPlugin.StrokeStrength.Value;
 
             float bonus = strong >= 2
                 ? Mathf.Min(RowingPlugin.SyncBonusPerRower.Value * (strong - 1), RowingPlugin.MaxSyncBonus.Value)
@@ -388,29 +386,13 @@ namespace RowingMod
             return m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetInt(TempoKey) : 0;
         }
 
-        /// <summary>Whether ramming speed is on right now.</summary>
-        public bool IsRamming()
-        {
-            return m_nview != null && m_nview.IsValid() && NowMs() < m_nview.GetZDO().GetLong(RammingUntilKey);
-        }
-
-        /// <summary>Seconds until ramming speed can be called again (0 when it can).</summary>
-        public float RammingCooldown()
-        {
-            if (m_nview == null || !m_nview.IsValid())
-            {
-                return 0f;
-            }
-            return Mathf.Max(0f, (m_nview.GetZDO().GetLong(RammingReadyKey) - NowMs()) / 1000f);
-        }
-
         /// <summary>When the helmsman last called "Hold water!" (network-clock ms), 0 if never.</summary>
         public long GetHoldWaterCall()
         {
             return m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetLong(HoldWaterCallKey) : 0;
         }
 
-        /// <summary>The helmsman sends a call (HelmFaster, HelmSlower, HelmRamming, HelmHoldWater) to the owner.</summary>
+        /// <summary>The helmsman sends a call (HelmFaster, HelmSlower, HelmHoldWater) to the owner.</summary>
         public void SendHelmCommand(int command)
         {
             if (m_nview != null && m_nview.IsValid())
@@ -434,14 +416,6 @@ namespace RowingMod
                     break;
                 case HelmSlower:
                     zdo.Set(TempoKey, Mathf.Max(-1, zdo.GetInt(TempoKey) - 1));
-                    break;
-                case HelmRamming:
-                    if (nowMs >= zdo.GetLong(RammingReadyKey))
-                    {
-                        long until = nowMs + SecondsToMs(RowingPlugin.RammingDuration.Value);
-                        zdo.Set(RammingUntilKey, until);
-                        zdo.Set(RammingReadyKey, until + SecondsToMs(RowingPlugin.RammingCooldown.Value));
-                    }
                     break;
                 case HelmHoldWater:
                     zdo.Set(HoldWaterCallKey, nowMs);
@@ -637,11 +611,6 @@ namespace RowingMod
         /// <summary>Time between beats: StrokeCycleStill when still, down to StrokeCycleTopSpeed at top sail speed.</summary>
         private long TempoMs(float direction)
         {
-            // Ramming speed: a fixed, very quick beat.
-            if (IsRamming())
-            {
-                return SecondsToMs(RowingPlugin.RammingCycle.Value);
-            }
             float topSpeed = TopSpeed();
             float speedRatio = topSpeed > 0.01f ? Mathf.Clamp01(Mathf.Abs(m_ship.GetSpeed()) / topSpeed) : 0f;
             float seconds = Mathf.Lerp(RowingPlugin.StrokeCycleStill.Value, RowingPlugin.StrokeCycleTopSpeed.Value, speedRatio);
