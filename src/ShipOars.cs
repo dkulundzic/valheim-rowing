@@ -383,6 +383,26 @@ namespace RowingMod
             return zdo != null ? zdo.GetOwner() : 0;
         }
 
+        /// <summary>After the game's animation: rowers' bodies follow their oars (RowerLean, experimental).</summary>
+        private void LateUpdate()
+        {
+            if (!RowingPlugin.RowerLean.Value)
+            {
+                return;
+            }
+            foreach (Oar oar in m_oars)
+            {
+                if (oar.Occupant != null)
+                {
+                    RowerLean.Apply(oar.Occupant, transform, oar.Sweep, 1f - oar.Stowed, Mathf.SmoothStep(0f, 1f, oar.BrakeBlend));
+                }
+            }
+            if (Time.frameCount % 600 == 0)
+            {
+                RowerLean.Forget();
+            }
+        }
+
         private void Update()
         {
             if (!RowingPlugin.ShowOars.Value)

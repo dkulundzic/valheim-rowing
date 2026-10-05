@@ -74,6 +74,10 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Also:** a crew-boost bar along the centre line, and a footer with the speed setting ("Paddling · Crew boost N%") and "In sync ×N".
   - Config: `UI.ShowCrewPanel`, and `UI.CrewNames` (off by default).
 - `src/RowingUI.cs`: IMGUI scaling and helpers. All mod UI draws in virtual pixels scaled by `UI.Scale` (0 = automatic, `Screen.height / 1080`, at least 1). `DrawLine` builds its own rotation matrix, because `GUIUtility.RotateAroundPivot` takes the pivot in unscaled pixels.
+- `src/RowerLean.cs` (branch `feature/rower-lean`, experimental, `UI.RowerLean`):
+  - **Pose:** in `ShipOars.LateUpdate`, each seated rower's spine, chest and upper arms are rotated about the ship's sideways axis, from the oar's sweep (±30° gives ±12° lean and ±22° arms) and the braking blend (a −8° braced lean).
+  - **Bones:** found via `Animator.GetBoneTransform` if the rig is humanoid, otherwise by name (Spine, Spine1/2, Chest, LeftArm/RightArm). The result is logged once ("Rower lean bones …").
+  - **Unverified:** if Valheim updates its animator after LateUpdate, the pose would be overwritten and nothing would show. References `UnityEngine.AnimationModule`.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.

@@ -35,6 +35,7 @@ namespace RowingMod
         internal static ConfigEntry<float> BrakeStaminaPerSecond;
         internal static ConfigEntry<bool> BrakeTurning;
         internal static ConfigEntry<bool> ShowOars;
+        internal static ConfigEntry<bool> RowerLean;
         internal static ConfigEntry<float> UIScale;
         internal static ConfigEntry<bool> ShowCrewPanel;
         internal static ConfigEntry<bool> CrewNames;
@@ -116,6 +117,8 @@ namespace RowingMod
                 "Show the crew panel (a top-down view of the ship with its rowers) in the bottom-right corner while you row or steer.");
             CrewNames = Config.Bind("UI", "CrewNames", false,
                 "Show player names next to the benches in the crew panel.");
+            RowerLean = Config.Bind("UI", "RowerLean", true,
+                "Experimental: seated rowers lean and reach with their oar strokes, and brace while braking.");
             ShowOars = Config.Bind("UI", "ShowOars", true,
                 "Show an oar beside every rowing seat, resting in the water and swinging with each stroke. Only players with the mod see them.");
 

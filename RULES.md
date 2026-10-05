@@ -40,6 +40,8 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **Oars:** every rowing bench has an oar. On an empty bench it's pulled in and stowed inside the hull; when someone sits down, it swings out and rests in the water. Each stroke swings it through the water and back. A crew in sync rows visibly together, and you can hear it: every oar splashes where it is, and a crew hitting the beat together sounds fuller and deeper. Wood creaks under strong strokes, and each blade leaves a subtle wake on the water. Only players with the mod see and hear the oars.
 
+**Rowers move** (experimental, `UI.RowerLean`): seated rowers lean in and reach as their blade swings to the catch, lean back as it pulls through, and brace while braking.
+
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
 ## 3. Stamina

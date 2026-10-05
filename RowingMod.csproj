@@ -34,6 +34,7 @@
     <Reference Include="UnityEngine.UI" HintPath="lib/UnityEngine.UI.dll" Private="false" />
     <Reference Include="UnityEngine.UIModule" HintPath="lib/UnityEngine.UIModule.dll" Private="false" />
     <Reference Include="UnityEngine.AudioModule" HintPath="lib/UnityEngine.AudioModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AnimationModule" HintPath="lib/UnityEngine.AnimationModule.dll" Private="false" />
     <Reference Include="UnityEngine.ParticleSystemModule" HintPath="lib/UnityEngine.ParticleSystemModule.dll" Private="false" />
     <!-- Unity 6 modules target .NET Standard 2.1, which net48 doesn't provide; use the game's own netstandard. -->
     <Reference Include="netstandard" HintPath="lib/netstandard.dll" Private="false" />
