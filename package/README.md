@@ -57,6 +57,7 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Timing.WeakStrokeFactor` | 0.35 | Strength of an early or late stroke. |
 | `Stamina.StaminaPerStroke` | 6 | Stamina per stroke. |
 | `Stamina.HeadwindStaminaFactor` | 1 | Extra cost into the wind (1 = up to double; 0 = off). |
+| `Stamina.MaxLoad` | 1.5 | Most extra cost hard conditions can add together (1.5 = at most 2.5× the base cost), before discounts. |
 | `Force.StrokeStrength` | 0.6 | Push of one strong stroke, as a fraction of the ship's paddle force. |
 | `Force.MaxBoost` | 2 | Most push the whole crew can build up. |
 | `Force.StrokeFade` | 1.2 | Seconds for a stroke's push to fade. |

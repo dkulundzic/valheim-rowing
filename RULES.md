@@ -57,7 +57,12 @@ Rowers get a message for every call, and the crew panel shows the current beat.
   - A side wind or tailwind costs the normal amount.
   - While backing, "into the wind" means the wind you're backing into.
 - **Rested rowers pay 10% less,** for strokes and braking: sleep or rest by a fire before a voyage.
-- **Extra cost and discounts are shown** in the bar title, e.g. `Headwind: +60% stamina` or `Rested: -10% stamina`.
+- **The Rowing skill takes up to 30% off,** at level 100 (see the Rowing skill above).
+- **How it all adds up:** hard conditions are added together, then your discounts each take their share off what's left.
+  - **Hard conditions** (a headwind): their extra costs are added, and together they never add more than **+150%**.
+  - **Discounts** (Rested, the Rowing skill) multiply: Rested and level 100 together cost 0.9 × 0.7 = **63%**, never nothing.
+  - Example: a strong headwind (+70%), Rested and Rowing 50 (−15%): 6 × 1.7 × 0.9 × 0.85 = **7.8** stamina per stroke.
+- **The cost and its reasons are shown** above the bar title, e.g. `Stamina ×1.30 (headwind +70%, rested -10%, Rowing skill -15%)`.
 
 ## 4. How strokes speed up the ship
 
@@ -172,5 +177,9 @@ All of these can be changed in `BepInEx/config/com.dkulundzic.rowingmod.cfg`.
 - **3 stamina per second** (`Brake.StaminaPerSecond`). With `Brake.Turning` on (the default), the drag acts at the rower's side of the hull.
 
 **Stamina:**
-- Cost per press = **6** × (1 + headwind), where headwind runs from 0 (side or tailwind) to 1 (straight into a full-strength wind). That gives 6 to 12 stamina.
-- `StaminaPerStroke` sets the base cost, and `HeadwindStaminaFactor` sets the headwind extra (0 turns it off).
+- Cost per press = **6** × (1 + load) × relief.
+  - **Load:** the extra costs of hard conditions, added together and capped at `Stamina.MaxLoad` (1.5). Today that's the headwind, from 0 (side or tailwind) to 1 (straight into a full-strength wind), for strokes only.
+  - **Relief:** (1 − 0.1 if Rested) × (1 − 0.3 × Rowing level / 100).
+  - That gives 3.8 (no wind, Rested, Rowing 100) to 12 stamina (full headwind, no discounts).
+- Braking uses the same chain on its 3 stamina per second, without the headwind.
+- `StaminaPerStroke` sets the base cost, `HeadwindStaminaFactor` the headwind extra (0 turns it off), `MaxLoad` the cap on hard conditions, `RestedDiscount` and `Skill.StaminaReduction` the discounts.

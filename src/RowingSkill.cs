@@ -46,9 +46,10 @@ namespace RowingMod
             return skills != null ? skills.GetSkillFactor(Type) : 0f;
         }
 
-        public static float StaminaMultiplier(Player player)
+        /// <summary>How much less stamina rowing costs at this level (0..Skill.StaminaReduction); see StaminaCost.</summary>
+        public static float StaminaRelief(Player player)
         {
-            return 1f - Mathf.Clamp01(RowingPlugin.SkillStaminaReduction.Value) * Factor(player);
+            return Mathf.Clamp01(RowingPlugin.SkillStaminaReduction.Value) * Factor(player);
         }
 
         /// <summary>

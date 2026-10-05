@@ -21,6 +21,7 @@ namespace RowingMod
         internal static ConfigEntry<float> WeakStrokeFactor;
         internal static ConfigEntry<float> StaminaPerStroke;
         internal static ConfigEntry<float> HeadwindStaminaFactor;
+        internal static ConfigEntry<float> MaxLoad;
         internal static ConfigEntry<float> StrokeStrength;
         internal static ConfigEntry<float> MaxBoost;
         internal static ConfigEntry<float> StrokeFade;
@@ -120,6 +121,8 @@ namespace RowingMod
                 "Rowers with the Rested buff pay this fraction less stamina for strokes and braking (0.1 = 10% less).");
             HeadwindStaminaFactor = Config.Bind("Stamina", "HeadwindStaminaFactor", 1f,
                 "Extra stamina cost when rowing into the wind, as a fraction of StaminaPerStroke. 1 means up to double straight into a full-strength wind; it scales with the wind's strength and angle. 0 turns it off.");
+            MaxLoad = Config.Bind("Stamina", "MaxLoad", 1.5f,
+                "Most extra stamina that hard conditions (such as a headwind) can add together, as a fraction of the base cost: 1.5 means at most 2.5 times the base cost. Discounts (Rested, the Rowing skill) then apply on top.");
 
             StrokeStrength = Config.Bind("Force", "StrokeStrength", 0.6f,
                 "Boost one well-timed stroke adds, as a fraction of the ship's own paddle force.");
