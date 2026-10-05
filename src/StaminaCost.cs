@@ -9,7 +9,7 @@ namespace RowingMod
     ///   cost = base × (1 + load) × relief
     ///
     /// 1. Base: Stamina.StaminaPerStroke for a stroke, Brake.StaminaPerSecond for braking.
-    /// 2. Load: conditions that make pulling harder (a headwind, a storm or rough sea). Their extra costs are added, not multiplied, and
+    /// 2. Load: conditions that make pulling harder (a headwind, a storm or rough sea, the cold). Their extra costs are added, not multiplied, and
     ///    capped at Stamina.MaxLoad, so several bad conditions together stay predictable.
     /// 3. Relief: the rower's own condition and practice (Rested, the Rowing skill). Each takes its share off what's
     ///    left, so discounts multiply and can never bring the cost to zero.
@@ -45,6 +45,8 @@ namespace RowingMod
             }
             float weather = Weather(out string weatherName);
             load += Add(parts, weatherName, weather);
+            float cold = Cold(player, out string coldName);
+            load += Add(parts, coldName, cold);
             load = Mathf.Min(load, Mathf.Max(0f, RowingPlugin.MaxLoad.Value));
 
             // Relief: the rower's condition and practice, each taking its share off what's left.
@@ -132,6 +134,26 @@ namespace RowingMod
                 return stormExtra;
             }
             return roughExtra;
+        }
+
+        /// <summary>
+        /// Cold bodies tire faster: Stamina.ColdFactor more with the Cold debuff, Stamina.FreezingFactor more with
+        /// Freezing (which replaces Cold).
+        /// </summary>
+        private static float Cold(Player player, out string name)
+        {
+            name = "cold";
+            SEMan seman = player != null ? player.GetSEMan() : null;
+            if (seman == null)
+            {
+                return 0f;
+            }
+            if (seman.HaveStatusEffect(SEMan.s_statusEffectFreezing))
+            {
+                name = "freezing";
+                return Mathf.Max(0f, RowingPlugin.FreezingFactor.Value);
+            }
+            return seman.HaveStatusEffect(SEMan.s_statusEffectCold) ? Mathf.Max(0f, RowingPlugin.ColdFactor.Value) : 0f;
         }
 
         /// <summary>Valheim's Rested buff (from sleeping or resting by a fire): Stamina.RestedDiscount less.</summary>

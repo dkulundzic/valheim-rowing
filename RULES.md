@@ -57,10 +57,11 @@ Rowers get a message for every call, and the crew panel shows the current beat.
   - A side wind or tailwind costs the normal amount.
   - While backing, "into the wind" means the wind you're backing into.
 - **Rough weather costs more:** **+30% in a storm**, and up to **+25% in strong wind** from any direction (rough seas); the larger applies, added to the headwind cost. It covers braking too.
+- **Cold costs more:** with the **Cold** debuff strokes and braking cost **15% more**, and **30% more** when **Freezing**, added to the other hard conditions. Warm clothes and a fire before a northern voyage help.
 - **Rested rowers pay 10% less,** for strokes and braking: sleep or rest by a fire before a voyage.
 - **The Rowing skill takes up to 30% off,** at level 100 (see the Rowing skill above).
 - **How it all adds up:** hard conditions are added together, then your discounts each take their share off what's left.
-  - **Hard conditions** (headwind, storm or rough sea): their extra costs are added, and together they never add more than **+150%**.
+  - **Hard conditions** (headwind, storm or rough sea, cold): their extra costs are added, and together they never add more than **+150%**.
   - **Discounts** (Rested, the Rowing skill) multiply: Rested and level 100 together cost 0.9 × 0.7 = **63%**, never nothing.
   - Example: a strong headwind (+70%), Rested and Rowing 50 (−15%): 6 × 1.7 × 0.9 × 0.85 = **7.8** stamina per stroke.
 - **The cost and its reasons are shown** above the bar title, e.g. `Stamina ×1.30 (headwind +70%, rested -10%, Rowing skill -15%)`.
@@ -183,8 +184,9 @@ All of these can be changed in `BepInEx/config/com.dkulundzic.rowingmod.cfg`.
 - Cost per press = **6** × (1 + load) × relief.
   - **Load:** the extra costs of hard conditions, added together and capped at `Stamina.MaxLoad` (1.5):
     - headwind, from 0 (side or tailwind) to 1 (straight into a full-strength wind), for strokes only;
-    - weather, the larger of storm (0.3) and rough sea (up to 0.25 as the wind goes from 60% to full strength).
+    - weather, the larger of storm (0.3) and rough sea (up to 0.25 as the wind goes from 60% to full strength);
+    - cold: 0.15 when Cold, 0.3 when Freezing.
   - **Relief:** (1 − 0.1 if Rested) × (1 − 0.3 × Rowing level / 100).
-  - That gives 3.8 (calm, Rested, Rowing 100) to 13.8 stamina (full headwind in a storm, no discounts).
+  - That gives 3.8 (calm, Rested, Rowing 100) to 15 stamina (full headwind in a storm while Freezing: +160%, capped at +150%; no discounts).
 - Braking uses the same chain on its 3 stamina per second, without the headwind.
-- `StaminaPerStroke` sets the base cost, `HeadwindStaminaFactor` the headwind extra (0 turns it off), `StormFactor` and `RoughSeaFactor` the weather, `MaxLoad` the cap on hard conditions, `RestedDiscount` and `Skill.StaminaReduction` the discounts.
+- `StaminaPerStroke` sets the base cost, `HeadwindStaminaFactor` the headwind extra (0 turns it off), `StormFactor` and `RoughSeaFactor` the weather, `ColdFactor` and `FreezingFactor` the cold, `MaxLoad` the cap on hard conditions, `RestedDiscount` and `Skill.StaminaReduction` the discounts.
