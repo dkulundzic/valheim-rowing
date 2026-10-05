@@ -21,9 +21,9 @@ namespace RowingMod
 
         // Snackbar timing in seconds.
         private const float ToastFadeIn = 0.25f;
+        // Snackbars stay up long enough to read: at least ToastHold, plus time for each character (ReadingSpeed per second).
         private const float ToastHold = 3.5f;
-        // Tutorial snackbars stay up longer, so there's time to read them.
-        private const float TutorialHold = 6f;
+        private const float ReadingSpeed = 15f;
         private const float ToastFadeOut = 0.6f;
         // How long the ship's owner may go without announcing the mod before rowers are warned.
         private const float OwnerGraceTime = 3f;
@@ -196,7 +196,12 @@ namespace RowingMod
             }
 
             // Leaving the bench (or switching seats) ends this stint's stats and any braking on the old ship.
-            m_voyage.Finish(player);
+            if (m_voyage.Finish(player, out string voyageTitle, out string voyageBody))
+            {
+                // Shown as a snackbar, which stays up (see OnGUI) after standing up.
+                m_toastQueue.Clear();
+                Toast(voyageTitle, voyageBody);
+            }
             if (m_braking)
             {
                 SetBraking(false);
@@ -286,7 +291,14 @@ namespace RowingMod
 
         private void Toast(string title, string body)
         {
-            Toast(title, body, ToastHold);
+            Toast(title, body, ReadingTime(title, body));
+        }
+
+        /// <summary>How long a snackbar stays up: time to read it, and never less than ToastHold.</summary>
+        private static float ReadingTime(string title, string body)
+        {
+            int characters = (title?.Length ?? 0) + (body?.Length ?? 0);
+            return Mathf.Max(ToastHold, 1.5f + characters / ReadingSpeed);
         }
 
         private void Toast(string title, string body, float hold)
@@ -306,10 +318,15 @@ namespace RowingMod
         {
             string row = RowingPlugin.RowKey.Value.ToString();
             string brake = RowingPlugin.BrakeKey.Value.ToString();
-            m_toastQueue.Enqueue(("Rowing: row on the beat", $"Press {row} when the white marker crosses the green zone. That's the ship's beat; it speeds up as the ship does. Practice raises your Rowing skill, which widens the zone.", TutorialHold, false));
-            m_toastQueue.Enqueue(("Rowing: row together", "Hit the same beat as your crew for a sync bonus. An off-beat stroke when others are on the beat clashes and slows the ship.", TutorialHold, false));
-            m_toastQueue.Enqueue(("Rowing: brake", $"Hold {brake} to hold water and slow the ship. Braking on one side swings the bow toward that side.", TutorialHold, false));
-            m_toastQueue.Enqueue(("Rowing: your crew", $"Bottom right: the ship, its rowers, the beat and the speed. At the helm, the helmsman calls the beat ({RowingPlugin.TempoUpKey.Value}/{RowingPlugin.TempoDownKey.Value}) and \"Hold water!\" ({RowingPlugin.HoldWaterCallKey.Value}), and beats a war drum ({RowingPlugin.DrumKey.Value}).", TutorialHold, true));
+            Tutorial("Rowing: row on the beat", $"Press {row} when the white marker crosses the green zone. That's the ship's beat; it speeds up as the ship does. Practice raises your Rowing skill, which widens the zone.", false);
+            Tutorial("Rowing: row together", "Hit the same beat as your crew for a sync bonus. An off-beat stroke when others are on the beat clashes and slows the ship.", false);
+            Tutorial("Rowing: brake", $"Hold {brake} to hold water and slow the ship. Braking on one side swings the bow toward that side.", false);
+            Tutorial("Rowing: your crew", $"Bottom right: the ship, its rowers, the beat and the speed. At the helm, the helmsman calls the beat ({RowingPlugin.TempoUpKey.Value}/{RowingPlugin.TempoDownKey.Value}) and \"Hold water!\" ({RowingPlugin.HoldWaterCallKey.Value}), and beats a war drum ({RowingPlugin.DrumKey.Value}).", true);
+        }
+
+        private void Tutorial(string title, string body, bool last)
+        {
+            m_toastQueue.Enqueue((title, body, ReadingTime(title, body), last));
         }
 
         private void UpdateToastQueue()
@@ -356,14 +373,23 @@ namespace RowingMod
 
         private void OnGUI()
         {
-            if (m_ship == null || m_seat == null || !RowingUI.IsRepaint)
+            bool seated = m_ship != null && m_seat != null;
+            if ((!seated && m_toastTitle == null) || !RowingUI.IsRepaint)
             {
                 return;
             }
             Matrix4x4 previousMatrix = RowingUI.BeginScaled();
             try
             {
-                DrawStrokeUI();
+                if (seated)
+                {
+                    DrawStrokeUI();
+                }
+                else
+                {
+                    // Off the bench (e.g. the voyage summary): the snackbar sits where the stroke bar was.
+                    DrawToast(GetHudBarsTop() / RowingUI.Scale - BarGap - RowingPlugin.BarOffset.Value);
+                }
             }
             finally
             {

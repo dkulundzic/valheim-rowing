@@ -67,18 +67,23 @@ namespace RowingMod
             m_pending.Enqueue((beatMs, strong, Time.time));
         }
 
-        /// <summary>Called when the rower stands up: shows the summary and adds to the lifetime totals.</summary>
-        public void Finish(Player player)
+        /// <summary>
+        /// Called when the rower stands up: adds this stint to the lifetime totals and returns the summary to show,
+        /// or false when there's nothing to show (no strokes, or UI.ShowVoyageSummary off).
+        /// </summary>
+        public bool Finish(Player player, out string title, out string body)
         {
+            title = null;
+            body = null;
             if (m_ship == null)
             {
-                return;
+                return false;
             }
             Settle(float.MaxValue);
             m_ship = null;
             if (m_strokes == 0 || player == null || !RowingPlugin.ShowVoyageSummary.Value)
             {
-                return;
+                return false;
             }
 
             float totalMeters = GetFloat(player, TotalMetersKey) + m_meters;
@@ -88,10 +93,10 @@ namespace RowingMod
 
             int seconds = Mathf.RoundToInt(Time.time - m_startTime);
             int onBeatPercent = Mathf.RoundToInt(100f * m_onBeat / m_strokes);
-            player.Message(MessageHud.MessageType.TopLeft,
-                $"Voyage: {Distance(m_meters)} in {seconds / 60}:{seconds % 60:00}, {m_strokes} strokes, {onBeatPercent}% on the beat");
-            player.Message(MessageHud.MessageType.TopLeft,
-                $"In sync {m_inSync}, clashes {m_clashes}. Lifetime: {Distance(totalMeters)}, {totalStrokes} strokes");
+            title = $"Voyage: {Distance(m_meters)} in {seconds / 60}:{seconds % 60:00}";
+            body = $"{m_strokes} strokes, {onBeatPercent}% on the beat, {m_inSync} in sync, {m_clashes} clashes.\n" +
+                $"Lifetime: {Distance(totalMeters)}, {totalStrokes} strokes.";
+            return true;
         }
 
         private void Settle(float before)
