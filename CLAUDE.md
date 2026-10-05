@@ -16,7 +16,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **State:** the owner stores ZDO `RowingMod_Tempo` (-1/0/1) and `RowingMod_HoldWater` (ms of the last call).
   - **Effect:** `TempoMs` scales the speed-based period by `Helm.EasyTempoFactor` 1.25 / `HardTempoFactor` 0.8.
   - **Feedback:** rowers get snackbars per call, and the panel footer shows "Beat: Easy/Steady/Hard".
-  - **Ramming speed (K) was removed from main** right after the merge, at the user's request: it comes back together with the drum rhythms (`feature/ramming-drum`). Helm command 3 is kept free for it. **When merging `feature/ramming-drum` into main, revert the removal commit on main first** (`git revert <the "remove ramming speed" commit>`); otherwise git keeps main's deletion of the ramming code that the branch didn't change.
+  - **Ramming speed (K) was removed from main** right after the merge, at the user's request: it comes back together with the drum rhythms (`feature/ramming-drum`). Helm command 3 is kept free for it. **When merging `feature/ramming-drum` into main, revert the removal commit on main first** (`git revert 85ba936`); otherwise git keeps main's deletion of the ramming code that the branch didn't change.
 - **Sync and clash,** computed by the owner per beat in `ApplyBeat`:
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
   - **Clash:** if anyone hit the beat, each off-beat stroke on it adds no boost and adds `ClashBrake` to a separate brake pool. The brake only slows the ship and never reverses it. If nobody hit the beat, off-beat strokes are weak (`WeakStrokeFactor`).
