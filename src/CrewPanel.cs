@@ -39,9 +39,34 @@ namespace RowingMod
 
         private readonly List<ShipOars.Bench> m_benches = new List<ShipOars.Bench>();
 
-        /// <summary>At the helm, the drum key turns the ship's war drum on or off.</summary>
+        // The panel's ship and its components, found once per frame in Update (OnGUI runs several times a frame).
+        private Ship m_ship;
+        private ShipOars m_oars;
+        private ShipRowing m_rowing;
+        // The last seat looked up, and whether it's a rowing bench, so the ship's chairs are searched only when the
+        // local player moves to another seat.
+        private Transform m_seatChecked;
+        private bool m_seatIsBench;
+        private static GUIStyle s_nameStyle;
+        private static GUIStyle s_footerStyle;
+
+        private void Awake()
+        {
+            // Everything is drawn with GUI (not GUILayout), so skip IMGUI's layout pass.
+            useGUILayout = false;
+        }
+
+        /// <summary>Finds the panel's ship; at the helm, the drum key turns the ship's war drum on or off.</summary>
         private void Update()
         {
+            Ship panelShip = FindShip();
+            if (panelShip != m_ship)
+            {
+                m_ship = panelShip;
+                m_oars = panelShip != null ? panelShip.GetComponent<ShipOars>() : null;
+                m_rowing = panelShip != null ? panelShip.GetComponent<ShipRowing>() : null;
+            }
+
             Player player = Player.m_localPlayer;
             Ship ship = player != null ? player.GetControlledShip() : null;
             if (ship == null || !ZInput.GetKeyDown(RowingPlugin.DrumKey.Value, logWarning: false))
@@ -65,13 +90,17 @@ namespace RowingMod
 
         private void OnGUI()
         {
-            if (!RowingPlugin.ShowCrewPanel.Value)
+            if (!RowingPlugin.ShowCrewPanel.Value || !RowingUI.IsRepaint)
             {
                 return;
             }
-            Ship ship = FindShip();
-            ShipOars oars = ship != null ? ship.GetComponent<ShipOars>() : null;
-            ShipRowing rowing = ship != null ? ship.GetComponent<ShipRowing>() : null;
+            Ship ship = m_ship;
+            ShipOars oars = m_oars;
+            ShipRowing rowing = m_rowing;
+            if (ship == null)
+            {
+                return;
+            }
             ShipOars.HullOutline hull = oars != null ? oars.GetHull() : null;
             if (hull == null || rowing == null || hull.Texture == null)
             {
@@ -89,7 +118,7 @@ namespace RowingMod
         }
 
         /// <summary>The ship the local player steers, or rows on (seated on a rowing bench).</summary>
-        private static Ship FindShip()
+        private Ship FindShip()
         {
             Player player = Player.m_localPlayer;
             if (player == null)
@@ -107,14 +136,20 @@ namespace RowingMod
             {
                 return null;
             }
-            foreach (Chair chair in ship.GetComponentsInChildren<Chair>(includeInactive: true))
+            if (attachPoint != m_seatChecked)
             {
-                if (chair.m_attachPoint == attachPoint)
+                m_seatChecked = attachPoint;
+                m_seatIsBench = false;
+                foreach (Chair chair in ship.GetComponentsInChildren<Chair>(includeInactive: true))
                 {
-                    return ShipRowing.IsRowingSeat(chair) ? ship : null;
+                    if (chair.m_attachPoint == attachPoint)
+                    {
+                        m_seatIsBench = ShipRowing.IsRowingSeat(chair);
+                        break;
+                    }
                 }
             }
-            return null;
+            return m_seatIsBench ? ship : null;
         }
 
         private void Draw(Ship ship, ShipOars oars, ShipRowing rowing, ShipOars.HullOutline hull)
@@ -167,7 +202,7 @@ namespace RowingMod
                 RowingUI.DrawRect(new Rect(bar.x, bar.yMax - bar.height * fill, bar.width, bar.height * fill), BoostColor);
             }
 
-            GUIStyle nameStyle = new GUIStyle(GUI.skin.label) { fontSize = 11, wordWrap = false };
+            GUIStyle nameStyle = s_nameStyle ?? (s_nameStyle = RowingUI.LabelStyle(TextAnchor.UpperLeft, FontStyle.Normal, false, 11));
             foreach (ShipOars.Bench bench in m_benches)
             {
                 bool occupied = bench.Occupant != null;
@@ -208,7 +243,12 @@ namespace RowingMod
 
             // Footer: the ship's speed setting and the crew's boost and, right around a beat the crew hit together,
             // how many were in sync.
-            GUIStyle footer = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false, fontSize = 11, clipping = TextClipping.Overflow };
+            if (s_footerStyle == null)
+            {
+                s_footerStyle = RowingUI.LabelStyle(TextAnchor.MiddleCenter, FontStyle.Bold, false, 11);
+                s_footerStyle.clipping = TextClipping.Overflow;
+            }
+            GUIStyle footer = s_footerStyle;
             float boost = rowing.GetSyncedBoost();
             Rect line1 = new Rect(panel.x, panel.yMax - Padding - FooterHeight, panel.width, FooterHeight / 3f);
             RowingUI.Label(line1, $"{SpeedSettingName(ship.GetSpeedSetting())} · Crew boost {boost * 100f:0}%", footer);
