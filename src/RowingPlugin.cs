@@ -69,6 +69,7 @@ namespace RowingMod
         internal static ConfigEntry<float> FreezingFactor;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<bool> TutorialSeen;
+        internal static ConfigEntry<bool> ShowVoyageSummary;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
 
@@ -189,6 +190,8 @@ namespace RowingMod
                 "The war drum's sound. Empty uses a recorded drum (sounds/dundun.wav next to the mod) if present, otherwise a drum made by the mod; \"generated\" always uses the one made by the mod.");
             TutorialSeen = Config.Bind("Tutorial", "Seen", false,
                 "Whether the short rowing tutorial (shown the first time you sit at an oar) has been shown. Set to false to see it again.");
+            ShowVoyageSummary = Config.Bind("UI", "ShowVoyageSummary", true,
+                "When you stand up from an oar, show a short summary of the stint (distance, strokes, on-beat %, syncs, clashes) and your lifetime totals.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
                 "Show subtle wakes on the water where blades sweep through.");
             WakeEffect = Config.Bind("UI", "WakeEffect", "",

@@ -45,6 +45,8 @@ namespace RowingMod
         // The helmsman's calls as last seen, so each new one shows a snackbar.
         private int m_lastTempo;
         private long m_lastHoldWaterCall;
+        // This stint at the oar, summarized when the rower stands up.
+        private readonly VoyageStats m_voyage = new VoyageStats();
         // Holding water: braking with the oar while the brake key is held.
         private bool m_braking;
         private float m_brakeHeartbeat;
@@ -72,6 +74,7 @@ namespace RowingMod
             }
             UpdateNotices();
             UpdateToastQueue();
+            m_voyage.Update();
             UpdateBrake(player);
 
             if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
@@ -111,6 +114,7 @@ namespace RowingMod
             float quality = (m_lastStrokeStrong ? 1f : RowingPlugin.WeakStrokeFactor.Value) * RowingSkill.StrengthMultiplier(player);
             RowingSkill.Practice(player, m_lastStrokeStrong);
             m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.StrokeRpc, quality, nearestMs);
+            m_voyage.OnStroke(nearestMs, m_lastStrokeStrong);
             m_messageIsStroke = true;
             m_messageUntil = Time.time + MessageTime;
         }
@@ -191,7 +195,8 @@ namespace RowingMod
                 return m_ship != null;
             }
 
-            // Leaving the bench (or switching seats) ends any braking on the old ship.
+            // Leaving the bench (or switching seats) ends this stint's stats and any braking on the old ship.
+            m_voyage.Finish(player);
             if (m_braking)
             {
                 SetBraking(false);
@@ -216,6 +221,7 @@ namespace RowingMod
             m_lastStrokeBeat = 0;
             m_lastTempo = shipRowing.GetTempo();
             m_lastHoldWaterCall = shipRowing.GetHoldWaterCall();
+            m_voyage.Start(ship, shipRowing);
 
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
