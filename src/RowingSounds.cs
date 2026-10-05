@@ -59,6 +59,23 @@ namespace RowingMod
         private static readonly Dictionary<string, string> s_extraSources = new Dictionary<string, string>();
 
         /// <summary>Finds the game's sounds once the prefabs are loaded. Safe to call every frame.</summary>
+        /// <summary>
+        /// Sets up the sounds ahead of time (called when the local player spawns, under the loading fade), so the
+        /// one-time setup doesn't freeze the game the first time a ship makes a sound. Logs how long it took.
+        /// </summary>
+        public static void Prepare()
+        {
+            if (s_initialized)
+            {
+                return;
+            }
+            System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+            if (EnsureInitialized())
+            {
+                RowingPlugin.Log.LogInfo($"Sounds ready in {watch.ElapsedMilliseconds} ms");
+            }
+        }
+
         private static bool EnsureInitialized()
         {
             if (s_initialized)
@@ -944,6 +961,19 @@ namespace RowingMod
                     position += data.Length;
                 },
                 newPosition => position = newPosition);
+        }
+    }
+
+    /// <summary>Prepares the mod's sounds when the local player spawns, instead of on the first sound at sea.</summary>
+    [HarmonyLib.HarmonyPatch(typeof(Player), nameof(Player.OnSpawned))]
+    internal static class Player_OnSpawned_Patch
+    {
+        private static void Postfix(Player __instance)
+        {
+            if (__instance == Player.m_localPlayer)
+            {
+                RowingSounds.Prepare();
+            }
         }
     }
 }
