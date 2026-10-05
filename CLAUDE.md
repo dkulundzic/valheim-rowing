@@ -109,6 +109,7 @@ Checked on 2026-10-05 at the user's request (no profiling; nothing showed up in 
 - **Sounds:** `RowingSounds.PlayAt` reuses a pool of 24 `AudioSource`s (`Voice`); when all are busy, the one closest to finishing is cut. Priorities: drum 64, other mod sounds 128 (the game's default). They were 160/200 for a day, to yield voices to the game; raised after the user heard drum rhythms that didn't change and a late drum start on the crew server (suspected voice stealing; not confirmed).
 - **Far ships:** `ShipOars.Update` does nothing for ships more than 90 m from the local player, and looks for bench occupants only while a player is within 15 m of the ship.
 - **Drum patterns** (`feature/drum-patterns`): `ShipOars.MeasureHits` builds each measure's hits once and keeps the current and next measure, so the scheduler doesn't rebuild them every frame.
+- **Clock:** `ShipRowing.NowMs()` is the network clock smoothed: it runs on real time and eases toward `ZNet.GetTimeSeconds()` (2 s time constant, never backward, at least half speed), snapping only on gaps over 1.5 s. A client's network clock is overwritten by the server's every 2 s and lags on frame hitches; the user's drum log on the crew server (2026-10-05) showed ~40 jumps in 2 minutes, mostly backward, up to 0.7 s, which broke the drum's rhythm.
 - **Once per ship:** gunwale raycasts, the hull outline texture and the top-speed estimate.
 
 ## Commands
