@@ -247,13 +247,44 @@ namespace RowingMod
         }
 
         /// <summary>One hit of a drum pattern, <paramref name="delay"/> seconds from now (scheduled ahead for timing).</summary>
-        public static void PlayDrumHit(DrumPatterns.Drum drum, Vector3 position, float gain, float pitch, float delay, float length = 0f)
+        public static AudioSource PlayDrumHit(DrumPatterns.Drum drum, Vector3 position, float gain, float pitch, float delay, float length = 0f)
         {
             if (!EnsureInitialized() || s_drumKit == null)
             {
-                return;
+                return null;
             }
-            PlayAt(s_drumKit[(int)drum], position, RowingPlugin.DrumVolume.Value * gain, pitch, 0f, length, Mathf.Max(0f, delay), DrumMaxDistance);
+            return PlayAt(s_drumKit[(int)drum], position, RowingPlugin.DrumVolume.Value * gain, pitch, 0f, length, Mathf.Max(0f, delay), DrumMaxDistance);
+        }
+
+        /// <summary>
+        /// Debug.LogDrum: Unity's voice limits, how many sounds are playing right now and how many of those Unity has
+        /// silenced (virtual), and how busy the mod's own voices are.
+        /// </summary>
+        public static void LogAudioState()
+        {
+            AudioConfiguration config = UnityEngine.AudioSettings.GetConfiguration();
+            int playing = 0, silenced = 0;
+            foreach (AudioSource source in Object.FindObjectsByType<AudioSource>(FindObjectsSortMode.None))
+            {
+                if (source.isPlaying)
+                {
+                    playing++;
+                    if (source.isVirtual)
+                    {
+                        silenced++;
+                    }
+                }
+            }
+            int busy = 0;
+            foreach (Voice voice in s_voices)
+            {
+                if (voice.BusyUntil > Time.time)
+                {
+                    busy++;
+                }
+            }
+            RowingPlugin.Log.LogInfo($"Drum log: audio has {config.numRealVoices} real / {config.numVirtualVoices} virtual voices; " +
+                $"{playing} sounds playing, {silenced} of them silenced; mod voices busy {busy}/{s_voices.Count}");
         }
 
         /// <summary>A subtle wake on the water where a blade swept through (UI.ShowWakes).</summary>
@@ -287,12 +318,12 @@ namespace RowingMod
         /// Plays a clip at a position (3D) after <paramref name="delay"/> seconds. With a <paramref name="length"/>
         /// above zero it plays only that slice, starting at <paramref name="start"/> seconds, faded in and out.
         /// </summary>
-        private static void PlayAt(AudioClip clip, Vector3 position, float volume, float pitch, float start, float length, float delay,
+        private static AudioSource PlayAt(AudioClip clip, Vector3 position, float volume, float pitch, float start, float length, float delay,
             float maxDistance = MaxDistance)
         {
             if (clip == null || volume <= 0f)
             {
-                return;
+                return null;
             }
             float playSeconds = (length > 0f ? length : clip.length - start) / Mathf.Max(0.1f, pitch);
             Voice voice = TakeVoice(Time.time + delay + playSeconds + 0.1f);
@@ -309,6 +340,7 @@ namespace RowingMod
             source.PlayDelayed(delay);
             // A slice from inside a clip fades in so the cut doesn't click; one from the start keeps its attack.
             voice.Begin(length > 0f, start > 0f, playSeconds, delay);
+            return source;
         }
 
         // Sound sources are pooled: playing a sound reuses a free one instead of creating and destroying an object.

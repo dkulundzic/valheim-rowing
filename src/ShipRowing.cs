@@ -219,6 +219,12 @@ namespace RowingMod
         /// Whether the client that owns the ship runs this mod, so strokes count. Readable on every client;
         /// right after ownership changes it can be false until the new owner's first sync arrives.
         /// </summary>
+        /// <summary>Whether this client owns the ship (and so keeps its beat and applies its rowing).</summary>
+        public bool IsShipOwner()
+        {
+            return m_nview != null && m_nview.IsValid() && m_nview.IsOwner();
+        }
+
         public bool HasModdedOwner()
         {
             if (m_nview == null || !m_nview.IsValid())

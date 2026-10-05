@@ -145,6 +145,21 @@ namespace RowingMod
         private const long DrumLookaheadMs = 200;
         private long m_drumScheduledUntil;
         private readonly DrumMeasure[] m_drumMeasures = { new DrumMeasure(), new DrumMeasure() };
+        // Debug.LogDrum: the last state logged, the network clock's offset from real time, the last measure logged,
+        // scheduled hits still to check, and when the audio state was last logged.
+        private string m_drumLogState;
+        private long m_drumLogClockOffset = long.MinValue;
+        private long m_drumLogMeasure;
+        private readonly List<DrumLogHit> m_drumLogHits = new List<DrumLogHit>();
+        private float m_drumLogAudioTime;
+
+        private struct DrumLogHit
+        {
+            public AudioSource Source;
+            public AudioClip Clip;
+            public float CheckAt;
+            public string Label;
+        }
         // The ship's forward speed, from how far it moved since the last frame, so it works on every client
         // (only the owner simulates the ship's physics).
         private float m_speed;
@@ -460,6 +475,10 @@ namespace RowingMod
         /// </summary>
         private void UpdateDrum()
         {
+            if (RowingPlugin.LogDrum.Value)
+            {
+                LogDrumState();
+            }
             bool drumOn = m_rowing != null && m_rowing.IsDrumOn();
             bool kit = RowingSounds.HasDrumKit();
             // A ramming-speed run plays the drum even when it's off, from the measure before the run (so the
@@ -565,12 +584,32 @@ namespace RowingMod
                         break;
                 }
                 float period = lengthMs / 1000f;
+                bool log = RowingPlugin.LogDrum.Value;
                 foreach (DrumPatterns.Hit hit in MeasureHits(kind, variant, index, period, measureMs))
                 {
                     long hitMs = measureMs + (long)(hit.Fraction * lengthMs);
                     if (hitMs > from && hitMs <= until)
                     {
-                        RowingSounds.PlayDrumHit(hit.Drum, position, hit.Gain, hit.Pitch, (hitMs - nowMs) / 1000f, hit.Length);
+                        float delay = (hitMs - nowMs) / 1000f;
+                        AudioSource source = RowingSounds.PlayDrumHit(hit.Drum, position, hit.Gain, hit.Pitch, delay, hit.Length);
+                        if (log)
+                        {
+                            if (m_drumLogMeasure != measureMs)
+                            {
+                                m_drumLogMeasure = measureMs;
+                                RowingPlugin.Log.LogInfo($"Drum log: measure #{index} {kind} {variant} ({lengthMs} ms) starts in {measureMs - nowMs} ms");
+                            }
+                            if (source != null)
+                            {
+                                m_drumLogHits.Add(new DrumLogHit
+                                {
+                                    Source = source,
+                                    Clip = source.clip,
+                                    CheckAt = Time.time + delay + 0.05f,
+                                    Label = $"#{index} {hit.Drum} at {hit.Fraction:0.00} gain {hit.Gain:0.00}",
+                                });
+                            }
+                        }
                     }
                 }
                 measureMs += lengthMs;
@@ -610,6 +649,58 @@ namespace RowingMod
             public int Pattern;
             public float Period;
             public List<DrumPatterns.Hit> Hits;
+        }
+
+        /// <summary>
+        /// Debug.LogDrum: logs the drum's state when it changes, jumps in the network clock (which the beat runs on),
+        /// scheduled hits that turn out silenced or not playing, and every 10 s the audio system's load.
+        /// </summary>
+        private void LogDrumState()
+        {
+            if (m_rowing == null)
+            {
+                return;
+            }
+            long nowMs = ShipRowing.NowMs();
+            m_rowing.GetBeat(nowMs, out long beatMs, out long periodMs, out long beatIndex);
+            string state = $"on {m_rowing.IsDrumOn()}, rhythm {m_rowing.GetDrumPattern()} ({DrumPatterns.Names[m_rowing.GetDrumPattern()]}), " +
+                $"owner {m_rowing.IsShipOwner()}, ram {m_rowing.GetRamPhase(beatIndex, out _)}, aboard {AnyPlayerAboard()}, kit {RowingSounds.HasDrumKit()}";
+            if (state != m_drumLogState)
+            {
+                m_drumLogState = state;
+                RowingPlugin.Log.LogInfo($"Drum log: {name}: {state}; beat #{beatIndex} at {beatMs} every {periodMs} ms, now {nowMs}");
+            }
+
+            long offset = nowMs - (long)(Time.realtimeSinceStartupAsDouble * 1000.0);
+            if (m_drumLogClockOffset != long.MinValue && System.Math.Abs(offset - m_drumLogClockOffset) > 40)
+            {
+                RowingPlugin.Log.LogInfo($"Drum log: network clock jumped {offset - m_drumLogClockOffset:+0;-0} ms");
+            }
+            m_drumLogClockOffset = offset;
+
+            for (int i = m_drumLogHits.Count - 1; i >= 0; i--)
+            {
+                DrumLogHit hit = m_drumLogHits[i];
+                if (Time.time < hit.CheckAt)
+                {
+                    continue;
+                }
+                m_drumLogHits.RemoveAt(i);
+                if (hit.Source == null || hit.Source.clip != hit.Clip)
+                {
+                    RowingPlugin.Log.LogInfo($"Drum log: hit {hit.Label} was cut off before it started (voice reused)");
+                }
+                else if (!hit.Source.isPlaying || hit.Source.isVirtual)
+                {
+                    RowingPlugin.Log.LogInfo($"Drum log: hit {hit.Label} isn't heard: playing {hit.Source.isPlaying}, silenced {hit.Source.isVirtual}");
+                }
+            }
+
+            if (Time.time - m_drumLogAudioTime > 10f)
+            {
+                m_drumLogAudioTime = Time.time;
+                RowingSounds.LogAudioState();
+            }
         }
 
         private bool AnyPlayerWithin(float distance)

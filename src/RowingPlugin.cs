@@ -68,6 +68,7 @@ namespace RowingMod
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
+        internal static ConfigEntry<bool> LogDrum;
 
         private void Awake()
         {
@@ -188,6 +189,8 @@ namespace RowingMod
                 "Show water spray at the blade on each stroke.");
             SplashEffect = Config.Bind("UI", "SplashEffect", "",
                 $"Game effect prefab whose particles show as the spray (its sound is removed). Empty uses the default ({RowingSounds.DefaultSplashEffect}).");
+            LogDrum = Config.Bind("Debug", "LogDrum", false,
+                "Log the war drum's state, each measure it plays, jumps in the network clock and drum hits that end up silenced, for troubleshooting.");
             LogSoundCandidates = Config.Bind("Debug", "LogSoundCandidates", false,
                 "Log the game's water, splash and wood sounds once per session, to pick a SplashSound.");
 
