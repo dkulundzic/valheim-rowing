@@ -92,7 +92,8 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Practice:** `RaiseSkill` per stroke (1 strong, 0.3 weak).
   - **Effects:** green zone = lerp(`Skill.SweetSpotAtLevel0` 0.12, `SweetSpotAtLevel100` 0.28, f), so it's narrower than the old fixed 0.2 below level 50, as the user asked. Stamina ×(1 − 0.3f), strength ×(1 + 0.15f), where f is the level / 100.
   - **Strength reaches the owner:** the stroke's quality carries the skill's strength bonus, so the owner sums per-stroke quality (`BeatStrokes.QualityBySender`) instead of counting strokes.
-- `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
+- `src/Rower.cs`: local-player side.
+  - **Tutorial** (branch `feature/tutorial`): the first sit at an oar queues 4 snackbars (6 s each) instead of "Rowing ready". The config `Tutorial.Seen` is set once the last one has shown; standing up earlier restarts it next time. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.
 - `.tools/ilspycmd`: decompiler, version 8.2.0.7535. Newer versions don't install on .NET 8.

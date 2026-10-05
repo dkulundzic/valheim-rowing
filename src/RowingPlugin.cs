@@ -64,6 +64,7 @@ namespace RowingMod
         internal static ConfigEntry<float> SkillSweetSpotAtLevel100;
         internal static ConfigEntry<float> SkillStrengthBonus;
         internal static ConfigEntry<bool> ShowWakes;
+        internal static ConfigEntry<bool> TutorialSeen;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
 
@@ -174,6 +175,8 @@ namespace RowingMod
                 "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
             DrumSound = Config.Bind("Sounds", "DrumSound", "",
                 "The war drum's sound. Empty uses a recorded drum (sounds/dundun.wav next to the mod) if present, otherwise a drum made by the mod; \"generated\" always uses the one made by the mod.");
+            TutorialSeen = Config.Bind("Tutorial", "Seen", false,
+                "Whether the short rowing tutorial (shown the first time you sit at an oar) has been shown. Set to false to see it again.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
                 "Show subtle wakes on the water where blades sweep through.");
             WakeEffect = Config.Bind("UI", "WakeEffect", "",
