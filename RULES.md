@@ -44,7 +44,7 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 - **U** calls a quicker beat and **N** a slower one, stepping through Easy (a slower beat, easier on stamina), Steady (automatic, the default) and Hard (a quicker beat, more push and more stamina).
 - **J** calls **"Hold water!"**, telling the crew to brake. Each rower brakes themselves with J.
 
-Rowers get a message for every call, and the crew panel shows the current beat.
+Rowers see every call in the middle of the screen (like the helmsman does), and the crew panel shows the current beat.
 
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
@@ -141,7 +141,7 @@ The helmsman sees the panel too, which shows who's rowing and who's in time.
 | Message | Meaning |
 |---|---|
 | **Rowing ready** | You sat down in a seat and can row. |
-| **Tip: …** | A short tip the first time something matters: sitting at an oar, your first stroke, another rower joining, your first clash, the ship passing 3 m/s, the stamina line appearing, or running out of stamina. Each shows once per session (again after every logout; turn `Tutorial.ResetOnLogout` off to see each only once, ever). The helmsman's calls always come first: a tip they replace shows again afterwards. |
+| **Tip: …** | A short tip the first time something matters: sitting at an oar, your first stroke, another rower joining, your first clash, the ship passing 3 m/s, the stamina line appearing, or running out of stamina. Each shows once per session (again after every logout; turn `Tutorial.ResetOnLogout` off to see each only once, ever). Tips wait until no other notice is up, and a tip a notice replaces shows again afterwards. |
 | **Voyage: …** (where the stroke bar was, when you stand up) | Your stint at the oar: distance, time, strokes, % on the beat, syncs, clashes, plus your character's lifetime distance and strokes. |
 | **Your strokes won't count** | The ship's owner doesn't have the mod. |
 | **Your strokes count again** | The ship's owner now has the mod. |

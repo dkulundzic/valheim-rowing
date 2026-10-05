@@ -61,12 +61,11 @@ namespace RowingMod
         private string m_toastBody;
         private float m_toastStart;
         private float m_toastHold = ToastHold;
-        // What the snackbar on screen is: the helmsman's calls always show at once, other notices too, and tips
-        // only when nothing else is up. A tip that something else replaces comes back afterwards.
+        // What the snackbar on screen is: notices show at once, tips only when nothing else is up. A tip that a
+        // notice replaces comes back afterwards. (The helmsman's calls aren't snackbars: see Announce.)
         private enum ToastKind
         {
             Notice,
-            Helm,
             Tip,
         }
         private ToastKind m_toastKind;
@@ -277,7 +276,9 @@ namespace RowingMod
             return true;
         }
 
-        /// <summary>Shows a snackbar for the helmsman's calls, when strokes won't count, and again once they do.</summary>
+        /// <summary>
+        /// Announces the helmsman's calls, and shows a snackbar when strokes won't count and again once they do.
+        /// </summary>
         private void UpdateNotices()
         {
             if (m_shipRowing != null)
@@ -286,14 +287,14 @@ namespace RowingMod
                 if (tempo != m_lastTempo)
                 {
                     m_lastTempo = tempo;
-                    string detail = tempo < 0 ? "A slower beat: easier on stamina" : tempo > 0 ? "A quicker beat: more push, more stamina" : "The beat follows the ship's speed";
-                    Toast($"Helmsman: {CrewPanel.TempoName(tempo)}!", detail, ToastKind.Helm);
+                    string detail = tempo < 0 ? "a slower beat" : tempo > 0 ? "a quicker beat" : "the beat follows the ship's speed";
+                    Announce($"Helmsman: {CrewPanel.TempoName(tempo)}! ({detail})");
                 }
                 long holdWater = m_shipRowing.GetHoldWaterCall();
                 if (holdWater != m_lastHoldWaterCall)
                 {
                     m_lastHoldWaterCall = holdWater;
-                    Toast("Helmsman: Hold water!", $"Hold {RowingPlugin.BrakeKey.Value} to brake", ToastKind.Helm);
+                    Announce($"Helmsman: Hold water! ({RowingPlugin.BrakeKey.Value} to brake)");
                 }
             }
 
@@ -322,6 +323,15 @@ namespace RowingMod
         private static string RowHint()
         {
             return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake.";
+        }
+
+        /// <summary>
+        /// The helmsman's calls: the game's own centre message (as the helmsman sees them), so they never compete with
+        /// the snackbars and tips.
+        /// </summary>
+        private static void Announce(string text)
+        {
+            Player.m_localPlayer?.Message(MessageHud.MessageType.Center, text);
         }
 
         private void Toast(string title, string body, ToastKind kind = ToastKind.Notice)
