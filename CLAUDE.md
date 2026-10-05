@@ -11,6 +11,11 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Clients:** extend the schedule with `GetBeat`. A stale schedule (more than 2 s past the next beat, e.g. after sleeping) restarts.
   - **A press belongs to the nearest beat:** within ±`SweetSpotWidth`/2 of the beat it's strong, otherwise off-beat.
   - **One stroke per beat;** a second press is mashing (stamina spent, no stroke).
+- **Helm calls** (from `feature/helmsman-beat`, playtested and merged into main on 2026-10-05):
+  - **Keys:** `CrewPanel.Update` reads the helm keys (U/N tempo, K ramming, J "Hold water!" call, H drum) and sends RPC `RowingMod_Helm(int)` to the owner.
+  - **State:** the owner stores ZDO `RowingMod_Tempo` (-1/0/1), `RowingMod_RammingUntil` / `RammingReady` (ms) and `RowingMod_HoldWater` (ms of the last call).
+  - **Effect:** `TempoMs` scales the speed-based period by `Helm.EasyTempoFactor` 1.25 / `HardTempoFactor` 0.8, or uses `Helm.RammingCycle` 0.8 s while ramming. Ramming also adds `Helm.RammingStrength` (+25%) in `ApplyBeat`, and rowers pay ×`Helm.RammingStamina` (2).
+  - **Feedback:** rowers get snackbars per call, and the panel footer shows "Beat: Easy/Steady/Hard/RAMMING".
 - **Sync and clash,** computed by the owner per beat in `ApplyBeat`:
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
   - **Clash:** if anyone hit the beat, each off-beat stroke on it adds no boost and adds `ClashBrake` to a separate brake pool. The brake only slows the ship and never reverses it. If nobody hit the beat, off-beat strokes are weak (`WeakStrokeFactor`).
@@ -173,7 +178,6 @@ Checked on 2026-10-05 at the user's request (no profiling; nothing showed up in 
   - `feature/cold-stamina`: Cold and Freezing cost.
   - `feature/colorblind-panel`: Okabe-Ito colours and glyphs.
   - `feature/assisted-rowing`: hold H to auto-row, owner can disallow.
-  - `feature/helmsman-beat`: Easy/Steady/Hard, ramming speed, "Hold water!" call.
   - `feature/rowing-skill`: a custom Rowing skill; the green zone is narrow at low skill and widens with level (12% at 0, 20% at 50, 28% at 100), as the user asked.
   - `feature/gamepad`: RT row, LT brake.
   - `feature/rower-lean`: experimental body lean.
