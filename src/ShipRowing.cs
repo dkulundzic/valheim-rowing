@@ -698,11 +698,13 @@ namespace RowingMod
     {
         private static void Postfix(Ship __instance, float fixedDeltaTime)
         {
+            double started = HitchLog.Begin();
             ShipRowing rowing = __instance.GetComponent<ShipRowing>();
             if (rowing != null)
             {
                 rowing.ApplyBoost(fixedDeltaTime);
             }
+            HitchLog.End("ship physics", started);
         }
     }
 }

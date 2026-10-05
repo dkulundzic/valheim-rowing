@@ -69,6 +69,19 @@ namespace RowingMod
         /// </summary>
         private void Update()
         {
+            double started = HitchLog.Begin();
+            try
+            {
+                UpdateTimed();
+            }
+            finally
+            {
+                HitchLog.End("crew panel keys", started);
+            }
+        }
+
+        private void UpdateTimed()
+        {
             Ship panelShip = FindShip();
             if (panelShip != m_ship)
             {
@@ -135,6 +148,19 @@ namespace RowingMod
         }
 
         private void OnGUI()
+        {
+            double started = HitchLog.Begin();
+            try
+            {
+                OnGUITimed();
+            }
+            finally
+            {
+                HitchLog.End("crew panel", started);
+            }
+        }
+
+        private void OnGUITimed()
         {
             if (!RowingPlugin.ShowCrewPanel.Value || !RowingUI.IsRepaint)
             {

@@ -67,6 +67,19 @@ namespace RowingMod
 
         private void Update()
         {
+            double started = HitchLog.Begin();
+            try
+            {
+                UpdateTimed();
+            }
+            finally
+            {
+                HitchLog.End("rower", started);
+            }
+        }
+
+        private void UpdateTimed()
+        {
             Player player = Player.m_localPlayer;
             if (!UpdateSeat(player))
             {
@@ -374,6 +387,19 @@ namespace RowingMod
         }
 
         private void OnGUI()
+        {
+            double started = HitchLog.Begin();
+            try
+            {
+                OnGUITimed();
+            }
+            finally
+            {
+                HitchLog.End("stroke bar", started);
+            }
+        }
+
+        private void OnGUITimed()
         {
             bool seated = m_ship != null && m_seat != null;
             if ((!seated && m_toastTitle == null) || !RowingUI.IsRepaint)

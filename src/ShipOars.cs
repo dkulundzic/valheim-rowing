@@ -393,6 +393,19 @@ namespace RowingMod
 
         private void Update()
         {
+            double started = HitchLog.Begin();
+            try
+            {
+                UpdateTimed();
+            }
+            finally
+            {
+                HitchLog.End("oars", started);
+            }
+        }
+
+        private void UpdateTimed()
+        {
             if (!RowingPlugin.ShowOars.Value)
             {
                 foreach (Oar oar in m_oars)

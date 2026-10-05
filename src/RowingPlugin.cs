@@ -73,6 +73,7 @@ namespace RowingMod
         internal static ConfigEntry<bool> ShowVoyageSummary;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
+        internal static ConfigEntry<bool> LogHitches;
 
         private void Awake()
         {
@@ -203,11 +204,14 @@ namespace RowingMod
                 "Show water spray at the blade on each stroke.");
             SplashEffect = Config.Bind("UI", "SplashEffect", "",
                 $"Game effect prefab whose particles show as the spray (its sound is removed). Empty uses the default ({RowingSounds.DefaultSplashEffect}).");
+            LogHitches = Config.Bind("Debug", "LogHitches", false,
+                "Log every frame that takes longer than 0.25 s, with how much of it the mod's own code took, to find what freezes the game.");
             LogSoundCandidates = Config.Bind("Debug", "LogSoundCandidates", false,
                 "Log the game's water, splash and wood sounds once per session, to pick a SplashSound.");
 
             gameObject.AddComponent<Rower>();
             gameObject.AddComponent<CrewPanel>();
+            gameObject.AddComponent<HitchLog>();
             new Harmony(Guid).PatchAll();
             // If a language is already loaded, name the skill now too. Read the private field rather than
             // Localization.instance, which would create the localization early if it doesn't exist yet.
