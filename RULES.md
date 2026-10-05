@@ -40,6 +40,13 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **Oars:** every rowing bench has an oar. On an empty bench it's pulled in and stowed inside the hull; when someone sits down, it swings out and rests in the water. Each stroke swings it through the water and back. A crew in sync rows visibly together, and you can hear it: every oar splashes where it is, and a crew hitting the beat together sounds fuller and deeper. Wood creaks under strong strokes, and each blade leaves a subtle wake on the water. Only players with the mod see and hear the oars.
 
+**The helmsman calls the beat:** at the helm,
+- **U** calls a quicker beat and **N** a slower one, stepping through Easy (a slower beat, easier on stamina), Steady (automatic, the default) and Hard (a quicker beat, more push and more stamina).
+- **K** calls **ramming speed:** for 10 seconds the beat is very quick (0.8 s), strokes are 25% stronger and cost double stamina. The crew then needs 60 seconds before the next one.
+- **J** calls **"Hold water!"**, telling the crew to brake. Each rower brakes themselves with J.
+
+Rowers get a message for every call, and the crew panel shows the current beat.
+
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
 ## 3. Stamina
