@@ -74,6 +74,10 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Also:** a crew-boost bar along the centre line, and a footer with the speed setting ("Paddling · Crew boost N%") and "In sync ×N".
   - Config: `UI.ShowCrewPanel`, and `UI.CrewNames` (off by default).
 - `src/RowingUI.cs`: IMGUI scaling and helpers. All mod UI draws in virtual pixels scaled by `UI.Scale` (0 = automatic, `Screen.height / 1080`, at least 1). `DrawLine` builds its own rotation matrix, because `GUIUtility.RotateAroundPivot` takes the pivot in unscaled pixels.
+- `src/GamepadPatch.cs` (branch `feature/gamepad`): gamepad rowing.
+  - **Buttons:** RT rows and LT brakes (`Controls.GamepadRowButton` / `GamepadBrakeButton`, ZInput button names), read in `Rower.RowPressed` / `BrakeHeld`.
+  - **The catch:** both layouts bind the triggers and bumpers to attack and block, which stand a seated player up (`Player.SetControls`). So a prefix drops attack, secondary attack and block while `Rower.SeatedAtOar`; moving, jumping and crouching still stand them up. This also stops mouse attack from standing a seated rower up.
+  - **Labels:** prompts show RT and LT while `ZInput.IsGamepadActive()`. Config `Controls.Gamepad`; the helm calls aren't on the gamepad yet.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.

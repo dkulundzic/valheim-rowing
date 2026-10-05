@@ -52,6 +52,9 @@ namespace RowingMod
         internal static ConfigEntry<float> DrumVolume;
         internal static ConfigEntry<string> DrumSound;
         internal static ConfigEntry<KeyCode> DrumKey;
+        internal static ConfigEntry<bool> Gamepad;
+        internal static ConfigEntry<string> GamepadRowButton;
+        internal static ConfigEntry<string> GamepadBrakeButton;
         internal static ConfigEntry<float> RestedDiscount;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
@@ -66,6 +69,12 @@ namespace RowingMod
 
             DrumKey = Config.Bind("Controls", "DrumKey", KeyCode.H,
                 "Key the helmsman presses to turn the ship's war drum on or off. At the helm it doesn't clash with rowing.");
+            Gamepad = Config.Bind("Controls", "Gamepad", true,
+                "Row and brake with a gamepad. While you sit at an oar, the gamepad's attack and block inputs row and brake instead of standing you up.");
+            GamepadRowButton = Config.Bind("Controls", "GamepadRowButton", "JoyRTrigger",
+                "Gamepad button for a stroke (Valheim's button names, e.g. JoyRTrigger, JoyRBumper, JoyButtonY).");
+            GamepadBrakeButton = Config.Bind("Controls", "GamepadBrakeButton", "JoyLTrigger",
+                "Gamepad button to hold to brake (e.g. JoyLTrigger, JoyLBumper).");
             BrakeKey = Config.Bind("Controls", "BrakeKey", KeyCode.J,
                 "Key a seated rower holds to hold water (brake with the oar). Movement, attack, jump and crouch keys stand you up, so don't use those.");
 

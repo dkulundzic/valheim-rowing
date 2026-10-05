@@ -42,6 +42,8 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
+**Gamepad:** press **RT** to row and hold **LT** to brake (`Controls.GamepadRowButton`, `GamepadBrakeButton`). The prompts on screen switch to RT and LT while you use a gamepad. At an oar, attack and block no longer stand you up, on gamepad or mouse; move, jump or crouch to stand up. The helmsman's calls are keyboard only for now.
+
 ## 3. Stamina
 
 - **Every press costs stamina,** including wasted ones.

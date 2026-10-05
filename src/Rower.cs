@@ -51,20 +51,21 @@ namespace RowingMod
         private void Update()
         {
             Player player = Player.m_localPlayer;
-            if (!UpdateSeat(player))
+            SeatedAtOar = UpdateSeat(player);
+            if (!SeatedAtOar)
             {
                 return;
             }
             UpdateNotices();
             UpdateBrake(player);
 
-            if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
+            if (!RowPressed() || IsTyping())
             {
                 return;
             }
             if (m_braking)
             {
-                Show($"Holding water. Let go of {RowingPlugin.BrakeKey.Value} to row");
+                Show($"Holding water. Let go of {BrakeLabel()} to row");
                 return;
             }
 
@@ -103,12 +104,12 @@ namespace RowingMod
         /// </summary>
         private void UpdateBrake(Player player)
         {
-            bool wanted = ZInput.GetKey(RowingPlugin.BrakeKey.Value, logWarning: false) && !IsTyping();
+            bool wanted = BrakeHeld() && !IsTyping();
             float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * Time.deltaTime;
             if (wanted && cost > 0f && !player.HaveStamina(cost))
             {
                 wanted = false;
-                if (m_braking || ZInput.GetKeyDown(RowingPlugin.BrakeKey.Value, logWarning: false))
+                if (m_braking || ZInput.GetKeyDown(RowingPlugin.BrakeKey.Value, logWarning: false) || GamepadDown(RowingPlugin.GamepadBrakeButton.Value))
                 {
                     Show("Too tired to brake");
                 }
@@ -260,7 +261,7 @@ namespace RowingMod
 
         private static string RowHint()
         {
-            return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake.";
+            return $"Press {RowLabel()} when the marker reaches the green zone. Hold {BrakeLabel()} to brake.";
         }
 
         private void Toast(string title, string body)
@@ -280,6 +281,64 @@ namespace RowingMod
                 }
             }
             return false;
+        }
+
+        /// <summary>Whether the local player sits on a rowing bench right now (read by the gamepad patch).</summary>
+        public static bool SeatedAtOar { get; private set; }
+
+        /// <summary>A stroke: the row key, or the gamepad's row button (RT by default).</summary>
+        private static bool RowPressed()
+        {
+            return ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || GamepadDown(RowingPlugin.GamepadRowButton.Value);
+        }
+
+        /// <summary>Holding water: the brake key, or the gamepad's brake button (LT by default), held.</summary>
+        private static bool BrakeHeld()
+        {
+            if (ZInput.GetKey(RowingPlugin.BrakeKey.Value, logWarning: false))
+            {
+                return true;
+            }
+            return RowingPlugin.Gamepad.Value && !string.IsNullOrEmpty(RowingPlugin.GamepadBrakeButton.Value)
+                && ZInput.GetButton(RowingPlugin.GamepadBrakeButton.Value);
+        }
+
+        private static bool GamepadDown(string button)
+        {
+            return RowingPlugin.Gamepad.Value && !string.IsNullOrEmpty(button) && ZInput.GetButtonDown(button);
+        }
+
+        /// <summary>What to press, as shown on screen: the gamepad button while a gamepad is in use, else the key.</summary>
+        private static string RowLabel()
+        {
+            return UsingGamepad() ? ButtonName(RowingPlugin.GamepadRowButton.Value) : RowingPlugin.RowKey.Value.ToString();
+        }
+
+        private static string BrakeLabel()
+        {
+            return UsingGamepad() ? ButtonName(RowingPlugin.GamepadBrakeButton.Value) : RowingPlugin.BrakeKey.Value.ToString();
+        }
+
+        private static bool UsingGamepad()
+        {
+            return RowingPlugin.Gamepad.Value && ZInput.IsGamepadActive();
+        }
+
+        /// <summary>"JoyRTrigger" → "RT" and so on, for the common buttons; anything else as its name without "Joy".</summary>
+        private static string ButtonName(string button)
+        {
+            switch (button)
+            {
+                case "JoyRTrigger": return "RT";
+                case "JoyLTrigger": return "LT";
+                case "JoyRBumper": return "RB";
+                case "JoyLBumper": return "LB";
+                case "JoyButtonA": return "A";
+                case "JoyButtonB": return "B";
+                case "JoyButtonX": return "X";
+                case "JoyButtonY": return "Y";
+                default: return button != null && button.StartsWith("Joy") ? button.Substring(3) : button;
+            }
         }
 
         private static bool IsTyping()
@@ -349,8 +408,8 @@ namespace RowingMod
 
             // Labels
             string title = m_braking
-                ? $"Holding water [{RowingPlugin.BrakeKey.Value}]"
-                : ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
+                ? $"Holding water [{BrakeLabel()}]"
+                : ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowLabel()}]" : $"Row [{RowLabel()}]";
             float staminaMultiplier = StaminaMultiplier(m_ship);
             if (staminaMultiplier > 1.05f)
             {
