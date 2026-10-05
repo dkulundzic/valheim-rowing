@@ -80,15 +80,18 @@ namespace RowingMod
                 rowing.RequestDrum(on);
                 player.Message(MessageHud.MessageType.Center, on ? "War drum on" : "War drum off");
             }
+            // Work out the new beat before sending: when the helmsman owns the ship, the call takes effect at once.
             if (ZInput.GetKeyDown(RowingPlugin.TempoUpKey.Value, logWarning: false))
             {
+                int tempo = Mathf.Min(1, rowing.GetTempo() + 1);
                 rowing.SendHelmCommand(ShipRowing.HelmFaster);
-                player.Message(MessageHud.MessageType.Center, $"Beat: {TempoName(Mathf.Min(1, rowing.GetTempo() + 1))}");
+                player.Message(MessageHud.MessageType.Center, $"Beat: {TempoName(tempo)}");
             }
             if (ZInput.GetKeyDown(RowingPlugin.TempoDownKey.Value, logWarning: false))
             {
+                int tempo = Mathf.Max(-1, rowing.GetTempo() - 1);
                 rowing.SendHelmCommand(ShipRowing.HelmSlower);
-                player.Message(MessageHud.MessageType.Center, $"Beat: {TempoName(Mathf.Max(-1, rowing.GetTempo() - 1))}");
+                player.Message(MessageHud.MessageType.Center, $"Beat: {TempoName(tempo)}");
             }
             if (ZInput.GetKeyDown(RowingPlugin.RammingKey.Value, logWarning: false))
             {
