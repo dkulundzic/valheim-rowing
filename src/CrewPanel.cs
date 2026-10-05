@@ -125,7 +125,7 @@ namespace RowingMod
             if (ZInput.GetKeyDown(RowingPlugin.RammingKey.Value, logWarning: false))
             {
                 float cooldown = rowing.RammingCooldown();
-                if (rowing.IsRamming())
+                if (rowing.IsRamRunActive())
                 {
                     player.Message(MessageHud.MessageType.Center, "Ramming speed!");
                 }
@@ -143,6 +143,22 @@ namespace RowingMod
             {
                 rowing.SendHelmCommand(ShipRowing.HelmHoldWater);
                 player.Message(MessageHud.MessageType.Center, "Hold water!");
+            }
+        }
+
+        /// <summary>The beat for the footer: the helmsman's call, or where a ramming-speed run is.</summary>
+        private static string BeatName(ShipRowing rowing)
+        {
+            switch (rowing.GetRamPhase())
+            {
+                case ShipRowing.RamPhase.SpeedUp:
+                    return "ramming in 2…";
+                case ShipRowing.RamPhase.LeadIn:
+                    return "ramming in 1…";
+                case ShipRowing.RamPhase.Ramming:
+                    return "RAMMING";
+                default:
+                    return TempoName(rowing.GetTempo());
             }
         }
 
@@ -304,8 +320,8 @@ namespace RowingMod
 
             DrawHelm(ship, Map, nameStyle);
 
-            // Footer: the ship's speed setting and the crew's boost and, right around a beat the crew hit together,
-            // how many were in sync.
+            // Footer: the ship's speed setting and the crew's boost, the beat (or how many were in sync), the drum,
+            // and for the helmsman the keys.
             if (s_footerStyle == null)
             {
                 s_footerStyle = RowingUI.LabelStyle(TextAnchor.MiddleCenter, FontStyle.Bold, false, 11);
@@ -316,13 +332,19 @@ namespace RowingMod
             Rect line1 = new Rect(panel.x, panel.yMax - Padding - FooterHeight, panel.width, FooterHeight / 4f);
             RowingUI.Label(line1, $"{SpeedSettingName(ship.GetSpeedSetting())} · Crew boost {boost * 100f:0}%", footer);
             long nearestMs = nowMs - beatMs <= periodMs / 2 ? beatMs : beatMs + periodMs;
+            // Line 2: "In sync ×N" right around a beat the crew hit together, otherwise the beat the helmsman called.
             int inSync = rowing.GetStrongCount(nearestMs);
+            Rect line2 = new Rect(line1.x, line1.yMax, line1.width, line1.height);
             if (inSync >= 2)
             {
                 Color previousColor = GUI.color;
                 GUI.color = SyncColor;
-                RowingUI.Label(new Rect(line1.x, line1.yMax, line1.width, line1.height), $"In sync ×{inSync}", footer);
+                RowingUI.Label(line2, $"In sync ×{inSync}", footer);
                 GUI.color = previousColor;
+            }
+            else
+            {
+                RowingUI.Label(line2, $"Beat: {BeatName(rowing)}", footer);
             }
 
             // The war drum and its rhythm, and for the helmsman the keys that change them.
@@ -333,9 +355,8 @@ namespace RowingMod
             RowingUI.Label(new Rect(line1.x, line1.yMax + line1.height, line1.width, line1.height), drum, footer);
             if (atHelm)
             {
-                string keys = patterns
-                    ? $"{RowingPlugin.DrumKey.Value}: drum on/off · {RowingPlugin.DrumPatternKey.Value}: rhythm"
-                    : $"{RowingPlugin.DrumKey.Value}: drum {(drumOn ? "off" : "on")}";
+                string keys = $"{RowingPlugin.DrumKey.Value}" + (patterns ? $"/{RowingPlugin.DrumPatternKey.Value}" : "") + " drum · "
+                    + $"{RowingPlugin.TempoUpKey.Value}/{RowingPlugin.TempoDownKey.Value} beat · {RowingPlugin.RammingKey.Value} ram";
                 RowingUI.Label(new Rect(line1.x, line1.yMax + 2f * line1.height, line1.width, line1.height), keys, footer);
             }
         }

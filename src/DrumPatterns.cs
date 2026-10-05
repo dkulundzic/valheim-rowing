@@ -11,6 +11,10 @@ namespace RowingMod
     /// A pattern turns one measure into a list of hits at fractions of the measure. The "human hand" (slight timing,
     /// strength and pitch variation on everything but ONE) comes from a random generator seeded with the beat's time,
     /// so every client hears exactly the same hits. These mirror samples/make_measure_previews.py.
+    ///
+    /// Ramming speed has its own rhythms (8, at a 0.8 s beat, with kicks cut short so they don't pile up), and the
+    /// drum bridges into and out of it with a lead-in (3: a short build, a double kick and a stop) and a release
+    /// (3: a big hit left to ring). These mirror samples/make_ramming_previews.py and make_transition_previews.py.
     /// </summary>
     public static class DrumPatterns
     {
@@ -28,7 +32,33 @@ namespace RowingMod
             public Drum Drum;
             public float Gain;
             public float Pitch;
+            // Seconds of the clip to play (cut short with a quick fade), or 0 for all of it.
+            public float Length;
         }
+
+        /// <summary>What a measure plays: one of the helmsman's rhythms, or part of a ramming-speed run.</summary>
+        public enum Kind
+        {
+            Normal,
+            LeadIn,
+            Ramming,
+            Release,
+        }
+
+        public static readonly string[] RammingNames =
+        {
+            "Pound", "Hammer", "Backbeat", "Stampede", "Triplet charge", "Thunder roll", "War call", "Berserker",
+        };
+
+        public static readonly string[] LeadInNames = { "Double kick", "Call", "Gather" };
+
+        public static readonly string[] ReleaseNames = { "Crash", "Settle", "Echo" };
+
+        // During ramming, kicks are cut to this many seconds and the stroke's kick to StrokeKick, so their ring
+        // doesn't pile up at a 0.8 s beat. The lead-in's double kick is cut even shorter, so the stop is silent.
+        private const float ShortKick = 0.3f;
+        private const float StrokeKick = 0.5f;
+        private const float DoubleKick = 0.24f;
 
         public static readonly string[] Names =
         {
@@ -45,6 +75,9 @@ namespace RowingMod
             public int Index;
             public float Period;
             public System.Random Random;
+            // Timing variation of the hand (seconds), and how long kicks ring (0 = in full).
+            public float Jitter = 0.006f;
+            public float KickLength;
             public readonly List<Hit> Hits = new List<Hit>();
 
             public bool Fourth => Index % 4 == 3;
@@ -62,8 +95,11 @@ namespace RowingMod
                 return (float)(System.Math.Sqrt(-2.0 * System.Math.Log(u1)) * System.Math.Sin(2.0 * System.Math.PI * u2)) * sigma;
             }
 
-            /// <summary>A hit. Unless exact, the hand varies a little in timing (±6 ms), strength and pitch.</summary>
-            public void Add(Drum drum, float fraction, float gain, float pitch = 1f, bool exact = false)
+            /// <summary>
+            /// A hit. Unless exact, the hand varies a little in timing (Jitter), strength and pitch. With a
+            /// <paramref name="length"/>, it rings for about that many seconds and is cut short.
+            /// </summary>
+            public void Add(Drum drum, float fraction, float gain, float pitch = 1f, bool exact = false, float length = 0f)
             {
                 if (gain <= 0f)
                 {
@@ -71,11 +107,13 @@ namespace RowingMod
                 }
                 if (!exact)
                 {
-                    fraction += Gaussian(0.006f) / Period;
+                    fraction += Gaussian(Jitter) / Period;
                     gain *= Range(0.88f, 1f);
                     pitch *= Range(0.97f, 1.03f);
                 }
-                Hits.Add(new Hit { Fraction = Mathf.Max(0f, fraction), Drum = drum, Gain = gain, Pitch = pitch });
+                // A clip pitched down plays slower, so cut more of it for the same ring (as the previews do).
+                float clipLength = length > 0f ? length * pitch * pitch : 0f;
+                Hits.Add(new Hit { Fraction = Mathf.Max(0f, fraction), Drum = drum, Gain = gain, Pitch = pitch, Length = clipLength });
             }
 
             /// <summary>ONE: the deep drum, a lower one under it for weight, and the middle drum for attack. Exact.</summary>
@@ -86,7 +124,42 @@ namespace RowingMod
                 Add(Drum.Mid, 0f, 0.32f, exact: true);
             }
 
-            public void Kick(float fraction, float gain, float pitch = 1f) => Add(Drum.Kick, fraction, gain, pitch);
+            /// <summary>Ramming's ONE: the doubled deep drum cut at half a second, and a harder middle drum.</summary>
+            public void ShortStroke()
+            {
+                Add(Drum.Kick, 0f, 1f, exact: true, length: StrokeKick);
+                Add(Drum.Kick, 0f, 0.5f, 0.82f, exact: true, length: StrokeKick);
+                Add(Drum.Mid, 0f, 0.36f, exact: true);
+            }
+
+            /// <summary>The release's big hit: every drum at once, left to ring.</summary>
+            public void BigHit()
+            {
+                Add(Drum.Kick, 0f, 1f, exact: true);
+                Add(Drum.Kick, 0f, 0.6f, 0.82f, exact: true);
+                Add(Drum.Mid, 0f, 0.5f, exact: true);
+                Add(Drum.High, 0f, 0.34f, exact: true);
+            }
+
+            /// <summary>The lead-in's end: two kicks an eighth apart, damped short, then silence.</summary>
+            public void DoubleKickAndStop(float first)
+            {
+                for (int k = 0; k < 2; k++)
+                {
+                    Add(Drum.Kick, first + k / 8f, 0.62f + 0.08f * k, 0.97f - 0.03f * k, exact: true, length: DoubleKick);
+                }
+            }
+
+            /// <summary>Taps on every eighth after ONE: <paramref name="even"/> on the counts, <paramref name="odd"/> between.</summary>
+            public void Eighths(float even, float odd)
+            {
+                for (int step = 1; step < 8; step++)
+                {
+                    Tap(step / 8f, step % 2 == 0 ? even : odd);
+                }
+            }
+
+            public void Kick(float fraction, float gain, float pitch = 1f) => Add(Drum.Kick, fraction, gain, pitch, length: KickLength);
             public void Tap(float fraction, float gain) => Add(Drum.Tap, fraction, gain);
             public void Mid(float fraction, float gain) => Add(Drum.Mid, fraction, gain);
             public void High(float fraction, float gain) => Add(Drum.High, fraction, gain);
@@ -117,12 +190,37 @@ namespace RowingMod
         /// </summary>
         public static List<Hit> Build(int pattern, int index, float period, long seed)
         {
+            return Build(Kind.Normal, pattern, index, period, seed);
+        }
+
+        /// <summary>
+        /// The hits of one measure of the given <paramref name="kind"/>: a helmsman's rhythm (0..Count-1), a lead-in
+        /// (0..2), a ramming rhythm (0..7) or a release (0..2).
+        /// </summary>
+        public static List<Hit> Build(Kind kind, int variant, int index, float period, long seed)
+        {
             Measure m = new Measure
             {
                 Index = index,
                 Period = Mathf.Max(0.1f, period),
-                Random = new System.Random(unchecked((int)(seed ^ (seed >> 32)) * 31 + pattern)),
+                Random = new System.Random(unchecked((int)(seed ^ (seed >> 32)) * 31 + (int)kind * 101 + variant)),
             };
+            switch (kind)
+            {
+                case Kind.LeadIn:
+                    m.KickLength = ShortKick;
+                    LeadIn(m, variant);
+                    return m.Hits;
+                case Kind.Ramming:
+                    m.KickLength = ShortKick;
+                    m.Jitter = 0.004f;
+                    Ramming(m, variant);
+                    return m.Hits;
+                case Kind.Release:
+                    Release(m, variant);
+                    return m.Hits;
+            }
+            int pattern = variant;
             switch (((pattern % Count) + Count) % Count)
             {
                 case 0: BattleMarch(m); break;
@@ -369,6 +467,154 @@ namespace RowingMod
             {
                 m.Mid(5 / 8f, 0.3f);
                 m.High(3 / 4f, 0.28f);
+            }
+        }
+
+        // Lead-ins: the stroke and a short build, then a double kick and a stop: silence until ramming's first stroke.
+        private static void LeadIn(Measure m, int variant)
+        {
+            m.Stroke();
+            switch (((variant % 3) + 3) % 3)
+            {
+                case 0:
+                    // Double kick: eighth-note taps swell through the first half, then the double kick on three-and.
+                    for (int step = 1; step < 5; step++)
+                    {
+                        m.Tap(step / 8f, 0.12f + 0.04f * step);
+                    }
+                    m.DoubleKickAndStop(5 / 8f);
+                    break;
+                case 1:
+                    // Call: the middle and high drums call on two and its "and", the double kick early on three.
+                    m.Mid(1 / 4f, 0.36f);
+                    m.High(3 / 8f, 0.32f);
+                    m.DoubleKickAndStop(4 / 8f);
+                    break;
+                default:
+                    // Gather: a soft kick on two, the middle drum on two-and and three, then the double kick with the
+                    // high drum on its second hit.
+                    m.Kick(1 / 4f, 0.32f, 1.02f);
+                    m.Mid(3 / 8f, 0.3f);
+                    m.Mid(4 / 8f, 0.36f);
+                    m.DoubleKickAndStop(5 / 8f);
+                    m.Add(Drum.High, 6 / 8f, 0.34f, exact: true);
+                    break;
+            }
+        }
+
+        // Ramming rhythms, for a 0.8 s beat.
+        private static void Ramming(Measure m, int variant)
+        {
+            m.ShortStroke();
+            switch (((variant % 8) + 8) % 8)
+            {
+                case 0:
+                    // Pound: a short kick on every count, four hammer blows per stroke.
+                    for (int count = 1; count < 4; count++)
+                    {
+                        m.Kick(count / 4f, 0.42f, 1.04f);
+                    }
+                    for (int eighth = 1; eighth < 8; eighth += 2)
+                    {
+                        m.Tap(eighth / 8f, 0.18f);
+                    }
+                    break;
+                case 1:
+                    // Hammer: the middle drum on two and four, the high drum on three, over the eighths.
+                    m.Eighths(0.22f, 0.16f);
+                    m.Mid(1 / 4f, 0.34f);
+                    m.High(2 / 4f, 0.3f);
+                    m.Mid(3 / 4f, 0.38f);
+                    break;
+                case 2:
+                    // Backbeat: a kick on three answers the stroke; the high drum snaps on two and four.
+                    m.Eighths(0.18f, 0.13f);
+                    m.Kick(2 / 4f, 0.5f, 0.96f);
+                    m.High(1 / 4f, 0.34f);
+                    m.High(3 / 4f, 0.36f);
+                    break;
+                case 3:
+                    // Stampede: kicks gallop on two-and, three and four-and.
+                    m.Kick(3 / 8f, 0.36f, 1.02f);
+                    m.Kick(4 / 8f, 0.44f, 0.98f);
+                    m.Kick(7 / 8f, 0.4f);
+                    m.Tap(1 / 8f, 0.16f);
+                    m.Tap(2 / 8f, 0.16f);
+                    m.Tap(5 / 8f, 0.16f);
+                    m.Tap(6 / 8f, 0.16f);
+                    m.High(3 / 4f, 0.28f);
+                    break;
+                case 4:
+                    // Triplet charge: the pulse in triplets, a middle drum on the last, a kick pickup into the stroke.
+                    for (int step = 1; step < 6; step++)
+                    {
+                        m.Tap(step / 6f, step % 2 == 0 ? 0.2f : 0.15f);
+                    }
+                    m.Mid(4 / 6f, 0.34f);
+                    m.Kick(5 / 6f, 0.36f, 1.03f);
+                    break;
+                case 5:
+                    // Thunder roll: a middle-drum roll swells through every measure into the next stroke.
+                    for (int step = 2; step < 8; step++)
+                    {
+                        m.Mid(step / 8f, 0.14f + 0.05f * (step - 2));
+                    }
+                    m.High(1 / 4f, 0.26f);
+                    break;
+                case 6:
+                    // War call: measures alternate kicks on the counts and the high and middle drums calling back.
+                    m.Eighths(0.17f, 0.12f);
+                    if (m.Index % 2 == 0)
+                    {
+                        m.Kick(1 / 4f, 0.38f, 1.04f);
+                        m.Kick(2 / 4f, 0.4f);
+                        m.Kick(3 / 4f, 0.42f, 0.97f);
+                    }
+                    else
+                    {
+                        m.High(1 / 4f, 0.32f);
+                        m.Mid(2 / 4f, 0.36f);
+                        m.High(3 / 4f, 0.32f);
+                        m.Mid(7 / 8f, 0.42f);
+                    }
+                    break;
+                default:
+                    // Berserker: kicks, a high-drum backbeat, and a middle-drum fill every fourth measure.
+                    m.Eighths(0.2f, 0.15f);
+                    m.Kick(2 / 4f, 0.44f, 0.97f);
+                    m.High(1 / 4f, 0.3f);
+                    m.High(3 / 4f, 0.32f);
+                    if (m.Fourth)
+                    {
+                        float[] gains = { 0.3f, 0.38f, 0.46f };
+                        for (int k = 0; k < 3; k++)
+                        {
+                            m.Mid(5 / 8f + k / 8f, gains[k]);
+                        }
+                    }
+                    else
+                    {
+                        m.Kick(7 / 8f, 0.34f, 1.03f);
+                    }
+                    break;
+            }
+        }
+
+        // Releases: the first stroke after ramming, a big hit left to ring.
+        private static void Release(Measure m, int variant)
+        {
+            m.BigHit();
+            switch (((variant % 3) + 3) % 3)
+            {
+                case 1:
+                    // Settle: two soft taps fading out.
+                    m.Tap(2 / 4f, 0.14f);
+                    m.Tap(3 / 4f, 0.1f);
+                    break;
+                case 2:
+                    // Echo: a softer kick answering halfway, like a heartbeat calming down.
+                    m.Kick(1 / 2f, 0.42f, 0.93f);
+                    break;
             }
         }
     }

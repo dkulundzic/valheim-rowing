@@ -29,8 +29,14 @@ namespace RowingMod
         // The helmsman's calls: commands go to the owner, who keeps the state on the ship for everyone.
         public const string HelmRpc = "RowingMod_Helm";
         public const string TempoKey = "RowingMod_Tempo";                // -1 Easy, 0 Steady, 1 Hard
-        public const string RammingUntilKey = "RowingMod_RammingUntil";  // network-clock ms
         public const string RammingReadyKey = "RowingMod_RammingReady";  // network-clock ms
+        // A ramming-speed run, planned by the owner when the helmsman calls it: the beat it starts on (a speed-up
+        // measure, then the lead-in, the ramming measures and the release), the beat length before it, how many
+        // ramming measures, and a seed for the drum's random lead-in, ramming rhythm and release.
+        public const string RamStartKey = "RowingMod_RamStart";        // beat index of the speed-up measure
+        public const string RamBaseKey = "RowingMod_RamBase";          // ms
+        public const string RamMeasuresKey = "RowingMod_RamMeasures";
+        public const string RamSeedKey = "RowingMod_RamSeed";
         public const string HoldWaterCallKey = "RowingMod_HoldWater";    // network-clock ms of the latest call
         public const int HelmFaster = 1;
         public const int HelmSlower = 2;
@@ -392,10 +398,114 @@ namespace RowingMod
             return m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetInt(TempoKey) : 0;
         }
 
-        /// <summary>Whether ramming speed is on right now.</summary>
+        /// <summary>The parts of a ramming-speed run, one or more measures each.</summary>
+        public enum RamPhase
+        {
+            None,
+            SpeedUp,   // one measure, the beat a third of the way to ramming's; the helmsman's rhythm
+            LeadIn,    // one measure, two thirds of the way; a build, a double kick and a stop
+            Ramming,   // RammingCycle beats for about RammingDuration; strokes stronger, stamina dearer
+            Release,   // one measure, halfway back to the normal beat; a big hit
+        }
+
+        /// <summary>
+        /// Where the beat with the given index falls in the ramming-speed run, and its measure number within that
+        /// part (0 for the first).
+        /// </summary>
+        public RamPhase GetRamPhase(long beatIndex, out int measure)
+        {
+            measure = 0;
+            if (m_nview == null || !m_nview.IsValid())
+            {
+                return RamPhase.None;
+            }
+            ZDO zdo = m_nview.GetZDO();
+            long start = zdo.GetLong(RamStartKey);
+            int ramming = zdo.GetInt(RamMeasuresKey);
+            long offset = beatIndex - start;
+            if (start <= 0 || ramming <= 0 || offset < 0 || offset > ramming + 2)
+            {
+                return RamPhase.None;
+            }
+            if (offset == 0)
+            {
+                return RamPhase.SpeedUp;
+            }
+            if (offset == 1)
+            {
+                return RamPhase.LeadIn;
+            }
+            if (offset <= ramming + 1)
+            {
+                measure = (int)offset - 2;
+                return RamPhase.Ramming;
+            }
+            return RamPhase.Release;
+        }
+
+        /// <summary>Where the current beat falls in a ramming-speed run.</summary>
+        public RamPhase GetRamPhase()
+        {
+            GetBeat(NowMs(), out _, out _, out long beatIndex);
+            return GetRamPhase(beatIndex, out _);
+        }
+
+        /// <summary>Whether ramming speed is on right now (the quick beat itself, not its speed-up or release).</summary>
         public bool IsRamming()
         {
-            return m_nview != null && m_nview.IsValid() && NowMs() < m_nview.GetZDO().GetLong(RammingUntilKey);
+            return GetRamPhase() == RamPhase.Ramming;
+        }
+
+        /// <summary>Whether a ramming-speed run has been called and hasn't finished.</summary>
+        public bool IsRamRunActive()
+        {
+            if (m_nview == null || !m_nview.IsValid())
+            {
+                return false;
+            }
+            GetBeat(NowMs(), out _, out _, out long beatIndex);
+            long start = m_nview.GetZDO().GetLong(RamStartKey);
+            return start > 0 && beatIndex <= start + m_nview.GetZDO().GetInt(RamMeasuresKey) + 2;
+        }
+
+        /// <summary>The run's random seed, for the drum's lead-in, ramming rhythm and release.</summary>
+        public int GetRamSeed()
+        {
+            return m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetInt(RamSeedKey) : 0;
+        }
+
+        /// <summary>
+        /// The planned length (ms) of the beat with the given index, if a ramming-speed run fixes it in advance
+        /// (speed-up, lead-in and ramming measures); 0 if it's decided when the beat starts.
+        /// </summary>
+        public long GetPlannedPeriodMs(long beatIndex)
+        {
+            switch (GetRamPhase(beatIndex, out _))
+            {
+                case RamPhase.SpeedUp:
+                    return RamStepMs(SpeedUpStep);
+                case RamPhase.LeadIn:
+                    return RamStepMs(LeadInStep);
+                case RamPhase.Ramming:
+                    return SecondsToMs(RowingPlugin.RammingCycle.Value);
+                default:
+                    return 0;
+            }
+        }
+
+        // The speed-up and lead-in beats step from the beat before the run toward ramming's: a third, then two thirds.
+        private const float SpeedUpStep = 0.3f;
+        private const float LeadInStep = 0.65f;
+
+        private long RamStepMs(float step)
+        {
+            long baseMs = m_nview.GetZDO().GetLong(RamBaseKey);
+            long rammingMs = SecondsToMs(RowingPlugin.RammingCycle.Value);
+            if (baseMs <= 0)
+            {
+                baseMs = rammingMs;
+            }
+            return baseMs + (long)((rammingMs - baseMs) * step);
         }
 
         /// <summary>Seconds until ramming speed can be called again (0 when it can).</summary>
@@ -440,11 +550,15 @@ namespace RowingMod
                     zdo.Set(TempoKey, Mathf.Max(-1, zdo.GetInt(TempoKey) - 1));
                     break;
                 case HelmRamming:
-                    if (nowMs >= zdo.GetLong(RammingReadyKey))
+                    // Plan the run from the next beat. The cooldown starts when ramming ends (see UpdateBeat).
+                    if (nowMs >= zdo.GetLong(RammingReadyKey) && !IsRamRunActive())
                     {
-                        long until = nowMs + SecondsToMs(RowingPlugin.RammingDuration.Value);
-                        zdo.Set(RammingUntilKey, until);
-                        zdo.Set(RammingReadyKey, until + SecondsToMs(RowingPlugin.RammingCooldown.Value));
+                        GetBeat(nowMs, out _, out long periodMs, out long beatIndex);
+                        float cycle = Mathf.Max(0.3f, RowingPlugin.RammingCycle.Value);
+                        zdo.Set(RamStartKey, beatIndex + 1);
+                        zdo.Set(RamBaseKey, periodMs);
+                        zdo.Set(RamMeasuresKey, Mathf.Max(1, Mathf.RoundToInt(RowingPlugin.RammingDuration.Value / cycle)));
+                        zdo.Set(RamSeedKey, Random.Range(1, int.MaxValue));
                     }
                     break;
                 case HelmHoldWater:
@@ -628,25 +742,43 @@ namespace RowingMod
             if (beatMs <= 0 || periodMs <= 0 || nowMs - beatMs > periodMs + 2000)
             {
                 zdo.Set(BeatTimeKey, nowMs);
-                zdo.Set(BeatPeriodKey, TempoMs(direction));
+                zdo.Set(BeatPeriodKey, TempoMs(direction, zdo.GetLong(BeatIndexKey)));
                 return;
             }
             if (nowMs >= beatMs + periodMs)
             {
+                long index = zdo.GetLong(BeatIndexKey) + 1;
                 zdo.Set(BeatTimeKey, beatMs + periodMs);
-                zdo.Set(BeatPeriodKey, TempoMs(direction));
-                zdo.Set(BeatIndexKey, zdo.GetLong(BeatIndexKey) + 1);
+                zdo.Set(BeatPeriodKey, TempoMs(direction, index));
+                zdo.Set(BeatIndexKey, index);
+                // Ramming ends as the release begins: the cooldown starts now.
+                if (GetRamPhase(index, out _) == RamPhase.Release)
+                {
+                    zdo.Set(RammingReadyKey, nowMs + SecondsToMs(RowingPlugin.RammingCooldown.Value));
+                }
             }
         }
 
         /// <summary>Time between beats: StrokeCycleStill when still, down to StrokeCycleTopSpeed at top sail speed.</summary>
-        private long TempoMs(float direction)
+        private long TempoMs(float direction, long beatIndex)
         {
-            // Ramming speed: a fixed, very quick beat.
-            if (IsRamming())
+            // A ramming-speed run: the speed-up, lead-in and ramming beats are planned; the release is halfway
+            // between ramming's beat and the normal one.
+            long planned = GetPlannedPeriodMs(beatIndex);
+            if (planned > 0)
             {
-                return SecondsToMs(RowingPlugin.RammingCycle.Value);
+                return planned;
             }
+            if (GetRamPhase(beatIndex, out _) == RamPhase.Release)
+            {
+                return (SecondsToMs(RowingPlugin.RammingCycle.Value) + NormalTempoMs()) / 2;
+            }
+            return NormalTempoMs();
+        }
+
+        /// <summary>The beat from the ship's speed, scaled by the helmsman's Easy or Hard call.</summary>
+        private long NormalTempoMs()
+        {
             float topSpeed = TopSpeed();
             float speedRatio = topSpeed > 0.01f ? Mathf.Clamp01(Mathf.Abs(m_ship.GetSpeed()) / topSpeed) : 0f;
             float seconds = Mathf.Lerp(RowingPlugin.StrokeCycleStill.Value, RowingPlugin.StrokeCycleTopSpeed.Value, speedRatio);

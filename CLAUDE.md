@@ -13,8 +13,15 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **One stroke per beat;** a second press is mashing (stamina spent, no stroke).
 - **Helm calls** (branch `feature/helmsman-beat`):
   - **Keys:** `CrewPanel.Update` reads the helm keys (U/N tempo, K ramming, J "Hold water!" call, H drum) and sends RPC `RowingMod_Helm(int)` to the owner.
-  - **State:** the owner stores ZDO `RowingMod_Tempo` (-1/0/1), `RowingMod_RammingUntil` / `RammingReady` (ms) and `RowingMod_HoldWater` (ms of the last call).
-  - **Effect:** `TempoMs` scales the speed-based period by `Helm.EasyTempoFactor` 1.25 / `HardTempoFactor` 0.8, or uses `Helm.RammingCycle` 0.8 s while ramming. Ramming also adds `Helm.RammingStrength` (+25%) in `ApplyBeat`, and rowers pay ×`Helm.RammingStamina` (2).
+  - **State:** the owner stores ZDO `RowingMod_Tempo` (-1/0/1), `RowingMod_RammingReady` (ms) and `RowingMod_HoldWater` (ms of the last call).
+  - **Effect:** `TempoMs` scales the speed-based period by `Helm.EasyTempoFactor` 1.25 / `HardTempoFactor` 0.8. Ramming adds `Helm.RammingStrength` (+25%) in `ApplyBeat`, and rowers pay ×`Helm.RammingStamina` (2).
+  - **Ramming run** (`feature/ramming-drum`, 2026-10-05, combining `helmsman-beat` and `drum-patterns`; the user asked for a transition into and out of ramming):
+    - **Plan:** on K the owner stores ZDO `RowingMod_RamStart` (beat index of the first measure: the next beat), `RamBase` (the beat length then, ms), `RamMeasures` (round(`RammingDuration` / `RammingCycle`) = 13) and `RamSeed`. `ShipRowing.GetRamPhase(beatIndex)` maps a beat to SpeedUp (offset 0), LeadIn (1), Ramming (2..13+1) or Release (13+2), so every client agrees by beat index.
+    - **Tempo:** SpeedUp and LeadIn step from `RamBase` toward 0.8 s by 0.3 and 0.65 (1.5 s → 1.29 → 1.05); Ramming is `RammingCycle`; Release is halfway between 0.8 s and the normal beat at that moment. `GetPlannedPeriodMs` exposes the planned lengths, so the drum schedules the next measure's first hits right across tempo jumps.
+    - **Drum:** SpeedUp plays the helmsman's rhythm; LeadIn, Ramming and Release play `DrumPatterns.Kind.LeadIn` (3), `Ramming` (8) and `Release` (3), picked from `RamSeed`. The run plays even with the drum off, from the measure before it. Ramming kicks are cut short (`Hit.Length`, a slice with no fade-in so the attack stays).
+    - **Cooldown** starts when the release begins. `IsRamming()` is only the Ramming phase; `IsRamRunActive()` covers the whole run (K is ignored meanwhile).
+    - **UI:** "RAMMING SPEED in 2… / in 1…" on the stroke bar and "Beat: ramming in 2…" in the footer; a snackbar on the call.
+    - **Previews:** `samples/make_ramming_previews.py` (8 rhythms, the user kept all) and `samples/make_transition_previews.py` (the user rejected sixteenth-note lead-ins as out of place and asked for "a double kick, stop and then wild ramming").
   - **Feedback:** rowers get snackbars per call, and the panel footer shows "Beat: Easy/Steady/Hard/RAMMING".
 - **Sync and clash,** computed by the owner per beat in `ApplyBeat`:
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
@@ -188,6 +195,7 @@ Checked on 2026-10-05 at the user's request (no profiling; nothing showed up in 
   - `feature/gamepad`: RT row, LT brake.
   - `feature/rower-lean`: experimental body lean.
   - `feature/drum-patterns`: the war drum plays 16 rhythms on a real dunun kit; the helmsman picks with P.
+  - `feature/ramming-drum`: `drum-patterns` + `helmsman-beat`, plus ramming rhythms with a lead-in and a release.
   - **Not done:** the Drakkar check (the user has none), grunts (waiting for recordings), Thunderstore (needs the user's account), "rowing cools you down" (I recommended skipping it).
 - [ ] **Next:** discuss grunting or effort sounds for rowers.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.

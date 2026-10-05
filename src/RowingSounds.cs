@@ -247,13 +247,13 @@ namespace RowingMod
         }
 
         /// <summary>One hit of a drum pattern, <paramref name="delay"/> seconds from now (scheduled ahead for timing).</summary>
-        public static void PlayDrumHit(DrumPatterns.Drum drum, Vector3 position, float gain, float pitch, float delay)
+        public static void PlayDrumHit(DrumPatterns.Drum drum, Vector3 position, float gain, float pitch, float delay, float length = 0f)
         {
             if (!EnsureInitialized() || s_drumKit == null)
             {
                 return;
             }
-            PlayAt(s_drumKit[(int)drum], position, RowingPlugin.DrumVolume.Value * gain, pitch, 0f, 0f, Mathf.Max(0f, delay), DrumMaxDistance);
+            PlayAt(s_drumKit[(int)drum], position, RowingPlugin.DrumVolume.Value * gain, pitch, 0f, length, Mathf.Max(0f, delay), DrumMaxDistance);
         }
 
         /// <summary>A subtle wake on the water where a blade swept through (UI.ShowWakes).</summary>
@@ -307,7 +307,8 @@ namespace RowingMod
             source.priority = maxDistance >= DrumMaxDistance ? DrumPriority : SoundPriority;
             source.time = Mathf.Clamp(start, 0f, Mathf.Max(0f, clip.length - 0.05f));
             source.PlayDelayed(delay);
-            voice.Begin(length > 0f, playSeconds, delay);
+            // A slice from inside a clip fades in so the cut doesn't click; one from the start keeps its attack.
+            voice.Begin(length > 0f, start > 0f, playSeconds, delay);
         }
 
         // Sound sources are pooled: playing a sound reuses a free one instead of creating and destroying an object.
@@ -369,13 +370,15 @@ namespace RowingMod
             public AudioSource Source;
             public float BusyUntil;
             private bool m_fade;
+            private bool m_fadeIn;
             private float m_volume;
             private float m_length;
             private float m_start;
 
-            public void Begin(bool fade, float length, float delay)
+            public void Begin(bool fade, bool fadeIn, float length, float delay)
             {
                 m_fade = fade;
+                m_fadeIn = fadeIn;
                 enabled = fade;
                 if (!fade)
                 {
@@ -384,7 +387,10 @@ namespace RowingMod
                 m_volume = Source.volume;
                 m_length = length;
                 m_start = Time.time + delay;
-                Source.volume = 0f;
+                if (fadeIn)
+                {
+                    Source.volume = 0f;
+                }
             }
 
             private void Update()
@@ -395,7 +401,8 @@ namespace RowingMod
                     return;
                 }
                 float t = Time.time - m_start;
-                Source.volume = m_volume * Mathf.Min(Mathf.Clamp01(t / FadeIn), Mathf.Clamp01((m_length - t) / FadeOut));
+                float fadeIn = m_fadeIn ? Mathf.Clamp01(t / FadeIn) : 1f;
+                Source.volume = m_volume * Mathf.Min(fadeIn, Mathf.Clamp01((m_length - t) / FadeOut));
             }
         }
 

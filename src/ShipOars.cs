@@ -460,16 +460,27 @@ namespace RowingMod
         /// </summary>
         private void UpdateDrum()
         {
-            if (m_rowing == null || !m_rowing.IsDrumOn() || !AnyPlayerAboard())
+            bool drumOn = m_rowing != null && m_rowing.IsDrumOn();
+            bool kit = RowingSounds.HasDrumKit();
+            // A ramming-speed run plays the drum even when it's off, from the measure before the run (so the
+            // speed-up's first stroke can be scheduled ahead) to the release.
+            bool ramRun = false;
+            if (m_rowing != null && kit && !drumOn)
+            {
+                m_rowing.GetBeat(ShipRowing.NowMs(), out _, out _, out long beatIndex);
+                ramRun = m_rowing.GetRamPhase(beatIndex, out _) != ShipRowing.RamPhase.None
+                    || m_rowing.GetRamPhase(beatIndex + 1, out _) != ShipRowing.RamPhase.None;
+            }
+            if (m_rowing == null || !(drumOn || ramRun) || !AnyPlayerAboard())
             {
                 m_lastDrumBeat = 0;
                 m_drumCount = 0;
                 m_drumScheduledUntil = 0;
                 return;
             }
-            if (RowingSounds.HasDrumKit())
+            if (kit)
             {
-                UpdateDrumPattern();
+                UpdateDrumPattern(drumOn);
                 return;
             }
             m_rowing.GetBeat(ShipRowing.NowMs(), out long beatMs, out _);
@@ -490,8 +501,12 @@ namespace RowingMod
         /// Plays the helmsman's drum pattern: one measure per beat, built from the shared beat schedule and seeded with
         /// the beat's time so every client plays the same hits. Hits are scheduled up to 200 ms ahead with a delay,
         /// so they land on time regardless of frame rate. When the drum is turned on, it starts at the next stroke.
+        ///
+        /// A ramming-speed run replaces the rhythm for its lead-in, ramming and release measures with the ones its
+        /// seed picks, and plays them even with the drum off (<paramref name="drumOn"/>). Their beat lengths are
+        /// planned, so the next measure's first hits land right even when the tempo jumps.
         /// </summary>
-        private void UpdateDrumPattern()
+        private void UpdateDrumPattern(bool drumOn)
         {
             long nowMs = ShipRowing.NowMs();
             m_rowing.GetBeat(nowMs, out long beatMs, out long periodMs, out long beatIndex);
@@ -506,25 +521,59 @@ namespace RowingMod
                 return;
             }
             int pattern = m_rowing.GetDrumPattern();
+            int seed = m_rowing.GetRamSeed() & int.MaxValue;
             Vector3 position = transform.position + transform.up * 1.5f;
-            // This measure and the next (whose ONE may fall inside the lookahead); the next one's length is assumed
-            // to stay the same, which only matters for hits in its first 200 ms.
+            // This measure and the next (whose ONE may fall inside the lookahead). A measure's length is planned
+            // during a ramming-speed run; otherwise the next one is assumed to last as long as this one, which only
+            // matters for hits in its first 200 ms.
+            long measureMs = beatMs;
+            long lengthMs = periodMs;
             for (int k = 0; k < 2; k++)
             {
-                long measureMs = beatMs + k * periodMs;
+                long index = beatIndex + k;
+                long planned = m_rowing.GetPlannedPeriodMs(index);
+                if (planned > 0)
+                {
+                    lengthMs = planned;
+                }
                 if (measureMs > until)
                 {
                     break;
                 }
-                float period = periodMs / 1000f;
-                foreach (DrumPatterns.Hit hit in MeasureHits(pattern, beatIndex + k, period, measureMs))
+                DrumPatterns.Kind kind = DrumPatterns.Kind.Normal;
+                int variant = pattern;
+                switch (m_rowing.GetRamPhase(index, out _))
                 {
-                    long hitMs = measureMs + (long)(hit.Fraction * periodMs);
+                    case ShipRowing.RamPhase.LeadIn:
+                        kind = DrumPatterns.Kind.LeadIn;
+                        variant = seed % DrumPatterns.LeadInNames.Length;
+                        break;
+                    case ShipRowing.RamPhase.Ramming:
+                        kind = DrumPatterns.Kind.Ramming;
+                        variant = seed / 3 % DrumPatterns.RammingNames.Length;
+                        break;
+                    case ShipRowing.RamPhase.Release:
+                        kind = DrumPatterns.Kind.Release;
+                        variant = seed / 24 % DrumPatterns.ReleaseNames.Length;
+                        break;
+                    case ShipRowing.RamPhase.None:
+                        if (!drumOn)
+                        {
+                            measureMs += lengthMs;
+                            continue;
+                        }
+                        break;
+                }
+                float period = lengthMs / 1000f;
+                foreach (DrumPatterns.Hit hit in MeasureHits(kind, variant, index, period, measureMs))
+                {
+                    long hitMs = measureMs + (long)(hit.Fraction * lengthMs);
                     if (hitMs > from && hitMs <= until)
                     {
-                        RowingSounds.PlayDrumHit(hit.Drum, position, hit.Gain, hit.Pitch, (hitMs - nowMs) / 1000f);
+                        RowingSounds.PlayDrumHit(hit.Drum, position, hit.Gain, hit.Pitch, (hitMs - nowMs) / 1000f, hit.Length);
                     }
                 }
+                measureMs += lengthMs;
             }
             m_drumScheduledUntil = until;
         }
@@ -533,8 +582,9 @@ namespace RowingMod
         /// A measure's hits, built once and kept while the lookahead reaches into it (the current and next measure),
         /// so the scheduler doesn't rebuild them every frame. Rebuilt if the rhythm or the beat's length changes.
         /// </summary>
-        private List<DrumPatterns.Hit> MeasureHits(int pattern, long index, float period, long measureMs)
+        private List<DrumPatterns.Hit> MeasureHits(DrumPatterns.Kind kind, int variant, long index, float period, long measureMs)
         {
+            int pattern = (int)kind * 100 + variant;
             DrumMeasure oldest = m_drumMeasures[0];
             foreach (DrumMeasure measure in m_drumMeasures)
             {
@@ -550,7 +600,7 @@ namespace RowingMod
             oldest.Ms = measureMs;
             oldest.Pattern = pattern;
             oldest.Period = period;
-            oldest.Hits = DrumPatterns.Build(pattern, (int)index, period, measureMs);
+            oldest.Hits = DrumPatterns.Build(kind, variant, (int)index, period, measureMs);
             return oldest.Hits;
         }
 

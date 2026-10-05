@@ -42,6 +42,7 @@ namespace RowingMod
         // The helmsman's calls as last seen, so each new one shows a snackbar.
         private int m_lastTempo;
         private bool m_lastRamming;
+        private bool m_lastRamRun;
         private long m_lastHoldWaterCall;
         // Holding water: braking with the oar while the brake key is held.
         private bool m_braking;
@@ -207,6 +208,7 @@ namespace RowingMod
             m_lastStrokeBeat = 0;
             m_lastTempo = shipRowing.GetTempo();
             m_lastRamming = shipRowing.IsRamming();
+            m_lastRamRun = shipRowing.IsRamRunActive();
             m_lastHoldWaterCall = shipRowing.GetHoldWaterCall();
 
             m_ownerMissingSince = -1f;
@@ -227,16 +229,19 @@ namespace RowingMod
                     string detail = tempo < 0 ? "A slower beat: easier on stamina" : tempo > 0 ? "A quicker beat: more push, more stamina" : "The beat follows the ship's speed";
                     Toast($"Helmsman: {CrewPanel.TempoName(tempo)}!", detail);
                 }
+                // The call comes two strokes before ramming starts: the beat quickens, then the drum's double kick.
+                bool ramRun = m_shipRowing.IsRamRunActive();
+                if (ramRun && !m_lastRamRun)
+                {
+                    Toast("Helmsman: Ramming speed!",
+                        $"In two strokes, a very quick beat for {RowingPlugin.RammingDuration.Value:0} s: strokes +{RowingPlugin.RammingStrength.Value * 100f:0}%, stamina ×{RowingPlugin.RammingStamina.Value:0.#}");
+                }
+                m_lastRamRun = ramRun;
                 bool ramming = m_shipRowing.IsRamming();
                 if (ramming != m_lastRamming)
                 {
                     m_lastRamming = ramming;
-                    if (ramming)
-                    {
-                        Toast("Helmsman: Ramming speed!",
-                            $"A very quick beat for {RowingPlugin.RammingDuration.Value:0} s: strokes +{RowingPlugin.RammingStrength.Value * 100f:0}%, stamina ×{RowingPlugin.RammingStamina.Value:0.#}");
-                    }
-                    else
+                    if (!ramming)
                     {
                         Show("Ramming speed over");
                     }
@@ -402,9 +407,20 @@ namespace RowingMod
             string title = m_braking
                 ? $"Holding water [{RowingPlugin.BrakeKey.Value}]"
                 : ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
-            if (!m_braking && m_shipRowing.IsRamming())
+            if (!m_braking)
             {
-                title = $"RAMMING SPEED [{RowingPlugin.RowKey.Value}]";
+                switch (m_shipRowing.GetRamPhase())
+                {
+                    case ShipRowing.RamPhase.SpeedUp:
+                        title = $"RAMMING SPEED in 2… [{RowingPlugin.RowKey.Value}]";
+                        break;
+                    case ShipRowing.RamPhase.LeadIn:
+                        title = $"RAMMING SPEED in 1… [{RowingPlugin.RowKey.Value}]";
+                        break;
+                    case ShipRowing.RamPhase.Ramming:
+                        title = $"RAMMING SPEED [{RowingPlugin.RowKey.Value}]";
+                        break;
+                }
             }
             float staminaMultiplier = StaminaMultiplier(m_ship);
             if (staminaMultiplier > 1.05f)

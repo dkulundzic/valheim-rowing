@@ -42,7 +42,10 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **The helmsman calls the beat:** at the helm,
 - **U** calls a quicker beat and **N** a slower one, stepping through Easy (a slower beat, easier on stamina), Steady (automatic, the default) and Hard (a quicker beat, more push and more stamina).
-- **K** calls **ramming speed:** for 10 seconds the beat is very quick (0.8 s), strokes are 25% stronger and cost double stamina. The crew then needs 60 seconds before the next one.
+- **K** calls **ramming speed:** for about 10 seconds the beat is very quick (0.8 s), strokes are 25% stronger and cost double stamina. The crew then needs 60 seconds before the next one.
+  - **It starts two strokes after the call,** so the crew can get ready. The beat quickens over those two strokes ("RAMMING SPEED in 2… 1…" on the stroke bar), and the war drum ends the second one with a double kick and a moment of silence. Ramming starts on the next stroke.
+  - **The drum always plays during ramming speed,** even if it's off: one of 8 ramming rhythms, picked at random for each ram. When ramming ends, the first stroke is a big hit on every drum, the beat eases back over one stroke, and the drum returns to its rhythm (or goes quiet again if it was off).
+  - **The ship's speed doesn't change the ramming beat;** it still limits the push, as strokes weaken near top speed.
 - **J** calls **"Hold water!"**, telling the crew to brake. Each rower brakes themselves with J.
 
 Rowers get a message for every call, and the crew panel shows the current beat.
