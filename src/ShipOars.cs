@@ -144,6 +144,7 @@ namespace RowingMod
         // m_drumScheduledUntil (network-clock ms) has been scheduled already.
         private const long DrumLookaheadMs = 200;
         private long m_drumScheduledUntil;
+        private readonly DrumMeasure[] m_drumMeasures = { new DrumMeasure(), new DrumMeasure() };
         // The ship's forward speed, from how far it moved since the last frame, so it works on every client
         // (only the owner simulates the ship's physics).
         private float m_speed;
@@ -516,7 +517,7 @@ namespace RowingMod
                     break;
                 }
                 float period = periodMs / 1000f;
-                foreach (DrumPatterns.Hit hit in DrumPatterns.Build(pattern, (int)(beatIndex + k), period, measureMs))
+                foreach (DrumPatterns.Hit hit in MeasureHits(pattern, beatIndex + k, period, measureMs))
                 {
                     long hitMs = measureMs + (long)(hit.Fraction * periodMs);
                     if (hitMs > from && hitMs <= until)
@@ -526,6 +527,39 @@ namespace RowingMod
                 }
             }
             m_drumScheduledUntil = until;
+        }
+
+        /// <summary>
+        /// A measure's hits, built once and kept while the lookahead reaches into it (the current and next measure),
+        /// so the scheduler doesn't rebuild them every frame. Rebuilt if the rhythm or the beat's length changes.
+        /// </summary>
+        private List<DrumPatterns.Hit> MeasureHits(int pattern, long index, float period, long measureMs)
+        {
+            DrumMeasure oldest = m_drumMeasures[0];
+            foreach (DrumMeasure measure in m_drumMeasures)
+            {
+                if (measure.Ms == measureMs && measure.Pattern == pattern && measure.Period == period)
+                {
+                    return measure.Hits;
+                }
+                if (measure.Ms < oldest.Ms)
+                {
+                    oldest = measure;
+                }
+            }
+            oldest.Ms = measureMs;
+            oldest.Pattern = pattern;
+            oldest.Period = period;
+            oldest.Hits = DrumPatterns.Build(pattern, (int)index, period, measureMs);
+            return oldest.Hits;
+        }
+
+        private class DrumMeasure
+        {
+            public long Ms = long.MinValue;
+            public int Pattern;
+            public float Period;
+            public List<DrumPatterns.Hit> Hits;
         }
 
         private bool AnyPlayerWithin(float distance)
