@@ -13,10 +13,10 @@ namespace RowingMod
     public class CrewPanel : MonoBehaviour
     {
         private const float PanelWidth = 170f;
-        private const float PanelHeight = 270f;
+        private const float PanelHeight = 288f;
         private const float Margin = 24f;
         private const float Padding = 10f;
-        private const float FooterHeight = 56f;
+        private const float FooterHeight = 75f;
         // Room left beside the hull for oars, in metres. Oars reaching further are clipped at the panel's edge,
         // which keeps the ship itself big in the panel.
         private const float OarRoom = 1.2f;
@@ -39,12 +39,18 @@ namespace RowingMod
 
         private readonly List<ShipOars.Bench> m_benches = new List<ShipOars.Bench>();
 
-        /// <summary>At the helm, the drum key turns the ship's war drum on or off.</summary>
+        /// <summary>At the helm, the drum key turns the ship's war drum on or off and the pattern key picks its rhythm.</summary>
         private void Update()
         {
             Player player = Player.m_localPlayer;
             Ship ship = player != null ? player.GetControlledShip() : null;
-            if (ship == null || !ZInput.GetKeyDown(RowingPlugin.DrumKey.Value, logWarning: false))
+            if (ship == null)
+            {
+                return;
+            }
+            bool toggle = ZInput.GetKeyDown(RowingPlugin.DrumKey.Value, logWarning: false);
+            bool next = ZInput.GetKeyDown(RowingPlugin.DrumPatternKey.Value, logWarning: false);
+            if (!toggle && !next)
             {
                 return;
             }
@@ -58,9 +64,18 @@ namespace RowingMod
             {
                 return;
             }
-            bool on = !rowing.IsDrumOn();
-            rowing.RequestDrum(on);
-            player.Message(MessageHud.MessageType.Center, on ? "War drum on" : "War drum off");
+            if (toggle)
+            {
+                bool on = !rowing.IsDrumOn();
+                rowing.RequestDrum(on);
+                player.Message(MessageHud.MessageType.Center, on ? "War drum on" : "War drum off");
+            }
+            else if (RowingSounds.HasDrumKit())
+            {
+                int pattern = (rowing.GetDrumPattern() + 1) % DrumPatterns.Count;
+                rowing.RequestDrumPattern(pattern);
+                player.Message(MessageHud.MessageType.Center, $"War drum: {DrumPatterns.Names[pattern]} ({pattern + 1}/{DrumPatterns.Count})");
+            }
         }
 
         private void OnGUI()
@@ -210,7 +225,7 @@ namespace RowingMod
             // how many were in sync.
             GUIStyle footer = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false, fontSize = 11, clipping = TextClipping.Overflow };
             float boost = rowing.GetSyncedBoost();
-            Rect line1 = new Rect(panel.x, panel.yMax - Padding - FooterHeight, panel.width, FooterHeight / 3f);
+            Rect line1 = new Rect(panel.x, panel.yMax - Padding - FooterHeight, panel.width, FooterHeight / 4f);
             RowingUI.Label(line1, $"{SpeedSettingName(ship.GetSpeedSetting())} · Crew boost {boost * 100f:0}%", footer);
             long nearestMs = nowMs - beatMs <= periodMs / 2 ? beatMs : beatMs + periodMs;
             int inSync = rowing.GetStrongCount(nearestMs);
@@ -222,11 +237,19 @@ namespace RowingMod
                 GUI.color = previousColor;
             }
 
-            // The war drum, and for the helmsman how to change it.
+            // The war drum and its rhythm, and for the helmsman the keys that change them.
             bool drumOn = rowing.IsDrumOn();
             bool atHelm = Player.m_localPlayer != null && Player.m_localPlayer.GetControlledShip() == ship;
-            string drum = $"Drum: {(drumOn ? "on" : "off")}" + (atHelm ? $" ({RowingPlugin.DrumKey.Value} to turn {(drumOn ? "off" : "on")})" : "");
+            bool patterns = RowingSounds.HasDrumKit();
+            string drum = $"Drum: {(drumOn ? "on" : "off")}" + (patterns ? $" · {DrumPatterns.Names[rowing.GetDrumPattern()]}" : "");
             RowingUI.Label(new Rect(line1.x, line1.yMax + line1.height, line1.width, line1.height), drum, footer);
+            if (atHelm)
+            {
+                string keys = patterns
+                    ? $"{RowingPlugin.DrumKey.Value}: drum on/off · {RowingPlugin.DrumPatternKey.Value}: rhythm"
+                    : $"{RowingPlugin.DrumKey.Value}: drum {(drumOn ? "off" : "on")}";
+                RowingUI.Label(new Rect(line1.x, line1.yMax + 2f * line1.height, line1.width, line1.height), keys, footer);
+            }
         }
 
         /// <summary>

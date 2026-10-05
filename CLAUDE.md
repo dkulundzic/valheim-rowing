@@ -53,6 +53,11 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
       - **Fallback:** the generated tom (`MakeDrum`), used if the file is missing or `Sounds.DrumSound = generated`. Volume `Sounds.DrumVolume`, heard up to 70 m.
       - **History:** the user found synthesized drum patterns "boring" and "not good enough" and asked for a dundun; richer patterns are shelved for now.
     - **UI:** the panel footer shows "Drum: on/off", plus the key for the helmsman.
+    - **Patterns (`feature/drum-patterns`, 2026-10-05):** the user liked all 16 battle-march previews (`samples/make_measure_previews.py`) and asked for them in game, picked by the helmsman.
+      - **Kit:** `package/sounds/drum_kick.wav` (dundunba with the preview's room reverb baked in), `drum_mid.wav` (sangban), `drum_tap.wav` (muted sangban) and `drum_high.wav` (kenkeni). If any is missing, or `DrumSound = generated`, the old single generated hit plays.
+      - **Patterns:** `src/DrumPatterns.cs` mirrors the Python previews. `Build(pattern, beatIndex, period, seed)` returns one measure's hits; the human-hand jitter is seeded from the beat's time, so every client hears the same hits.
+      - **Sync:** the owner counts beats in ZDO long `RowingMod_BeatIndex` (for "every fourth measure"), and stores the rhythm in ZDO int `RowingMod_DrumPattern` (RPC `RowingMod_DrumPattern(int)` from the helm, key `Controls.DrumPatternKey` = P).
+      - **Playback:** `ShipOars.UpdateDrumPattern` schedules hits up to 200 ms ahead with `PlayDelayed`, so timing doesn't depend on frame rate.
   - **Wakes** (`UI.ShowWakes`, `UI.WakeEffect`, default `vfx_water_surface` at half scale): three ripples along each stroke's drive at the blade on the water line, and every ~0.5 s while braking above 1 m/s.
   - **Each stroke is layered** (the user wants believable, non-repeating sounds; values are defaults, each a `Sounds.*` setting):
     - **Splash** (`fx_footstep_water`, 7 wading clips): random clip, pitch 0.9–1.12, volume jitter.
@@ -167,6 +172,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - `feature/rowing-skill`: a custom Rowing skill; the green zone is narrow at low skill and widens with level (12% at 0, 20% at 50, 28% at 100), as the user asked.
   - `feature/gamepad`: RT row, LT brake.
   - `feature/rower-lean`: experimental body lean.
+  - `feature/drum-patterns`: the war drum plays 16 rhythms on a real dunun kit; the helmsman picks with P.
   - **Not done:** the Drakkar check (the user has none), grunts (waiting for recordings), Thunderstore (needs the user's account), "rowing cools you down" (I recommended skipping it).
 - [ ] **Next:** discuss grunting or effort sounds for rowers.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.

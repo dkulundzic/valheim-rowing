@@ -137,9 +137,13 @@ namespace RowingMod
         private Ship m_ship;
         private ShipRowing m_rowing;
         private float m_lastCreak = -100f;
-        // The war drum: the beat it last played, and a count for accenting every fourth beat.
+        // The war drum: the beat it last played, and a count for accenting every fourth beat (generated drum only).
         private long m_lastDrumBeat;
         private int m_drumCount;
+        // Pattern drumming: hits are scheduled this far ahead so they land on time, and everything up to
+        // m_drumScheduledUntil (network-clock ms) has been scheduled already.
+        private const long DrumLookaheadMs = 200;
+        private long m_drumScheduledUntil;
         // The ship's forward speed, from how far it moved since the last frame, so it works on every client
         // (only the owner simulates the ship's physics).
         private float m_speed;
@@ -431,6 +435,12 @@ namespace RowingMod
             {
                 m_lastDrumBeat = 0;
                 m_drumCount = 0;
+                m_drumScheduledUntil = 0;
+                return;
+            }
+            if (RowingSounds.HasDrumKit())
+            {
+                UpdateDrumPattern();
                 return;
             }
             m_rowing.GetBeat(ShipRowing.NowMs(), out long beatMs, out _);
@@ -445,6 +455,49 @@ namespace RowingMod
                 m_drumCount++;
             }
             m_lastDrumBeat = beatMs;
+        }
+
+        /// <summary>
+        /// Plays the helmsman's drum pattern: one measure per beat, built from the shared beat schedule and seeded with
+        /// the beat's time so every client plays the same hits. Hits are scheduled up to 200 ms ahead with a delay,
+        /// so they land on time regardless of frame rate. When the drum is turned on, it starts at the next stroke.
+        /// </summary>
+        private void UpdateDrumPattern()
+        {
+            long nowMs = ShipRowing.NowMs();
+            m_rowing.GetBeat(nowMs, out long beatMs, out long periodMs, out long beatIndex);
+            if (m_drumScheduledUntil == 0)
+            {
+                m_drumScheduledUntil = beatMs + periodMs - 1;
+            }
+            long from = System.Math.Max(m_drumScheduledUntil, nowMs);
+            long until = nowMs + DrumLookaheadMs;
+            if (until <= from)
+            {
+                return;
+            }
+            int pattern = m_rowing.GetDrumPattern();
+            Vector3 position = transform.position + transform.up * 1.5f;
+            // This measure and the next (whose ONE may fall inside the lookahead); the next one's length is assumed
+            // to stay the same, which only matters for hits in its first 200 ms.
+            for (int k = 0; k < 2; k++)
+            {
+                long measureMs = beatMs + k * periodMs;
+                if (measureMs > until)
+                {
+                    break;
+                }
+                float period = periodMs / 1000f;
+                foreach (DrumPatterns.Hit hit in DrumPatterns.Build(pattern, (int)(beatIndex + k), period, measureMs))
+                {
+                    long hitMs = measureMs + (long)(hit.Fraction * periodMs);
+                    if (hitMs > from && hitMs <= until)
+                    {
+                        RowingSounds.PlayDrumHit(hit.Drum, position, hit.Gain, hit.Pitch, (hitMs - nowMs) / 1000f);
+                    }
+                }
+            }
+            m_drumScheduledUntil = until;
         }
 
         private bool AnyPlayerAboard()

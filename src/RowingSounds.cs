@@ -48,9 +48,10 @@ namespace RowingMod
         private static AudioClip[] s_sync;
         private static AudioClip s_drum;
         private static AudioClip s_drumAccent;
-        // The real drum: a dundunba hit shipped with the mod (sounds/dundun.wav), or null to use the generated drum.
-        private static AudioClip s_dundun;
-        public const string DundunFile = "dundun.wav";
+        // The war drum's kit: four real drums shipped with the mod (sounds/drum_*.wav), indexed by DrumPatterns.Drum.
+        // Null if any is missing or Sounds.DrumSound is "generated"; then the drum plays one generated hit per beat.
+        private static AudioClip[] s_drumKit;
+        private static readonly string[] DrumKitFiles = { "drum_kick.wav", "drum_mid.wav", "drum_tap.wav", "drum_high.wav" };
         private static GameObject s_splashEffect;
         private static GameObject s_wakeEffect;
         private static GameObject s_effectHolder;
@@ -85,7 +86,16 @@ namespace RowingMod
             s_drumAccent = MakeDrum("RowingMod_DrumAccent", accent: true);
             if (!IsGenerated(RowingPlugin.DrumSound.Value))
             {
-                s_dundun = LoadBundledWav(DundunFile);
+                s_drumKit = new AudioClip[DrumKitFiles.Length];
+                for (int i = 0; i < DrumKitFiles.Length; i++)
+                {
+                    s_drumKit[i] = LoadBundledWav(DrumKitFiles[i]);
+                    if (s_drumKit[i] == null)
+                    {
+                        s_drumKit = null;
+                        break;
+                    }
+                }
             }
             s_sfxGroup = FindSfxGroup();
 
@@ -227,14 +237,23 @@ namespace RowingMod
                 return;
             }
             float volume = RowingPlugin.DrumVolume.Value * (accent ? 1f : 0.72f);
-            if (s_dundun != null)
+            PlayAt(accent ? s_drumAccent : s_drum, position, volume, Random.Range(0.97f, 1.03f), 0f, 0f, 0f, DrumMaxDistance);
+        }
+
+        /// <summary>Whether the real drum kit is available, so the drum can play its patterns.</summary>
+        public static bool HasDrumKit()
+        {
+            return EnsureInitialized() && s_drumKit != null;
+        }
+
+        /// <summary>One hit of a drum pattern, <paramref name="delay"/> seconds from now (scheduled ahead for timing).</summary>
+        public static void PlayDrumHit(DrumPatterns.Drum drum, Vector3 position, float gain, float pitch, float delay)
+        {
+            if (!EnsureInitialized() || s_drumKit == null)
             {
-                // The accent is a touch deeper; the other beats vary slightly, like a hand that never hits quite the same.
-                float pitch = accent ? Random.Range(0.92f, 0.95f) : Random.Range(0.98f, 1.04f);
-                PlayAt(s_dundun, position, volume * Random.Range(0.92f, 1f), pitch, 0f, 0f, 0f, DrumMaxDistance);
                 return;
             }
-            PlayAt(accent ? s_drumAccent : s_drum, position, volume, Random.Range(0.97f, 1.03f), 0f, 0f, 0f, DrumMaxDistance);
+            PlayAt(s_drumKit[(int)drum], position, RowingPlugin.DrumVolume.Value * gain, pitch, 0f, 0f, Mathf.Max(0f, delay), DrumMaxDistance);
         }
 
         /// <summary>A subtle wake on the water where a blade swept through (UI.ShowWakes).</summary>

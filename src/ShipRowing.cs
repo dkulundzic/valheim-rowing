@@ -21,6 +21,11 @@ namespace RowingMod
         // The helmsman turning the war drum on or off; sent to the owner, who stores it on the ship.
         public const string DrumRpc = "RowingMod_Drum";
         public const string DrumKey = "RowingMod_Drum";
+        // The war drum's pattern (0..DrumPatterns.Count-1), picked by the helmsman and kept on the ship by the owner.
+        public const string DrumPatternRpc = "RowingMod_DrumPattern";
+        public const string DrumPatternKey = "RowingMod_DrumPattern";
+        // The number of the latest beat, counted by the owner, so every client agrees which measures end a phrase.
+        public const string BeatIndexKey = "RowingMod_BeatIndex";
         // A brake not repeated for this long is dropped, in case its "off" got lost.
         private const float BrakeTimeout = 2.5f;
         // Below this speed (m/s) braking also adds a small constant deceleration, so the ship comes to a halt.
@@ -93,6 +98,7 @@ namespace RowingMod
             m_nview.Register<float>(LegacyStrokeRpc, RPC_LegacyStroke);
             m_nview.Register<bool>(BrakeRpc, RPC_Brake);
             m_nview.Register<bool>(DrumRpc, RPC_Drum);
+            m_nview.Register<int>(DrumPatternRpc, RPC_DrumPattern);
             m_topSpeed = EstimateTopSailSpeed(m_ship);
             LogSeats();
         }
@@ -214,8 +220,22 @@ namespace RowingMod
         /// </summary>
         public void GetBeat(long nowMs, out long beatMs, out long periodMs)
         {
+            GetBeat(nowMs, out beatMs, out periodMs, out _);
+        }
+
+        /// <summary>
+        /// GetBeat, plus the beat's number as the owner counts them (extended over beats not announced yet), so
+        /// every client agrees which measures end a four-measure phrase.
+        /// </summary>
+        public void GetBeat(long nowMs, out long beatMs, out long periodMs, out long beatIndex)
+        {
             beatMs = 0;
             periodMs = 0;
+            beatIndex = 0;
+            if (m_nview != null && m_nview.IsValid())
+            {
+                beatIndex = m_nview.GetZDO().GetLong(BeatIndexKey);
+            }
             if (m_nview != null && m_nview.IsValid())
             {
                 beatMs = m_nview.GetZDO().GetLong(BeatTimeKey);
@@ -230,11 +250,15 @@ namespace RowingMod
             // Extend the schedule over any beats the owner hasn't announced yet (or that are still in flight).
             if (nowMs >= beatMs)
             {
-                beatMs += (nowMs - beatMs) / periodMs * periodMs;
+                long ahead = (nowMs - beatMs) / periodMs;
+                beatMs += ahead * periodMs;
+                beatIndex += ahead;
             }
             else
             {
-                beatMs -= ((beatMs - nowMs + periodMs - 1) / periodMs) * periodMs;
+                long behind = (beatMs - nowMs + periodMs - 1) / periodMs;
+                beatMs -= behind * periodMs;
+                beatIndex -= behind;
             }
         }
 
@@ -325,6 +349,30 @@ namespace RowingMod
         public bool IsDrumOn()
         {
             return m_nview != null && m_nview.IsValid() && m_nview.GetZDO().GetBool(DrumKey);
+        }
+
+        /// <summary>The war drum's pattern (0..DrumPatterns.Count-1). Readable on every client.</summary>
+        public int GetDrumPattern()
+        {
+            int pattern = m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetInt(DrumPatternKey) : 0;
+            return ((pattern % DrumPatterns.Count) + DrumPatterns.Count) % DrumPatterns.Count;
+        }
+
+        /// <summary>The helmsman asks the ship's owner to switch the drum's pattern.</summary>
+        public void RequestDrumPattern(int pattern)
+        {
+            if (m_nview != null && m_nview.IsValid())
+            {
+                m_nview.InvokeRPC(DrumPatternRpc, pattern);
+            }
+        }
+
+        private void RPC_DrumPattern(long sender, int pattern)
+        {
+            if (m_nview.IsOwner())
+            {
+                m_nview.GetZDO().Set(DrumPatternKey, ((pattern % DrumPatterns.Count) + DrumPatterns.Count) % DrumPatterns.Count);
+            }
         }
 
         /// <summary>The helmsman asks the ship's owner to turn the drum on or off.</summary>
@@ -509,6 +557,7 @@ namespace RowingMod
             {
                 zdo.Set(BeatTimeKey, beatMs + periodMs);
                 zdo.Set(BeatPeriodKey, TempoMs(direction));
+                zdo.Set(BeatIndexKey, zdo.GetLong(BeatIndexKey) + 1);
             }
         }
 

@@ -42,6 +42,8 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
+The drum plays one measure per beat. The heavy, doubled deep drum always falls on the stroke, so you row on the big boom; the lighter drums in between count you in to the next one. The helmsman picks the rhythm with **P**, from 16: Battle march, Kick on three, Charge, Heartbeat, Sixteenths, Stomp, Gallop, Crescendo, Tension, Kick roll, Drum roll, Sub, Syncopation, Four on the floor, Call and response and War party march. Everyone aboard hears the same rhythm.
+
 ## 3. Stamina
 
 - **Every press costs stamina,** including wasted ones.
@@ -114,7 +116,7 @@ While you row or steer, a small top-down view of the ship sits in the bottom-rig
 - **Oars:** little oars swing just like the real ones, and stowed oars lie inside the hull.
 - **Crew boost:** the blue bar along the middle fills with the crew's push.
 - **The beat:** the ship's outline pulses on every beat, so you can see the rhythm even with the drum off.
-- **Drum:** the footer shows whether the war drum is on, and for the helmsman, which key turns it on or off.
+- **Drum:** the footer shows whether the war drum is on and its rhythm, and for the helmsman, the keys that change them.
 - **Helmsman:** a diamond at the helm, with no oar. It's an outline when nobody steers and filled when someone does, with a white ring when it's you.
 - **Footer:** the ship's speed setting and the crew's boost (e.g. "Half sail · Crew boost 40%"), and "In sync ×N" when N rowers hit the same beat.
 
@@ -132,6 +134,7 @@ The helmsman sees the panel too, which shows who's rowing and who's in time.
 | Strong stroke! / Early / Late | How your last press went. |
 | Too fast! One stroke per beat | You already rowed on this beat. |
 | **War drum on / off** | The helmsman turned the drum on or off. |
+| **War drum: *rhythm* (N/16)** | The helmsman picked another rhythm. |
 | Too tired to row | Not enough stamina for a stroke. |
 
 ## The numbers (default settings)

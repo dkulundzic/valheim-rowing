@@ -52,6 +52,7 @@ namespace RowingMod
         internal static ConfigEntry<float> DrumVolume;
         internal static ConfigEntry<string> DrumSound;
         internal static ConfigEntry<KeyCode> DrumKey;
+        internal static ConfigEntry<KeyCode> DrumPatternKey;
         internal static ConfigEntry<float> RestedDiscount;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
@@ -66,6 +67,8 @@ namespace RowingMod
 
             DrumKey = Config.Bind("Controls", "DrumKey", KeyCode.H,
                 "Key the helmsman presses to turn the ship's war drum on or off. At the helm it doesn't clash with rowing.");
+            DrumPatternKey = Config.Bind("Controls", "DrumPatternKey", KeyCode.P,
+                "Key the helmsman presses to switch the war drum to its next rhythm.");
             BrakeKey = Config.Bind("Controls", "BrakeKey", KeyCode.J,
                 "Key a seated rower holds to hold water (brake with the oar). Movement, attack, jump and crouch keys stand you up, so don't use those.");
 
@@ -141,7 +144,7 @@ namespace RowingMod
             DrumVolume = Config.Bind("Sounds", "DrumVolume", 0.8f,
                 "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
             DrumSound = Config.Bind("Sounds", "DrumSound", "",
-                "The war drum's sound. Empty uses a recorded drum (sounds/dundun.wav next to the mod) if present, otherwise a drum made by the mod; \"generated\" always uses the one made by the mod.");
+                "The war drum's sound. Empty uses the recorded drums (sounds/drum_*.wav next to the mod) and the helmsman's rhythm if they're present, otherwise one drum made by the mod on each beat; \"generated\" always uses the one made by the mod.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
                 "Show subtle wakes on the water where blades sweep through.");
             WakeEffect = Config.Bind("UI", "WakeEffect", "",
