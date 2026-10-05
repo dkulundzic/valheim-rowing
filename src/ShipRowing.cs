@@ -244,9 +244,53 @@ namespace RowingMod
             return m_beats.TryGetValue(beatMs, out BeatStrokes strokes) ? strokes.StrongCount : 0;
         }
 
+        // The smoothed network clock: its value (seconds) and the real time it was last advanced.
+        private static double s_clock;
+        private static double s_clockReal = -1.0;
+        // How quickly the smoothed clock closes a gap to the network clock (seconds), the gap that makes it jump
+        // instead, and the slowest it may run (fraction of real time), so it never stalls or runs backward.
+        private const double ClockSmoothing = 2.0;
+        private const double ClockSnap = 1.5;
+        private const double ClockMinRate = 0.5;
+
+        /// <summary>
+        /// The network clock (ms), which the ship's beat runs on, smoothed. A client's network clock is overwritten
+        /// by the server's every 2 s and also lags when frames hitch; on the crew server it jumped back up to 0.7 s
+        /// every few seconds, which broke the drum's rhythm and made the stroke bar stutter. This clock runs on real
+        /// time and eases toward the network clock instead, never backward; a gap over 1.5 s (loading, sleeping) is
+        /// taken at once.
+        /// </summary>
         public static long NowMs()
         {
-            return ZNet.instance != null ? (long)(ZNet.instance.GetTimeSeconds() * 1000.0) : 0;
+            if (ZNet.instance == null)
+            {
+                return 0;
+            }
+            double network = ZNet.instance.GetTimeSeconds();
+            double real = Time.realtimeSinceStartupAsDouble;
+            if (s_clockReal < 0.0 || real < s_clockReal)
+            {
+                s_clock = network;
+                s_clockReal = real;
+            }
+            else if (real > s_clockReal)
+            {
+                double dt = real - s_clockReal;
+                double clock = s_clock + dt;
+                double gap = network - clock;
+                if (System.Math.Abs(gap) > ClockSnap)
+                {
+                    clock = network;
+                }
+                else
+                {
+                    clock += gap * System.Math.Min(1.0, dt / ClockSmoothing);
+                    clock = System.Math.Max(clock, s_clock + dt * ClockMinRate);
+                }
+                s_clock = clock;
+                s_clockReal = real;
+            }
+            return (long)(s_clock * 1000.0);
         }
 
         public static long SecondsToMs(float seconds)
