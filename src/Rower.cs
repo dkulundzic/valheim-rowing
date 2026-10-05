@@ -61,9 +61,23 @@ namespace RowingMod
         private string m_toastBody;
         private float m_toastStart;
         private float m_toastHold = ToastHold;
-        // Snackbars waiting their turn (the tutorial), and whether the last one finishes the tutorial.
-        private readonly Queue<(string Title, string Body, float Hold, bool Last)> m_toastQueue = new Queue<(string, string, float, bool)>();
-        private bool m_toastFinishesTutorial;
+        // What the snackbar on screen is: the helmsman's calls always show at once, other notices too, and tips
+        // only when nothing else is up. A tip that something else replaces comes back afterwards.
+        private enum ToastKind
+        {
+            Notice,
+            Helm,
+            Tip,
+        }
+        private ToastKind m_toastKind;
+        private RowingTips.Tip m_toastTip;
+        // Tips waiting their turn, in order; they wait TipGap after the last one, and triggers are checked once a second.
+        private const float TipGap = 1.5f;
+        private readonly List<RowingTips.Tip> m_tips = new List<RowingTips.Tip>();
+        private float m_nextTipTime;
+        private float m_nextTipCheck;
+        private ShipOars m_oars;
+        private readonly List<ShipOars.Bench> m_benches = new List<ShipOars.Bench>();
 
         private void Update()
         {
@@ -86,7 +100,7 @@ namespace RowingMod
                 return;
             }
             UpdateNotices();
-            UpdateToastQueue();
+            UpdateTips(player);
             m_voyage.Update();
             UpdateBrake(player);
 
@@ -104,6 +118,7 @@ namespace RowingMod
             if (!player.HaveStamina(cost))
             {
                 Show("Too tired to row");
+                TriggerTip(RowingTips.Tip.Tired);
                 return;
             }
             player.UseStamina(cost);
@@ -128,6 +143,7 @@ namespace RowingMod
             RowingSkill.Practice(player, m_lastStrokeStrong);
             m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.StrokeRpc, quality, nearestMs);
             m_voyage.OnStroke(nearestMs, m_lastStrokeStrong);
+            TriggerTip(RowingTips.Tip.Panel);
             m_messageIsStroke = true;
             m_messageUntil = Time.time + MessageTime;
         }
@@ -208,11 +224,16 @@ namespace RowingMod
                 return m_ship != null;
             }
 
-            // Leaving the bench (or switching seats) ends this stint's stats and any braking on the old ship.
+            // Leaving the bench (or switching seats) drops waiting tips (they show again when they next matter), ends
+            // this stint's stats and any braking on the old ship.
+            m_tips.Clear();
+            if (m_toastTitle != null && m_toastKind == ToastKind.Tip)
+            {
+                m_toastTitle = null;
+            }
             if (m_voyage.Finish(player, out string voyageTitle, out string voyageBody))
             {
                 // Shown as a snackbar, which stays up (see OnGUI) after standing up.
-                m_toastQueue.Clear();
                 Toast(voyageTitle, voyageBody);
             }
             if (m_braking)
@@ -236,6 +257,7 @@ namespace RowingMod
 
             m_ship = ship;
             m_shipRowing = shipRowing;
+            m_oars = ship.GetComponent<ShipOars>();
             m_lastStrokeBeat = 0;
             m_lastTempo = shipRowing.GetTempo();
             m_lastHoldWaterCall = shipRowing.GetHoldWaterCall();
@@ -243,15 +265,14 @@ namespace RowingMod
 
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
-            m_toastQueue.Clear();
-            if (RowingPlugin.TutorialSeen.Value)
+            m_nextTipTime = Time.time;
+            if (RowingTips.IsSeen(RowingTips.Tip.Beat))
             {
                 Toast("Rowing ready", RowHint());
             }
             else
             {
-                QueueTutorial();
-                RowingPlugin.Log.LogInfo($"Tutorial: queued {m_toastQueue.Count} tips");
+                TriggerTip(RowingTips.Tip.Beat);
             }
             return true;
         }
@@ -266,13 +287,13 @@ namespace RowingMod
                 {
                     m_lastTempo = tempo;
                     string detail = tempo < 0 ? "A slower beat: easier on stamina" : tempo > 0 ? "A quicker beat: more push, more stamina" : "The beat follows the ship's speed";
-                    Toast($"Helmsman: {CrewPanel.TempoName(tempo)}!", detail);
+                    Toast($"Helmsman: {CrewPanel.TempoName(tempo)}!", detail, ToastKind.Helm);
                 }
                 long holdWater = m_shipRowing.GetHoldWaterCall();
                 if (holdWater != m_lastHoldWaterCall)
                 {
                     m_lastHoldWaterCall = holdWater;
-                    Toast("Helmsman: Hold water!", $"Hold {RowingPlugin.BrakeKey.Value} to brake");
+                    Toast("Helmsman: Hold water!", $"Hold {RowingPlugin.BrakeKey.Value} to brake", ToastKind.Helm);
                 }
             }
 
@@ -303,9 +324,18 @@ namespace RowingMod
             return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake.";
         }
 
-        private void Toast(string title, string body)
+        private void Toast(string title, string body, ToastKind kind = ToastKind.Notice)
         {
-            Toast(title, body, ReadingTime(title, body));
+            // A tip that something else replaces comes back once it's gone.
+            if (m_toastTitle != null && m_toastKind == ToastKind.Tip && kind != ToastKind.Tip && !m_tips.Contains(m_toastTip))
+            {
+                m_tips.Insert(0, m_toastTip);
+            }
+            m_toastTitle = title;
+            m_toastBody = body;
+            m_toastStart = Time.time;
+            m_toastHold = ReadingTime(title, body);
+            m_toastKind = kind;
         }
 
         /// <summary>How long a snackbar stays up: time to read it, and never less than ToastHold.</summary>
@@ -315,44 +345,57 @@ namespace RowingMod
             return Mathf.Max(ToastHold, 1.5f + characters / ReadingSpeed);
         }
 
-        private void Toast(string title, string body, float hold)
+        /// <summary>Queues a tip because it just became relevant, unless it's been seen, is waiting or is showing.</summary>
+        private void TriggerTip(RowingTips.Tip tip)
         {
-            m_toastTitle = title;
-            m_toastBody = body;
-            m_toastStart = Time.time;
-            m_toastHold = hold;
-            m_toastFinishesTutorial = false;
+            bool showing = m_toastTitle != null && m_toastKind == ToastKind.Tip && m_toastTip == tip;
+            if (!showing && !m_tips.Contains(tip) && !RowingTips.IsSeen(tip))
+            {
+                m_tips.Add(tip);
+            }
         }
 
         /// <summary>
-        /// The first time someone sits at an oar: a few snackbars, one after another, explaining rowing. It's marked as
-        /// seen (Tutorial.Seen) once the last one has shown; standing up before then starts it over next time.
+        /// Watches for the moments a tip becomes relevant, and shows the next waiting tip when no other snackbar is up.
         /// </summary>
-        private void QueueTutorial()
+        private void UpdateTips(Player player)
         {
-            string row = RowingPlugin.RowKey.Value.ToString();
-            string brake = RowingPlugin.BrakeKey.Value.ToString();
-            Tutorial("Rowing: row on the beat", $"Press {row} when the white marker crosses the green zone. That's the ship's beat; it speeds up as the ship does. Practice raises your Rowing skill, which widens the zone.", false);
-            Tutorial("Rowing: row together", "Hit the same beat as your crew for a sync bonus. An off-beat stroke when others are on the beat clashes and slows the ship.", false);
-            Tutorial("Rowing: brake", $"Hold {brake} to hold water and slow the ship. Braking on one side swings the bow toward that side.", false);
-            Tutorial("Rowing: your crew", $"Bottom right: the ship, its rowers, the beat and the speed. At the helm, the helmsman calls the beat ({RowingPlugin.TempoUpKey.Value}/{RowingPlugin.TempoDownKey.Value}) and \"Hold water!\" ({RowingPlugin.HoldWaterCallKey.Value}), and beats a war drum ({RowingPlugin.DrumKey.Value}).", true);
-        }
-
-        private void Tutorial(string title, string body, bool last)
-        {
-            m_toastQueue.Enqueue((title, body, ReadingTime(title, body), last));
-        }
-
-        private void UpdateToastQueue()
-        {
-            if (m_toastTitle != null || m_toastQueue.Count == 0)
+            if (m_messageIsStroke && Time.time < m_messageUntil && StrokeMessage() == "Clash!")
             {
-                return;
+                TriggerTip(RowingTips.Tip.Clash);
             }
-            (string title, string body, float hold, bool last) = m_toastQueue.Dequeue();
-            Toast(title, body, hold);
-            m_toastFinishesTutorial = last;
-            RowingPlugin.Log.LogInfo($"Tutorial: showing \"{title}\" for {hold:0.0} s");
+            if (Time.time >= m_nextTipCheck)
+            {
+                m_nextTipCheck = Time.time + 1f;
+                if (m_oars != null)
+                {
+                    if (Mathf.Abs(m_oars.Speed) >= RowingTips.BrakeSpeed)
+                    {
+                        TriggerTip(RowingTips.Tip.Brake);
+                    }
+                    m_oars.GetBenches(m_benches);
+                    foreach (ShipOars.Bench bench in m_benches)
+                    {
+                        if (bench.Occupant != null && bench.Occupant != player)
+                        {
+                            TriggerTip(RowingTips.Tip.Together);
+                        }
+                    }
+                }
+                if (StaminaCost.Describe(player, m_ship) != null)
+                {
+                    TriggerTip(RowingTips.Tip.Stamina);
+                }
+            }
+            if (m_toastTitle == null && m_tips.Count > 0 && Time.time >= m_nextTipTime)
+            {
+                RowingTips.Tip tip = m_tips[0];
+                m_tips.RemoveAt(0);
+                RowingTips.Text(tip, out string title, out string body);
+                Toast(title, body, ToastKind.Tip);
+                m_toastTip = tip;
+                RowingPlugin.Log.LogInfo($"Tip: showing {tip} for {m_toastHold:0.0} s");
+            }
         }
 
         private static bool IsShipSeat(Ship ship, Transform attachPoint)
@@ -507,12 +550,12 @@ namespace RowingMod
             if (t > ToastFadeIn + m_toastHold + ToastFadeOut)
             {
                 m_toastTitle = null;
-                if (m_toastFinishesTutorial)
+                // A tip counts as seen once it has shown in full. The next tip waits a moment after any snackbar.
+                if (m_toastKind == ToastKind.Tip)
                 {
-                    m_toastFinishesTutorial = false;
-                    RowingPlugin.TutorialSeen.Value = true;
-                    RowingPlugin.Log.LogInfo("Tutorial: finished");
+                    RowingTips.MarkSeen(m_toastTip);
                 }
+                m_nextTipTime = Time.time + TipGap;
                 return;
             }
             float fadeIn = Mathf.Clamp01(t / ToastFadeIn);
@@ -592,9 +635,9 @@ namespace RowingMod
     {
         private static void Postfix()
         {
-            if (RowingPlugin.TutorialResetOnLogout.Value && RowingPlugin.TutorialSeen.Value)
+            if (RowingPlugin.TutorialResetOnLogout.Value)
             {
-                RowingPlugin.TutorialSeen.Value = false;
+                RowingTips.ForgetAll();
             }
         }
     }

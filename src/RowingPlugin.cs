@@ -68,7 +68,7 @@ namespace RowingMod
         internal static ConfigEntry<float> ColdFactor;
         internal static ConfigEntry<float> FreezingFactor;
         internal static ConfigEntry<bool> ShowWakes;
-        internal static ConfigEntry<bool> TutorialSeen;
+        internal static ConfigEntry<string> TutorialSeenTips;
         internal static ConfigEntry<bool> TutorialResetOnLogout;
         internal static ConfigEntry<bool> ShowVoyageSummary;
         internal static ConfigEntry<string> WakeEffect;
@@ -190,10 +190,10 @@ namespace RowingMod
                 "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
             DrumSound = Config.Bind("Sounds", "DrumSound", "",
                 "The war drum's sound. Empty uses a recorded drum (sounds/dundun.wav next to the mod) if present, otherwise a drum made by the mod; \"generated\" always uses the one made by the mod.");
-            TutorialSeen = Config.Bind("Tutorial", "Seen", false,
-                "Whether the short rowing tutorial (shown the first time you sit at an oar) has been shown. Set to false to see it again.");
+            TutorialSeenTips = Config.Bind("Tutorial", "SeenTips", "",
+                "Rowing tips already shown (each shows once, when it first matters: sitting down, the first stroke, another rower, a clash, speed, stamina). Empty it to see them all again.");
             TutorialResetOnLogout = Config.Bind("Tutorial", "ResetOnLogout", true,
-                "Show the tutorial again after every logout or quit: Tutorial.Seen is set back to false then, so it plays on the first sit of each session. Off: it shows only once.");
+                "Show the tips again after every logout or quit: SeenTips is emptied then. Off: each tip shows only once, ever.");
             ShowVoyageSummary = Config.Bind("UI", "ShowVoyageSummary", true,
                 "When you stand up from an oar, show a short summary of the stint (distance, strokes, on-beat %, syncs, clashes) and your lifetime totals.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
