@@ -117,7 +117,91 @@ def grace_notes(track, index, start, period):
             place(track, SANGBAN_MUTE, start + period * eighth / 8, rng.uniform(0.12, 0.2))
 
 
+# E: call and response. The high drum on two and four, the middle drum answering on three.
+def call_and_response(track, index, start, period):
+    stroke(track, start)
+    place(track, KENKENI, start + period * 1 / 4, 0.22)
+    place(track, SANGBAN, start + period * 2 / 4, 0.4)
+    place(track, KENKENI, start + period * 3 / 4, 0.3)
+
+
+# F: triplet gallop. The measure in three: ONE-ta-ta, with a middle-drum pickup just before the next ONE.
+def triplet_gallop(track, index, start, period):
+    stroke(track, start)
+    place(track, KENKENI, start + period * 1 / 3, 0.24)
+    place(track, KENKENI, start + period * 2 / 3, 0.3)
+    place(track, SANGBAN, start + period * 5 / 6, 0.36)
+
+
+# G: double-skinned stroke. ONE doubled with the middle drum for a fuller hit; the counts as dry, quiet taps.
+def doubled_stroke(track, index, start, period):
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.45, exact=True)
+    for count, gain in ((1, 0.22), (2, 0.26), (3, 0.34)):
+        place(track, SANGBAN_MUTE, start + period * count / 4, gain)
+
+
+# H: roll-in. Two and three on the high drum, then a short three-hit roll on four, getting louder into ONE.
+def roll_in(track, index, start, period):
+    stroke(track, start)
+    place(track, KENKENI, start + period * 1 / 4, 0.2)
+    place(track, KENKENI, start + period * 2 / 4, 0.24)
+    for k, gain in enumerate((0.22, 0.3, 0.4)):
+        place(track, KENKENI, start + period * (3 / 4 + k / 12), gain)
+
+
+# I: off-beat groove. The counts land on the "and"s between the quarter beats, so ONE is the only hit on the grid.
+def offbeat_groove(track, index, start, period):
+    stroke(track, start)
+    place(track, KENKENI, start + period * 3 / 8, 0.26)
+    place(track, KENKENI, start + period * 5 / 8, 0.3)
+    place(track, SANGBAN, start + period * 7 / 8, 0.4)
+
+
+# J: deep answer. A softer, lower dundunba on three answers the stroke; the high drum on two and four.
+def deep_answer(track, index, start, period):
+    stroke(track, start)
+    place(track, KENKENI, start + period * 1 / 4, 0.22)
+    place(track, DUNDUNBA, start + period * 2 / 4, 0.38, pitch=0.92)
+    place(track, KENKENI, start + period * 3 / 4, 0.28)
+
+
+# K: sparse. Calm and open: ONE, a ghost on three, and a single middle-drum pickup on four.
+def sparse(track, index, start, period):
+    stroke(track, start)
+    place(track, SANGBAN_MUTE, start + period * 2 / 4, 0.14)
+    place(track, SANGBAN, start + period * 3 / 4, 0.36)
+
+
+# L: war party. A doubled stroke, build-up counts, grace notes, and alternating measures with a roll every fourth.
+def war_party(track, index, start, period):
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.4, exact=True)
+    place(track, KENKENI, start + period * 1 / 4, 0.2)
+    place(track, KENKENI, start + period * 2 / 4, 0.28)
+    if index % 4 == 3:
+        for k, gain in enumerate((0.26, 0.34, 0.44)):
+            place(track, SANGBAN, start + period * (3 / 4 + k / 12), gain)
+    elif index % 2 == 1:
+        place(track, SANGBAN, start + period * 5 / 8, 0.3)
+        place(track, SANGBAN, start + period * 3 / 4, 0.42)
+    else:
+        place(track, SANGBAN, start + period * 3 / 4, 0.42)
+    if period >= 1.4:
+        for eighth in (1, 3):
+            if rng.random() < 0.5:
+                place(track, SANGBAN_MUTE, start + period * eighth / 8, rng.uniform(0.12, 0.18))
+
+
 if __name__ == "__main__":
+    render("measure_E_call_and_response", call_and_response)
+    render("measure_F_triplet_gallop", triplet_gallop)
+    render("measure_G_doubled_stroke", doubled_stroke)
+    render("measure_H_roll_in", roll_in)
+    render("measure_I_offbeat_groove", offbeat_groove)
+    render("measure_J_deep_answer", deep_answer)
+    render("measure_K_sparse", sparse)
+    render("measure_L_war_party", war_party)
     render("measure_A_plain_counts", plain)
     render("measure_B_build_up", build_up)
     render("measure_C_phrases_with_fill", phrases)
