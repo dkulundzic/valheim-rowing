@@ -164,7 +164,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - `feature/colorblind-panel`: Okabe-Ito colours and glyphs.
   - `feature/assisted-rowing`: hold H to auto-row, owner can disallow.
   - `feature/helmsman-beat`: Easy/Steady/Hard, ramming speed, "Hold water!" call.
-  - `feature/rowing-skill`: a custom Rowing skill; the user wants the green zone to widen with skill, which this does (20% → 28%).
+  - `feature/rowing-skill`: a custom Rowing skill; the green zone is narrow at low skill and widens with level (12% at 0, 20% at 50, 28% at 100), as the user asked.
   - `feature/gamepad`: RT row, LT brake.
   - `feature/rower-lean`: experimental body lean.
   - **Not done:** the Drakkar check (the user has none), grunts (waiting for recordings), Thunderstore (needs the user's account), "rowing cools you down" (I recommended skipping it).
