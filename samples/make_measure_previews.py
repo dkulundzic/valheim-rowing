@@ -416,7 +416,175 @@ def march_tension(track, index, start, period):
         place(track, SANGBAN, start + period * 7 / 8, 0.48)
 
 
+def fft_convolve(signal, response):
+    size = 1
+    while size < signal.size + response.size:
+        size *= 2
+    out = np.fft.irfft(np.fft.rfft(signal, size) * np.fft.rfft(response, size), size)
+    return out[: signal.size]
+
+
+def room(seconds=1.6, darkness=0.06):
+    """A synthetic open-air reverb: a dark, smoothly decaying wash of noise."""
+    t = np.arange(int(RATE * seconds)) / RATE
+    noise = rng.uniform(-1, 1, t.size)
+    dark = np.empty_like(noise)
+    acc = 0.0
+    for i, x in enumerate(noise):
+        acc += (x - acc) * darkness
+        dark[i] = acc
+    response = dark * np.exp(-t / (seconds / 4))
+    response[0] = 0.0
+    return response / np.sqrt(np.sum(response ** 2))
+
+
+ROOM = room()
+
+
+def echo_bus(kicks, delay=0.33, feedback=0.38, repeats=4):
+    """A darker, fading echo of the kicks, like the boom coming back off the water."""
+    out = np.copy(kicks)
+    tap = kicks
+    shift = int(delay * RATE)
+    for _ in range(repeats):
+        moved = np.zeros_like(tap)
+        moved[shift:] = tap[: tap.size - shift]
+        darker = np.empty_like(moved)
+        acc = 0.0
+        step = moved[::1]
+        for i in range(0, step.size, 64):
+            block = step[i:i + 64]
+            acc_block = np.empty_like(block)
+            for j, x in enumerate(block):
+                acc += (x - acc) * 0.25
+                acc_block[j] = acc
+            darker[i:i + 64] = acc_block
+        tap = darker * feedback
+        out += tap
+    return out
+
+
+def render_spacey(name, pattern, reverb=0.45, echo=False):
+    """Like render, but the kicks go on their own bus with a reverb tail (and optionally an echo), mixed under the dry taps."""
+    total = int(RATE * (sum(MEASURES) + 3.0))
+    track = np.zeros(total)
+    kicks = np.zeros(total)
+    for index, start, period in measures():
+        pattern(track, kicks, index, start, period)
+    wet = kicks
+    if echo:
+        wet = echo_bus(wet)
+    if reverb > 0:
+        wet = wet + fft_convolve(wet, ROOM) * reverb
+    mix = track + wet
+    mix = mix / np.max(np.abs(mix)) * 0.89
+    os.makedirs(OUT, exist_ok=True)
+    path = os.path.join(OUT, name + ".wav")
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(RATE)
+        w.writeframes((mix * 32767).astype("<i2").tobytes())
+    print(path)
+
+
+def kick(kicks, at, gain, pitch=1.0, exact=False):
+    place(kicks, DUNDUNBA, at, gain, pitch=pitch, exact=exact)
+
+
+def big_stroke(track, kicks, start):
+    """The stroke: the kick doubled with a lower kick underneath for depth, and the middle drum for attack."""
+    kick(kicks, start, 1.0, exact=True)
+    kick(kicks, start, 0.55, pitch=0.82, exact=True)
+    place(track, SANGBAN, start, 0.3, exact=True)
+
+
+def light_pulse(track, start, period, gains=(0.16, 0.11)):
+    for step in range(1, 8):
+        place(track, SANGBAN_MUTE, start + period * step / 8, gains[step % len(gains)])
+
+
+# AC: kick march. Battle march with the kick carrying the groove: soft kicks on three and four-and under a light pulse.
+def kick_march(track, kicks, index, start, period):
+    big_stroke(track, kicks, start)
+    light_pulse(track, start, period)
+    kick(kicks, start + period * 2 / 4, 0.4, pitch=0.95)
+    kick(kicks, start + period * 7 / 8, 0.32, pitch=0.97)
+    place(track, KENKENI, start + period * 3 / 4, 0.24)
+
+
+# AD: big room. Battle march with the deep stroke in a large open space: the boom hangs in the air between strokes.
+def big_room(track, kicks, index, start, period):
+    big_stroke(track, kicks, start)
+    light_pulse(track, start, period)
+    place(track, SANGBAN, start + period * 5 / 8, 0.26)
+    place(track, KENKENI, start + period * 3 / 4, 0.24)
+
+
+# AE: heartbeat kick. BOOM-boom: the stroke, then a softer kick right after, with a light pulse filling the rest.
+def heartbeat_kick(track, kicks, index, start, period):
+    big_stroke(track, kicks, start)
+    kick(kicks, start + min(0.22, period * 0.16), 0.5, pitch=0.93)
+    for step in range(3, 8):
+        place(track, SANGBAN_MUTE, start + period * step / 8, 0.15 if step % 2 else 0.2)
+    place(track, KENKENI, start + period * 3 / 4, 0.24)
+
+
+# AF: four on the floor. A kick on every count, the stroke deeper and much stronger; quiet taps on the "and"s.
+def four_on_the_floor(track, kicks, index, start, period):
+    big_stroke(track, kicks, start)
+    for count in (1, 2, 3):
+        kick(kicks, start + period * count / 4, 0.32, pitch=1.04)
+    for eighth in (1, 3, 5, 7):
+        place(track, SANGBAN_MUTE, start + period * eighth / 8, 0.15)
+
+
+# AG: sub stroke. An extra-low kick under the stroke with a long tail, and sparse taps: deep and spacious.
+def sub_stroke(track, kicks, index, start, period):
+    big_stroke(track, kicks, start)
+    kick(kicks, start, 0.5, pitch=0.7, exact=True)
+    place(track, SANGBAN_MUTE, start + period * 2 / 4, 0.14)
+    place(track, SANGBAN_MUTE, start + period * 5 / 8, 0.12)
+    place(track, SANGBAN, start + period * 3 / 4, 0.3)
+
+
+# AH: kick syncopation. Kicks on ONE, two-and and three-and: a rolling, dotted feel under the pulse.
+def kick_syncopation(track, kicks, index, start, period):
+    big_stroke(track, kicks, start)
+    light_pulse(track, start, period, gains=(0.14, 0.1))
+    kick(kicks, start + period * 3 / 8, 0.36, pitch=0.97)
+    kick(kicks, start + period * 5 / 8, 0.4, pitch=0.95)
+    place(track, KENKENI, start + period * 3 / 4, 0.24)
+
+
+# AI: dub echo. The battle march with a fading echo on the kicks: the stroke repeats softly across the water.
+def dub_echo(track, kicks, index, start, period):
+    big_stroke(track, kicks, start)
+    light_pulse(track, start, period, gains=(0.14, 0.1))
+    place(track, KENKENI, start + period * 3 / 4, 0.22)
+
+
+# AJ: kick roll. Battle march, and every fourth measure a three-kick roll rising into the next stroke.
+def kick_roll(track, kicks, index, start, period):
+    big_stroke(track, kicks, start)
+    light_pulse(track, start, period)
+    place(track, KENKENI, start + period * 2 / 4, 0.22)
+    if index % 4 == 3:
+        for k, gain in enumerate((0.3, 0.4, 0.52)):
+            kick(kicks, start + period * (3 / 4 + k / 12), gain, pitch=1.0 + 0.03 * k)
+    else:
+        kick(kicks, start + period * 7 / 8, 0.32, pitch=0.97)
+
+
 if __name__ == "__main__":
+    render_spacey("measure_AC_kick_march", kick_march)
+    render_spacey("measure_AD_big_room", big_room, reverb=0.9)
+    render_spacey("measure_AE_heartbeat_kick", heartbeat_kick)
+    render_spacey("measure_AF_four_on_the_floor", four_on_the_floor)
+    render_spacey("measure_AG_sub_stroke", sub_stroke, reverb=0.6)
+    render_spacey("measure_AH_kick_syncopation", kick_syncopation)
+    render_spacey("measure_AI_dub_echo", dub_echo, reverb=0.35, echo=True)
+    render_spacey("measure_AJ_kick_roll", kick_roll)
     render("measure_U_march_sixteenths", march_sixteenths)
     render("measure_V_march_rolls", march_rolls)
     render("measure_W_march_heavy", march_heavy)
