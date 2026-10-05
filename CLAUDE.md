@@ -82,6 +82,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Benches:** empty rings, occupied discs, and a stroke flash coloured green (strong), yellow (weak), red (clash) or gold (sync). Kinds upgrade as later strokes for the same beat arrive, in `ShipOars.OnStroke`. Your own bench has a white ring.
   - **Mini oars** are projected from the real 3D oars (`ShipOars.GetBenches`).
   - **Helm:** the helmsman is a diamond at `ShipControlls.m_attachPoint`, with no oar. It's an outline when empty and filled when steered (`HaveValidUser`/`GetUser`), with a white ring when it's you.
+  - **Speed gauge** (branch `feature/speed-gauge`): "N.N m/s" (`ShipOars.Speed`, measured from frame-to-frame movement on every client) and a bar filling toward `ShipRowing.GetTopSpeed()`, between the hull and the footer.
   - **Also:** a crew-boost bar along the centre line, and a footer with the speed setting ("Paddling · Crew boost N%") and "In sync ×N".
   - Config: `UI.ShowCrewPanel`, and `UI.CrewNames` (off by default).
 - `src/RowingUI.cs`: IMGUI scaling and helpers. All mod UI draws in virtual pixels scaled by `UI.Scale` (0 = automatic, `Screen.height / 1080`, at least 1). `DrawLine` builds its own rotation matrix, because `GUIUtility.RotateAroundPivot` takes the pivot in unscaled pixels.

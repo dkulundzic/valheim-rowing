@@ -126,6 +126,7 @@ While you row or steer, a small top-down view of the ship sits in the bottom-rig
 - **Benches:** a dim ring is an empty bench, and a disc is a rower. After each stroke the disc flashes **green** (strong), **yellow** (weak), **red** (clash) or **gold** (in sync with others). It's **blue** while braking. Your own bench has a white ring.
 - **Oars:** little oars swing just like the real ones, and stowed oars lie inside the hull.
 - **Crew boost:** the blue bar along the middle fills with the crew's push.
+- **Speed:** a gauge under the ship shows its speed, e.g. "5.2 m/s", filling toward its top sail speed, which is marked at the right end. That's the most rowing can push it to.
 - **The beat:** the ship's outline pulses on every beat, so you can see the rhythm even with the drum off.
 - **Drum:** the footer shows whether the war drum is on, and for the helmsman, which key turns it on or off.
 - **Helmsman:** a diamond at the helm, with no oar. It's an outline when nobody steers and filled when someone does, with a white ring when it's you.

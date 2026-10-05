@@ -167,6 +167,12 @@ namespace RowingMod
             return Mathf.Sqrt(sailPush / drag);
         }
 
+        /// <summary>The ship's top sail speed (m/s) after TopSpeedMultiplier: the most rowing can push it to.</summary>
+        public float GetTopSpeed()
+        {
+            return TopSpeed();
+        }
+
         private float TopSpeed()
         {
             return m_topSpeed * Mathf.Max(0f, RowingPlugin.TopSpeedMultiplier.Value);
