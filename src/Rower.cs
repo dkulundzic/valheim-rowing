@@ -89,7 +89,7 @@ namespace RowingMod
             float offset = (nowMs - nearestMs) / (float)periodMs;
             m_lastStrokeBeat = nearestMs;
             // The Rowing skill widens the green zone.
-            m_lastStrokeStrong = Mathf.Abs(offset) <= RowingPlugin.SweetSpotWidth.Value * RowingSkill.SweetSpotMultiplier(player) / 2f;
+            m_lastStrokeStrong = Mathf.Abs(offset) <= RowingSkill.SweetSpotWidth(player) / 2f;
             m_lastStrokeEarly = offset < 0f;
             // The stroke's strength goes to the owner as its quality, raised by the Rowing skill.
             float quality = (m_lastStrokeStrong ? 1f : RowingPlugin.WeakStrokeFactor.Value) * RowingSkill.StrengthMultiplier(player);
@@ -342,7 +342,7 @@ namespace RowingMod
             float markerPos = Mathf.Clamp01((nowMs - nearestMs) / (float)periodMs + 0.5f);
 
             // Green zone, with a line on the beat itself
-            float sweetWidth = Mathf.Clamp01(RowingPlugin.SweetSpotWidth.Value * RowingSkill.SweetSpotMultiplier(Player.m_localPlayer));
+            float sweetWidth = RowingSkill.SweetSpotWidth(Player.m_localPlayer);
             DrawRect(new Rect(x + width * (0.5f - sweetWidth / 2f), y, width * sweetWidth, height), new Color(0.3f, 0.8f, 0.3f, 0.8f));
             DrawRect(new Rect(x + width * 0.5f - 1f, y, 2f, height), new Color(1f, 1f, 1f, 0.35f));
 

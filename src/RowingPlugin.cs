@@ -18,7 +18,6 @@ namespace RowingMod
         internal static ConfigEntry<KeyCode> RowKey;
         internal static ConfigEntry<float> StrokeCycleStill;
         internal static ConfigEntry<float> StrokeCycleTopSpeed;
-        internal static ConfigEntry<float> SweetSpotWidth;
         internal static ConfigEntry<float> WeakStrokeFactor;
         internal static ConfigEntry<float> StaminaPerStroke;
         internal static ConfigEntry<float> HeadwindStaminaFactor;
@@ -55,7 +54,8 @@ namespace RowingMod
         internal static ConfigEntry<float> RestedDiscount;
         internal static ConfigEntry<float> SkillGain;
         internal static ConfigEntry<float> SkillStaminaReduction;
-        internal static ConfigEntry<float> SkillSweetSpotBonus;
+        internal static ConfigEntry<float> SkillSweetSpotAtLevel0;
+        internal static ConfigEntry<float> SkillSweetSpotAtLevel100;
         internal static ConfigEntry<float> SkillStrengthBonus;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
@@ -84,8 +84,6 @@ namespace RowingMod
                 "Seconds between the ship's beats when it's still. The beat speeds up with the ship.");
             StrokeCycleTopSpeed = Config.Bind("Timing", "StrokeCycleTopSpeed", 1.2f,
                 "Seconds between the ship's beats at its top sail speed.");
-            SweetSpotWidth = Config.Bind("Timing", "SweetSpotWidth", 0.2f,
-                "Width of the green zone around each beat, as a fraction of the beat.");
             WeakStrokeFactor = Config.Bind("Timing", "WeakStrokeFactor", 0.35f,
                 "Strength of an early or late stroke compared with a well-timed one.");
 
@@ -95,8 +93,10 @@ namespace RowingMod
                 "How fast the Rowing skill rises with practice (the skill's increase step; 1 is like most game skills).");
             SkillStaminaReduction = Config.Bind("Skill", "StaminaReduction", 0.3f,
                 "At Rowing 100, strokes and braking cost this much less stamina (0.3 = 30% less), scaling with level.");
-            SkillSweetSpotBonus = Config.Bind("Skill", "SweetSpotBonus", 0.4f,
-                "At Rowing 100, the green zone is this much wider (0.4 = 40% wider, e.g. 20% to 28% of the beat), scaling with level.");
+            SkillSweetSpotAtLevel0 = Config.Bind("Skill", "SweetSpotAtLevel0", 0.12f,
+                "Width of the green zone around each beat at Rowing 0, as a fraction of the beat. It widens steadily with level.");
+            SkillSweetSpotAtLevel100 = Config.Bind("Skill", "SweetSpotAtLevel100", 0.28f,
+                "Width of the green zone at Rowing 100, as a fraction of the beat.");
             SkillStrengthBonus = Config.Bind("Skill", "StrengthBonus", 0.15f,
                 "At Rowing 100, strokes are this much stronger (0.15 = 15%), scaling with level.");
             RestedDiscount = Config.Bind("Stamina", "RestedDiscount", 0.1f,

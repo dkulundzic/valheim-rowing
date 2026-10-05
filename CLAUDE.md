@@ -9,7 +9,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **The owner keeps it:** in `ShipRowing.UpdateBeat`, while anyone is aboard (`!Ship.CanBeRemoved()`), the owner writes ZDO longs `RowingMod_BeatTime` (latest beat, network-clock ms from `ZNet.GetTimeSeconds`) and `RowingMod_BeatPeriod` (ms).
   - **Tempo:** at each beat the owner picks the next period from speed: `StrokeCycleStill` (1.8 s) when still, down to `StrokeCycleTopSpeed` (1.2 s) at top speed.
   - **Clients:** extend the schedule with `GetBeat`. A stale schedule (more than 2 s past the next beat, e.g. after sleeping) restarts.
-  - **A press belongs to the nearest beat:** within ±`SweetSpotWidth`/2 of the beat it's strong, otherwise off-beat.
+  - **A press belongs to the nearest beat:** within ±(green zone width)/2 of the beat it's strong, otherwise off-beat. On this branch the width comes from the Rowing skill (`RowingSkill.SweetSpotWidth`); `Timing.SweetSpotWidth` is removed.
   - **One stroke per beat;** a second press is mashing (stamina spent, no stroke).
 - **Sync and clash,** computed by the owner per beat in `ApplyBeat`:
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
@@ -78,7 +78,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Identity:** SkillType = |stable hash of "com.dkulundzic.rowingmod.skill.rowing"|.
   - **Patches:** `Skills.IsSkillValid` (so it loads from saves), `Skills.GetSkillDef` (definition with a generated oar icon), and `Localization.SetupLanguage` (adds "skill_<id>" = "Rowing" via private `AddWord`). `Localization` lives in `assembly_guiutils.dll`, which is now referenced.
   - **Practice:** `RaiseSkill` per stroke (1 strong, 0.3 weak).
-  - **Effects:** stamina ×(1 − 0.3f), green zone ×(1 + 0.4f), strength ×(1 + 0.15f), where f is the level / 100. Settings under `Skill.*`.
+  - **Effects:** green zone = lerp(`Skill.SweetSpotAtLevel0` 0.12, `SweetSpotAtLevel100` 0.28, f), so it's narrower than the old fixed 0.2 below level 50, as the user asked. Stamina ×(1 − 0.3f), strength ×(1 + 0.15f), where f is the level / 100.
   - **Strength reaches the owner:** the stroke's quality carries the skill's strength bonus, so the owner sums per-stroke quality (`BeatStrokes.QualityBySender`) instead of counting strokes.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).

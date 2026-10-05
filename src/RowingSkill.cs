@@ -14,7 +14,7 @@ namespace RowingMod
     public static class RowingSkill
     {
         public const string Name = "Rowing";
-        private const string Description = "Pulling an oar in time with the crew. Higher levels make rowing cheaper, easier to time and stronger.";
+        private const string Description = "Pulling an oar in time with the crew. Higher levels widen the green zone and make rowing cheaper and stronger.";
 
         /// <summary>The skill's number: a stable hash of the mod's skill id, far from the game's own values.</summary>
         public static readonly Skills.SkillType Type = (Skills.SkillType)Mathf.Abs("com.dkulundzic.rowingmod.skill.rowing".GetStableHashCode());
@@ -51,9 +51,13 @@ namespace RowingMod
             return 1f - Mathf.Clamp01(RowingPlugin.SkillStaminaReduction.Value) * Factor(player);
         }
 
-        public static float SweetSpotMultiplier(Player player)
+        /// <summary>
+        /// The green zone's width, as a fraction of the beat: narrow for a beginner (Skill.SweetSpotAtLevel0) and
+        /// widening steadily with level to Skill.SweetSpotAtLevel100.
+        /// </summary>
+        public static float SweetSpotWidth(Player player)
         {
-            return 1f + Mathf.Max(0f, RowingPlugin.SkillSweetSpotBonus.Value) * Factor(player);
+            return Mathf.Clamp01(Mathf.Lerp(RowingPlugin.SkillSweetSpotAtLevel0.Value, RowingPlugin.SkillSweetSpotAtLevel100.Value, Factor(player)));
         }
 
         public static float StrengthMultiplier(Player player)

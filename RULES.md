@@ -42,7 +42,7 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
-**Rowing skill:** rowing raises a new **Rowing** skill (in the skills screen, with an oar icon). Strong strokes train it most, weak ones a little. At level 100, strokes and braking cost **30% less** stamina, the green zone is **40% wider** (20% to 28% of the beat) and strokes are **15% stronger**, scaling smoothly with level. Like other skills, it drops a little on death.
+**Rowing skill:** rowing raises a new **Rowing** skill (in the skills screen, with an oar icon). Strong strokes train it most, weak ones a little. **The green zone grows with the skill:** a beginner gets a narrow window, **12% of the beat at level 0**, widening steadily to **28% at level 100** (20%, the old fixed width, at level 50). At level 100, strokes and braking also cost **30% less** stamina and strokes are **15% stronger**, scaling smoothly with level. Like other skills, it drops a little on death.
 
 ## 3. Stamina
 
@@ -142,7 +142,7 @@ All of these can be changed in `BepInEx/config/com.dkulundzic.rowingmod.cfg`.
 
 **Timing:**
 - Beat: **1.8 s** when still (`StrokeCycleStill`), down to **1.2 s** at top speed (`StrokeCycleTopSpeed`), in proportion to speed ÷ top speed.
-- Green zone (`SweetSpotWidth`): 20% of the beat, centred on it: ±0.18 s at the slowest beat, ±0.12 s at the fastest.
+- Green zone: centred on the beat, its width set by the Rowing skill: **12%** of the beat at level 0 (`Skill.SweetSpotAtLevel0`), widening to **28%** at level 100 (`Skill.SweetSpotAtLevel100`). At level 50 that's 20%, i.e. ±0.18 s at the slowest beat and ±0.12 s at the fastest.
 - Weak-stroke power (`WeakStrokeFactor`): **35%** of a strong stroke.
 
 **Crew:**
