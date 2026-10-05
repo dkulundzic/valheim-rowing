@@ -9,7 +9,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **The owner keeps it:** in `ShipRowing.UpdateBeat`, while anyone is aboard (`!Ship.CanBeRemoved()`), the owner writes ZDO longs `RowingMod_BeatTime` (latest beat, network-clock ms from `ZNet.GetTimeSeconds`) and `RowingMod_BeatPeriod` (ms).
   - **Tempo:** at each beat the owner picks the next period from speed: `StrokeCycleStill` (1.8 s) when still, down to `StrokeCycleTopSpeed` (1.2 s) at top speed.
   - **Clients:** extend the schedule with `GetBeat`. A stale schedule (more than 2 s past the next beat, e.g. after sleeping) restarts.
-  - **A press belongs to the nearest beat:** within ±`SweetSpotWidth`/2 of the beat it's strong, otherwise off-beat.
+  - **A press belongs to the nearest beat:** within ±(green zone width)/2 of the beat it's strong, otherwise off-beat. On this branch the width comes from the Rowing skill (`RowingSkill.SweetSpotWidth`); `Timing.SweetSpotWidth` is removed.
   - **One stroke per beat;** a second press is mashing (stamina spent, no stroke).
 - **Helm calls** (from `feature/helmsman-beat`, playtested and merged into main on 2026-10-05):
   - **Keys:** `CrewPanel.Update` reads the helm keys (U/N tempo, J "Hold water!" call, H drum) and sends RPC `RowingMod_Helm(int)` to the owner.
@@ -21,9 +21,14 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
   - **Clash:** if anyone hit the beat, each off-beat stroke on it adds no boost and adds `ClashBrake` to a separate brake pool. The brake only slows the ship and never reverses it. If nobody hit the beat, off-beat strokes are weak (`WeakStrokeFactor`).
   - **Late strokes:** strokes arrive one at a time, so the owner re-applies the difference for the beat.
-- **Stamina:** each stroke costs `StaminaPerStroke` × the headwind multiplier × the Rested multiplier. An exhausted rower can't row.
+- **Stamina:** every cost goes through one chain in `StaminaCost.Multiplier`: **cost = base × (1 + load) × relief**. An exhausted rower can't row.
+  - **Base:** `StaminaPerStroke` per stroke, `Brake.StaminaPerSecond` × dt while braking.
+  - **Load:** hard conditions, their extra costs **added** and capped at `Stamina.MaxLoad` (1.5): the headwind (strokes only). Weather and cold (`feature/weather-stamina`, `feature/cold-stamina`) must join here when merged, and ramming's ×2 (`feature/ramming-drum`) as a separate effort multiplier between load and relief.
+  - **Relief:** the rower's condition and practice, **multiplied** so they never reach zero: Rested, the Rowing skill (`RowingSkill.StaminaRelief`).
+  - **Why:** the user asked (2026-10-05) to combine every modifier into "a clean chain, so everything's taken into account and calculated in a logical manner", instead of stacking multipliers that could reach ~7×.
+  - **UI:** `StaminaCost.Describe` puts one line above the stroke bar's title, e.g. "Stamina ×1.30 (headwind +70%, rested -10%, Rowing skill -15%)", parts under 5% left out.
   - **Rested:** rowers with the Rested buff (`SEMan.s_statusEffectRested`) pay `Stamina.RestedDiscount` less (10% by default; the user asked for a small bonus) for strokes and braking.
-  - Headwind multiplier: `1 + HeadwindStaminaFactor × headwind × wind intensity`. `headwind` is `max(0, dot(windDir, −rowing direction))` on the horizontal plane (`EnvMan.GetWindDir` points where the wind blows to). A tailwind gives no discount. The bar title shows "Headwind: +N% stamina" above 5%.
+  - Headwind load: `HeadwindStaminaFactor × headwind × wind intensity`. `headwind` is `max(0, dot(windDir, −rowing direction))` on the horizontal plane (`EnvMan.GetWindDir` points where the wind blows to). A tailwind gives no discount.
 - **When rowing works:** always, at every speed setting including `Stop` and with the sail open. While backing (`Back`) strokes push backward, otherwise forward. Changing direction clears the boost (`ShipRowing.m_lastDirection`). Stop was blocked until 1.0.1; the user changed the rule because rowing a stopped boat makes sense, and a seated passenger can't change the speed setting.
 - **Who rows:** only passengers on rowing benches (`Chair` with `attach_sitship`): Karve 2, Longship 4. Not the back seat, not Hold fast spots, not the helmsman.
 - **Stroke strength:** timing × speed factor. The speed factor is `1 − (v / top)²`, where `v` is the ship's speed in the rowing direction and `top` is its top sail speed × `TopSpeedMultiplier`. It's applied every physics step, so rowing can never push a ship past its top sail speed. The sail setting doesn't change stroke strength.
@@ -80,6 +85,12 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Also:** a crew-boost bar along the centre line, and a footer with the speed setting ("Paddling · Crew boost N%") and "In sync ×N".
   - Config: `UI.ShowCrewPanel`, and `UI.CrewNames` (off by default).
 - `src/RowingUI.cs`: IMGUI scaling and helpers. All mod UI draws in virtual pixels scaled by `UI.Scale` (0 = automatic, `Screen.height / 1080`, at least 1). `DrawLine` builds its own rotation matrix, because `GUIUtility.RotateAroundPivot` takes the pivot in unscaled pixels.
+- `src/RowingSkill.cs` (branch `feature/rowing-skill`): a custom "Rowing" skill.
+  - **Identity:** SkillType = |stable hash of "com.dkulundzic.rowingmod.skill.rowing"|.
+  - **Patches:** `Skills.IsSkillValid` (so it loads from saves), `Skills.GetSkillDef` (definition with a generated oar icon), and `Localization.SetupLanguage` (adds "skill_<id>" = "Rowing" via private `AddWord`). `Localization` lives in `assembly_guiutils.dll`, which is now referenced.
+  - **Practice:** `RaiseSkill` per stroke (1 strong, 0.3 weak).
+  - **Effects:** green zone = lerp(`Skill.SweetSpotAtLevel0` 0.12, `SweetSpotAtLevel100` 0.28, f), so it's narrower than the old fixed 0.2 below level 50, as the user asked. Stamina ×(1 − 0.3f), strength ×(1 + 0.15f), where f is the level / 100.
+  - **Strength reaches the owner:** the stroke's quality carries the skill's strength bonus, so the owner sums per-stroke quality (`BeatStrokes.QualityBySender`) instead of counting strokes.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.

@@ -18,10 +18,10 @@ namespace RowingMod
         internal static ConfigEntry<KeyCode> RowKey;
         internal static ConfigEntry<float> StrokeCycleStill;
         internal static ConfigEntry<float> StrokeCycleTopSpeed;
-        internal static ConfigEntry<float> SweetSpotWidth;
         internal static ConfigEntry<float> WeakStrokeFactor;
         internal static ConfigEntry<float> StaminaPerStroke;
         internal static ConfigEntry<float> HeadwindStaminaFactor;
+        internal static ConfigEntry<float> MaxLoad;
         internal static ConfigEntry<float> StrokeStrength;
         internal static ConfigEntry<float> MaxBoost;
         internal static ConfigEntry<float> StrokeFade;
@@ -58,6 +58,11 @@ namespace RowingMod
         internal static ConfigEntry<float> EasyTempoFactor;
         internal static ConfigEntry<float> HardTempoFactor;
         internal static ConfigEntry<float> RestedDiscount;
+        internal static ConfigEntry<float> SkillGain;
+        internal static ConfigEntry<float> SkillStaminaReduction;
+        internal static ConfigEntry<float> SkillSweetSpotAtLevel0;
+        internal static ConfigEntry<float> SkillSweetSpotAtLevel100;
+        internal static ConfigEntry<float> SkillStrengthBonus;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
@@ -97,17 +102,27 @@ namespace RowingMod
                 "Seconds between the ship's beats when it's still. The beat speeds up with the ship.");
             StrokeCycleTopSpeed = Config.Bind("Timing", "StrokeCycleTopSpeed", 1.2f,
                 "Seconds between the ship's beats at its top sail speed.");
-            SweetSpotWidth = Config.Bind("Timing", "SweetSpotWidth", 0.2f,
-                "Width of the green zone around each beat, as a fraction of the beat.");
             WeakStrokeFactor = Config.Bind("Timing", "WeakStrokeFactor", 0.35f,
                 "Strength of an early or late stroke compared with a well-timed one.");
 
             StaminaPerStroke = Config.Bind("Stamina", "StaminaPerStroke", 6f,
                 "Stamina each stroke costs, including a wasted second press in the same beat.");
+            SkillGain = Config.Bind("Skill", "Gain", 1f,
+                "How fast the Rowing skill rises with practice (the skill's increase step; 1 is like most game skills).");
+            SkillStaminaReduction = Config.Bind("Skill", "StaminaReduction", 0.3f,
+                "At Rowing 100, strokes and braking cost this much less stamina (0.3 = 30% less), scaling with level.");
+            SkillSweetSpotAtLevel0 = Config.Bind("Skill", "SweetSpotAtLevel0", 0.12f,
+                "Width of the green zone around each beat at Rowing 0, as a fraction of the beat. It widens steadily with level.");
+            SkillSweetSpotAtLevel100 = Config.Bind("Skill", "SweetSpotAtLevel100", 0.28f,
+                "Width of the green zone at Rowing 100, as a fraction of the beat.");
+            SkillStrengthBonus = Config.Bind("Skill", "StrengthBonus", 0.15f,
+                "At Rowing 100, strokes are this much stronger (0.15 = 15%), scaling with level.");
             RestedDiscount = Config.Bind("Stamina", "RestedDiscount", 0.1f,
                 "Rowers with the Rested buff pay this fraction less stamina for strokes and braking (0.1 = 10% less).");
             HeadwindStaminaFactor = Config.Bind("Stamina", "HeadwindStaminaFactor", 1f,
                 "Extra stamina cost when rowing into the wind, as a fraction of StaminaPerStroke. 1 means up to double straight into a full-strength wind; it scales with the wind's strength and angle. 0 turns it off.");
+            MaxLoad = Config.Bind("Stamina", "MaxLoad", 1.5f,
+                "Most extra stamina that hard conditions (such as a headwind) can add together, as a fraction of the base cost: 1.5 means at most 2.5 times the base cost. Discounts (Rested, the Rowing skill) then apply on top.");
 
             StrokeStrength = Config.Bind("Force", "StrokeStrength", 0.6f,
                 "Boost one well-timed stroke adds, as a fraction of the ship's own paddle force.");
@@ -173,6 +188,9 @@ namespace RowingMod
             gameObject.AddComponent<Rower>();
             gameObject.AddComponent<CrewPanel>();
             new Harmony(Guid).PatchAll();
+            // If a language is already loaded, name the skill now too. Read the private field rather than
+            // Localization.instance, which would create the localization early if it doesn't exist yet.
+            RowingSkill.AddName(Traverse.Create(typeof(Localization)).Field("m_instance").GetValue<Localization>());
             Log.LogInfo($"{Name} {Version} loaded");
         }
     }

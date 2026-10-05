@@ -76,7 +76,7 @@ namespace RowingMod
                 return;
             }
 
-            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player);
+            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaCost.Multiplier(player, m_ship, StaminaCost.Use.Stroke);
             if (!player.HaveStamina(cost))
             {
                 Show("Too tired to row");
@@ -96,9 +96,12 @@ namespace RowingMod
 
             float offset = (nowMs - nearestMs) / (float)periodMs;
             m_lastStrokeBeat = nearestMs;
-            m_lastStrokeStrong = Mathf.Abs(offset) <= RowingPlugin.SweetSpotWidth.Value / 2f;
+            // The Rowing skill widens the green zone.
+            m_lastStrokeStrong = Mathf.Abs(offset) <= RowingSkill.SweetSpotWidth(player) / 2f;
             m_lastStrokeEarly = offset < 0f;
-            float quality = m_lastStrokeStrong ? 1f : RowingPlugin.WeakStrokeFactor.Value;
+            // The stroke's strength goes to the owner as its quality, raised by the Rowing skill.
+            float quality = (m_lastStrokeStrong ? 1f : RowingPlugin.WeakStrokeFactor.Value) * RowingSkill.StrengthMultiplier(player);
+            RowingSkill.Practice(player, m_lastStrokeStrong);
             m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.StrokeRpc, quality, nearestMs);
             m_messageIsStroke = true;
             m_messageUntil = Time.time + MessageTime;
@@ -112,7 +115,7 @@ namespace RowingMod
         private void UpdateBrake(Player player)
         {
             bool wanted = ZInput.GetKey(RowingPlugin.BrakeKey.Value, logWarning: false) && !IsTyping();
-            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * Time.deltaTime;
+            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * StaminaCost.Multiplier(player, m_ship, StaminaCost.Use.Brake) * Time.deltaTime;
             if (wanted && cost > 0f && !player.HaveStamina(cost))
             {
                 wanted = false;
@@ -254,37 +257,6 @@ namespace RowingMod
             }
         }
 
-        /// <summary>
-        /// How much more a stroke costs when rowing into the wind: 1 with no headwind, up to
-        /// 1 + HeadwindStaminaFactor straight into a full-strength wind. A tailwind costs no less than normal.
-        /// </summary>
-        private static float StaminaMultiplier(Ship ship)
-        {
-            EnvMan env = EnvMan.instance;
-            if (env == null)
-            {
-                return 1f;
-            }
-            // GetWindDir is where the wind blows to, so rowing into it means the wind points against the rowing direction.
-            Vector3 rowDir = ship.transform.forward * ShipRowing.RowDirection(ship);
-            Vector3 wind = env.GetWindDir();
-            wind.y = 0f;
-            rowDir.y = 0f;
-            float headwind = Mathf.Max(0f, Vector3.Dot(wind.normalized, -rowDir.normalized));
-            return 1f + Mathf.Max(0f, RowingPlugin.HeadwindStaminaFactor.Value) * headwind * Mathf.Clamp01(env.GetWindIntensity());
-        }
-
-        /// <summary>
-        /// Rowers with Valheim's Rested buff (from sleeping or resting by a fire) pay a little less stamina for
-        /// strokes and braking: 1 - Stamina.RestedDiscount, otherwise 1.
-        /// </summary>
-        private static float RestedMultiplier(Player player)
-        {
-            SEMan seman = player != null ? player.GetSEMan() : null;
-            bool rested = seman != null && seman.HaveStatusEffect(SEMan.s_statusEffectRested);
-            return rested ? 1f - Mathf.Clamp01(RowingPlugin.RestedDiscount.Value) : 1f;
-        }
-
         private static string RowHint()
         {
             return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake.";
@@ -373,7 +345,7 @@ namespace RowingMod
             float markerPos = Mathf.Clamp01((nowMs - nearestMs) / (float)periodMs + 0.5f);
 
             // Green zone, with a line on the beat itself
-            float sweetWidth = Mathf.Clamp01(RowingPlugin.SweetSpotWidth.Value);
+            float sweetWidth = RowingSkill.SweetSpotWidth(Player.m_localPlayer);
             DrawRect(new Rect(x + width * (0.5f - sweetWidth / 2f), y, width * sweetWidth, height), new Color(0.3f, 0.8f, 0.3f, 0.8f));
             DrawRect(new Rect(x + width * 0.5f - 1f, y, 2f, height), new Color(1f, 1f, 1f, 0.35f));
 
@@ -385,16 +357,6 @@ namespace RowingMod
             string title = m_braking
                 ? $"Holding water [{RowingPlugin.BrakeKey.Value}]"
                 : ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
-            float staminaMultiplier = StaminaMultiplier(m_ship);
-            if (staminaMultiplier > 1.05f)
-            {
-                title += $"   Headwind: +{(staminaMultiplier - 1f) * 100f:0}% stamina";
-            }
-            float rested = RestedMultiplier(Player.m_localPlayer);
-            if (rested < 0.999f)
-            {
-                title += $"   Rested: -{(1f - rested) * 100f:0}% stamina";
-            }
             float boost = m_shipRowing != null ? m_shipRowing.GetSyncedBoost() : 0f;
             if (boost > 0.01f)
             {
@@ -405,13 +367,24 @@ namespace RowingMod
             float titleY = y - 4f - StackGap - titleHeight;
             RowingUI.Label(new Rect(textX, titleY, TextWidth, titleHeight), title, style);
 
+            // What strokes cost right now and why, on its own line above the title (it can be long).
+            float top = titleY;
+            string stamina = StaminaCost.Describe(Player.m_localPlayer, m_ship);
+            if (stamina != null)
+            {
+                s_content.text = stamina;
+                float staminaHeight = style.CalcHeight(s_content, TextWidth);
+                top = titleY - staminaHeight;
+                RowingUI.Label(new Rect(textX, top, TextWidth, staminaHeight), stamina, style);
+            }
+
             if (Time.time < m_messageUntil)
             {
                 string message = m_messageIsStroke ? StrokeMessage() : m_message;
                 RowingUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), message, style);
             }
 
-            DrawToast(titleY - StackGap);
+            DrawToast(top - StackGap);
         }
 
         /// <summary>Draws the snackbar just above the bar's title: fades in while sliding up, holds, then fades out.</summary>
