@@ -143,6 +143,9 @@ namespace RowingMod
         // The ship's forward speed, from how far it moved since the last frame, so it works on every client
         // (only the owner simulates the ship's physics).
         private float m_speed;
+
+        /// <summary>The ship's forward speed in m/s (negative when moving backward), measured on every client.</summary>
+        public float Speed => m_speed;
         private Vector3 m_lastPosition;
         private bool m_hasLastPosition;
         private readonly List<Oar> m_oars = new List<Oar>();
@@ -389,6 +392,19 @@ namespace RowingMod
         }
 
         private void Update()
+        {
+            double started = HitchLog.Begin();
+            try
+            {
+                UpdateTimed();
+            }
+            finally
+            {
+                HitchLog.End("oars", started);
+            }
+        }
+
+        private void UpdateTimed()
         {
             if (!RowingPlugin.ShowOars.Value)
             {

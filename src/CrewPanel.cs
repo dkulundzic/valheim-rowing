@@ -17,6 +17,9 @@ namespace RowingMod
         private const float Margin = 24f;
         private const float Padding = 10f;
         private const float FooterHeight = 56f;
+        // The speed gauge between the ship and the footer.
+        private const float GaugeHeight = 20f;
+        private static readonly Color GaugeColor = new Color(0.55f, 0.85f, 0.55f, 0.95f);
         // Room left beside the hull for oars, in metres. Oars reaching further are clipped at the panel's edge,
         // which keeps the ship itself big in the panel.
         private const float OarRoom = 1.2f;
@@ -49,6 +52,8 @@ namespace RowingMod
         private bool m_seatIsBench;
         private static GUIStyle s_nameStyle;
         private static GUIStyle s_footerStyle;
+        private static GUIStyle s_gaugeStyle;
+        private static GUIStyle s_gaugeTopStyle;
         // The ship last steered, to remind the helmsman of the keys when they take the helm.
         private Ship m_lastHelm;
 
@@ -63,6 +68,19 @@ namespace RowingMod
         /// call. Taking the helm shows the keys once.
         /// </summary>
         private void Update()
+        {
+            double started = HitchLog.Begin();
+            try
+            {
+                UpdateTimed();
+            }
+            finally
+            {
+                HitchLog.End("crew panel keys", started);
+            }
+        }
+
+        private void UpdateTimed()
         {
             Ship panelShip = FindShip();
             if (panelShip != m_ship)
@@ -131,7 +149,29 @@ namespace RowingMod
 
         private void OnGUI()
         {
-            if (!RowingPlugin.ShowCrewPanel.Value || !RowingUI.IsRepaint)
+            double started = HitchLog.Begin();
+            try
+            {
+                OnGUITimed();
+            }
+            finally
+            {
+                HitchLog.End("crew panel", started);
+            }
+        }
+
+        private void OnGUITimed()
+        {
+            if (!RowingUI.IsRepaint)
+            {
+                return;
+            }
+            // The UI's first-time work, once, as soon as the player exists (under the loading fade).
+            if (Player.m_localPlayer != null)
+            {
+                RowingUI.WarmUp();
+            }
+            if (!RowingPlugin.ShowCrewPanel.Value)
             {
                 return;
             }
@@ -198,7 +238,7 @@ namespace RowingMod
             Rect panel = new Rect(RowingUI.Width - Margin - PanelWidth, RowingUI.Height - Margin - PanelHeight, PanelWidth, PanelHeight);
             RowingUI.DrawRect(panel, new Color(0f, 0f, 0f, 0.3f));
 
-            Rect area = new Rect(panel.x + Padding, panel.y + Padding, panel.width - 2f * Padding, panel.height - 2f * Padding - FooterHeight);
+            Rect area = new Rect(panel.x + Padding, panel.y + Padding, panel.width - 2f * Padding, panel.height - 2f * Padding - FooterHeight - GaugeHeight);
             float length = hull.MaxZ - hull.MinZ;
             float halfSpan = hull.MaxHalfWidth + OarRoom;
             float scale = Mathf.Min(area.width / (2f * halfSpan), area.height / length);
@@ -207,6 +247,7 @@ namespace RowingMod
             Vector2 Map(Vector2 p) => new Vector2(centreX + p.x * scale, top + (hull.MaxZ - p.y) * scale);
 
             // The hull, pulsing on each of the ship's beats.
+            double section = HitchLog.Begin();
             long nowMs = ShipRowing.NowMs();
             rowing.GetBeat(nowMs, out long beatMs, out long periodMs);
             float pulse = Mathf.Exp(-(nowMs - beatMs) / 160f);
@@ -217,6 +258,8 @@ namespace RowingMod
                 RowingUI.DrawTexture(hullRect, hull.Texture, new Color(1f, 0.85f, 0.5f, 0.6f * pulse));
             }
 
+            HitchLog.End("crew panel: hull", section);
+            section = HitchLog.Begin();
             oars.GetBenches(m_benches);
 
             // The crew's boost, along the centre line between the benches.
@@ -280,7 +323,12 @@ namespace RowingMod
                 }
             }
 
+            HitchLog.End("crew panel: benches", section);
+            section = HitchLog.Begin();
             DrawHelm(ship, Map, nameStyle);
+            DrawSpeedGauge(new Rect(area.x, area.yMax + 2f, area.width, GaugeHeight - 4f), oars.Speed, rowing.GetTopSpeed());
+            HitchLog.End("crew panel: helm and gauge", section);
+            section = HitchLog.Begin();
 
             // Footer: the ship's speed setting and the crew's boost and, right around a beat the crew hit together,
             // how many were in sync.
@@ -309,6 +357,7 @@ namespace RowingMod
             string beat = TempoName(rowing.GetTempo());
             string drum = $"Drum: {(drumOn ? "on" : "off")}" + (atHelm ? $" ({RowingPlugin.DrumKey.Value})" : "") + $" · Beat: {beat}";
             RowingUI.Label(new Rect(line1.x, line1.yMax + line1.height, line1.width, line1.height), drum, footer);
+            HitchLog.End("crew panel: footer", section);
         }
 
         /// <summary>
@@ -342,6 +391,31 @@ namespace RowingMod
                 nameStyle.alignment = TextAnchor.MiddleLeft;
                 RowingUI.Label(new Rect(position.x + 12f, position.y - 9f, 120f, 18f), helmsman.GetPlayerName(), nameStyle);
             }
+        }
+
+        /// <summary>
+        /// The ship's speed against its top sail speed (the most rowing can push it to): "5.2 m/s" and a bar that
+        /// fills toward the top speed, which is marked at the right end.
+        /// </summary>
+        private static void DrawSpeedGauge(Rect rect, float speed, float topSpeed)
+        {
+            if (s_gaugeStyle == null)
+            {
+                s_gaugeStyle = RowingUI.LabelStyle(TextAnchor.MiddleLeft, FontStyle.Bold, false, 11);
+                s_gaugeStyle.clipping = TextClipping.Overflow;
+                s_gaugeTopStyle = new GUIStyle(s_gaugeStyle) { alignment = TextAnchor.MiddleRight, fontStyle = FontStyle.Normal };
+            }
+            GUIStyle text = s_gaugeStyle;
+            const float textWidth = 56f;
+            RowingUI.Label(new Rect(rect.x, rect.y, textWidth, rect.height), $"{Mathf.Abs(speed):0.0} m/s", text);
+
+            Rect bar = new Rect(rect.x + textWidth, rect.y + rect.height / 2f - 3f, rect.width - textWidth - 28f, 6f);
+            RowingUI.DrawRect(bar, new Color(0f, 0f, 0f, 0.5f));
+            float fill = topSpeed > 0.01f ? Mathf.Clamp01(Mathf.Abs(speed) / topSpeed) : 0f;
+            RowingUI.DrawRect(new Rect(bar.x, bar.y, bar.width * fill, bar.height), GaugeColor);
+            RowingUI.DrawRect(new Rect(bar.xMax - 1f, bar.y - 3f, 2f, bar.height + 6f), new Color(1f, 1f, 1f, 0.8f));
+
+            RowingUI.Label(new Rect(bar.xMax, rect.y, rect.xMax - bar.xMax, rect.height), $"{topSpeed:0.0}", s_gaugeTopStyle);
         }
 
         private static string SpeedSettingName(Ship.Speed speed)

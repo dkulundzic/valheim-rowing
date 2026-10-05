@@ -1,6 +1,6 @@
 {
   "name": "RowingMod",
-  "version_number": "1.2.0",
+  "version_number": "1.3.0",
   "website_url": "",
   "description": "Passengers row ships to the ship's shared beat: timed strokes, crew sync, oars, splashes, braking and a crew panel. Rowing fades near the ship's top sail speed.",
   "dependencies": [

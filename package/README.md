@@ -53,10 +53,11 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `Brake.Turning` | true | Braking on one side swings the bow toward that side. |
 | `Timing.StrokeCycleStill` | 1.8 | Seconds between beats when the ship is still. |
 | `Timing.StrokeCycleTopSpeed` | 1.2 | Seconds between beats at top sail speed. |
-| `Timing.SweetSpotWidth` | 0.2 | Width of the green zone around each beat, as a fraction of the beat. |
+| `Skill.SweetSpotAtLevel0` / `SweetSpotAtLevel100` | 0.12 / 0.28 | Width of the green zone around each beat (as a fraction of the beat) at Rowing 0 and 100; it widens steadily with level. |
 | `Timing.WeakStrokeFactor` | 0.35 | Strength of an early or late stroke. |
 | `Stamina.StaminaPerStroke` | 6 | Stamina per stroke. |
 | `Stamina.HeadwindStaminaFactor` | 1 | Extra cost into the wind (1 = up to double; 0 = off). |
+| `Stamina.MaxLoad` | 1.5 | Most extra cost hard conditions can add together (1.5 = at most 2.5× the base cost), before discounts. |
 | `Force.StrokeStrength` | 0.6 | Push of one strong stroke, as a fraction of the ship's paddle force. |
 | `Force.MaxBoost` | 2 | Most push the whole crew can build up. |
 | `Force.StrokeFade` | 1.2 | Seconds for a stroke's push to fade. |

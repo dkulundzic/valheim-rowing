@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RowingMod
@@ -20,7 +21,9 @@ namespace RowingMod
 
         // Snackbar timing in seconds.
         private const float ToastFadeIn = 0.25f;
+        // Snackbars stay up long enough to read: at least ToastHold, plus time for each character (ReadingSpeed per second).
         private const float ToastHold = 3.5f;
+        private const float ReadingSpeed = 15f;
         private const float ToastFadeOut = 0.6f;
         // How long the ship's owner may go without announcing the mod before rowers are warned.
         private const float OwnerGraceTime = 3f;
@@ -42,6 +45,8 @@ namespace RowingMod
         // The helmsman's calls as last seen, so each new one shows a snackbar.
         private int m_lastTempo;
         private long m_lastHoldWaterCall;
+        // This stint at the oar, summarized when the rower stands up.
+        private readonly VoyageStats m_voyage = new VoyageStats();
         // Holding water: braking with the oar while the brake key is held.
         private bool m_braking;
         private float m_brakeHeartbeat;
@@ -55,8 +60,38 @@ namespace RowingMod
         private string m_toastTitle;
         private string m_toastBody;
         private float m_toastStart;
+        private float m_toastHold = ToastHold;
+        // What the snackbar on screen is: notices show at once, tips only when nothing else is up. A tip that a
+        // notice replaces comes back afterwards. (The helmsman's calls aren't snackbars: see Announce.)
+        private enum ToastKind
+        {
+            Notice,
+            Tip,
+        }
+        private ToastKind m_toastKind;
+        private RowingTips.Tip m_toastTip;
+        // Tips waiting their turn, in order; they wait TipGap after the last one, and triggers are checked once a second.
+        private const float TipGap = 1.5f;
+        private readonly List<RowingTips.Tip> m_tips = new List<RowingTips.Tip>();
+        private float m_nextTipTime;
+        private float m_nextTipCheck;
+        private ShipOars m_oars;
+        private readonly List<ShipOars.Bench> m_benches = new List<ShipOars.Bench>();
 
         private void Update()
+        {
+            double started = HitchLog.Begin();
+            try
+            {
+                UpdateTimed();
+            }
+            finally
+            {
+                HitchLog.End("rower", started);
+            }
+        }
+
+        private void UpdateTimed()
         {
             Player player = Player.m_localPlayer;
             if (!UpdateSeat(player))
@@ -64,6 +99,8 @@ namespace RowingMod
                 return;
             }
             UpdateNotices();
+            UpdateTips(player);
+            m_voyage.Update();
             UpdateBrake(player);
 
             if (!ZInput.GetKeyDown(RowingPlugin.RowKey.Value, logWarning: false) || IsTyping())
@@ -76,10 +113,11 @@ namespace RowingMod
                 return;
             }
 
-            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player);
+            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaCost.Multiplier(player, m_ship, StaminaCost.Use.Stroke);
             if (!player.HaveStamina(cost))
             {
                 Show("Too tired to row");
+                TriggerTip(RowingTips.Tip.Tired);
                 return;
             }
             player.UseStamina(cost);
@@ -96,10 +134,15 @@ namespace RowingMod
 
             float offset = (nowMs - nearestMs) / (float)periodMs;
             m_lastStrokeBeat = nearestMs;
-            m_lastStrokeStrong = Mathf.Abs(offset) <= RowingPlugin.SweetSpotWidth.Value / 2f;
+            // The Rowing skill widens the green zone.
+            m_lastStrokeStrong = Mathf.Abs(offset) <= RowingSkill.SweetSpotWidth(player) / 2f;
             m_lastStrokeEarly = offset < 0f;
-            float quality = m_lastStrokeStrong ? 1f : RowingPlugin.WeakStrokeFactor.Value;
+            // The stroke's strength goes to the owner as its quality, raised by the Rowing skill.
+            float quality = (m_lastStrokeStrong ? 1f : RowingPlugin.WeakStrokeFactor.Value) * RowingSkill.StrengthMultiplier(player);
+            RowingSkill.Practice(player, m_lastStrokeStrong);
             m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.StrokeRpc, quality, nearestMs);
+            m_voyage.OnStroke(nearestMs, m_lastStrokeStrong);
+            TriggerTip(RowingTips.Tip.Panel);
             m_messageIsStroke = true;
             m_messageUntil = Time.time + MessageTime;
         }
@@ -112,7 +155,7 @@ namespace RowingMod
         private void UpdateBrake(Player player)
         {
             bool wanted = ZInput.GetKey(RowingPlugin.BrakeKey.Value, logWarning: false) && !IsTyping();
-            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * Time.deltaTime;
+            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * StaminaCost.Multiplier(player, m_ship, StaminaCost.Use.Brake) * Time.deltaTime;
             if (wanted && cost > 0f && !player.HaveStamina(cost))
             {
                 wanted = false;
@@ -180,7 +223,18 @@ namespace RowingMod
                 return m_ship != null;
             }
 
-            // Leaving the bench (or switching seats) ends any braking on the old ship.
+            // Leaving the bench (or switching seats) drops waiting tips (they show again when they next matter), ends
+            // this stint's stats and any braking on the old ship.
+            m_tips.Clear();
+            if (m_toastTitle != null && m_toastKind == ToastKind.Tip)
+            {
+                m_toastTitle = null;
+            }
+            if (m_voyage.Finish(player, out string voyageTitle, out string voyageBody))
+            {
+                // Shown as a snackbar, which stays up (see OnGUI) after standing up.
+                Toast(voyageTitle, voyageBody);
+            }
             if (m_braking)
             {
                 SetBraking(false);
@@ -202,17 +256,29 @@ namespace RowingMod
 
             m_ship = ship;
             m_shipRowing = shipRowing;
+            m_oars = ship.GetComponent<ShipOars>();
             m_lastStrokeBeat = 0;
             m_lastTempo = shipRowing.GetTempo();
             m_lastHoldWaterCall = shipRowing.GetHoldWaterCall();
+            m_voyage.Start(ship, shipRowing);
 
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
-            Toast("Rowing ready", RowHint());
+            m_nextTipTime = Time.time;
+            if (RowingTips.IsSeen(RowingTips.Tip.Beat))
+            {
+                Toast("Rowing ready", RowHint());
+            }
+            else
+            {
+                TriggerTip(RowingTips.Tip.Beat);
+            }
             return true;
         }
 
-        /// <summary>Shows a snackbar for the helmsman's calls, when strokes won't count, and again once they do.</summary>
+        /// <summary>
+        /// Announces the helmsman's calls, and shows a snackbar when strokes won't count and again once they do.
+        /// </summary>
         private void UpdateNotices()
         {
             if (m_shipRowing != null)
@@ -221,14 +287,14 @@ namespace RowingMod
                 if (tempo != m_lastTempo)
                 {
                     m_lastTempo = tempo;
-                    string detail = tempo < 0 ? "A slower beat: easier on stamina" : tempo > 0 ? "A quicker beat: more push, more stamina" : "The beat follows the ship's speed";
-                    Toast($"Helmsman: {CrewPanel.TempoName(tempo)}!", detail);
+                    string detail = tempo < 0 ? "a slower beat" : tempo > 0 ? "a quicker beat" : "the beat follows the ship's speed";
+                    Announce($"Helmsman: {CrewPanel.TempoName(tempo)}! ({detail})");
                 }
                 long holdWater = m_shipRowing.GetHoldWaterCall();
                 if (holdWater != m_lastHoldWaterCall)
                 {
                     m_lastHoldWaterCall = holdWater;
-                    Toast("Helmsman: Hold water!", $"Hold {RowingPlugin.BrakeKey.Value} to brake");
+                    Announce($"Helmsman: Hold water! ({RowingPlugin.BrakeKey.Value} to brake)");
                 }
             }
 
@@ -254,47 +320,92 @@ namespace RowingMod
             }
         }
 
-        /// <summary>
-        /// How much more a stroke costs when rowing into the wind: 1 with no headwind, up to
-        /// 1 + HeadwindStaminaFactor straight into a full-strength wind. A tailwind costs no less than normal.
-        /// </summary>
-        private static float StaminaMultiplier(Ship ship)
-        {
-            EnvMan env = EnvMan.instance;
-            if (env == null)
-            {
-                return 1f;
-            }
-            // GetWindDir is where the wind blows to, so rowing into it means the wind points against the rowing direction.
-            Vector3 rowDir = ship.transform.forward * ShipRowing.RowDirection(ship);
-            Vector3 wind = env.GetWindDir();
-            wind.y = 0f;
-            rowDir.y = 0f;
-            float headwind = Mathf.Max(0f, Vector3.Dot(wind.normalized, -rowDir.normalized));
-            return 1f + Mathf.Max(0f, RowingPlugin.HeadwindStaminaFactor.Value) * headwind * Mathf.Clamp01(env.GetWindIntensity());
-        }
-
-        /// <summary>
-        /// Rowers with Valheim's Rested buff (from sleeping or resting by a fire) pay a little less stamina for
-        /// strokes and braking: 1 - Stamina.RestedDiscount, otherwise 1.
-        /// </summary>
-        private static float RestedMultiplier(Player player)
-        {
-            SEMan seman = player != null ? player.GetSEMan() : null;
-            bool rested = seman != null && seman.HaveStatusEffect(SEMan.s_statusEffectRested);
-            return rested ? 1f - Mathf.Clamp01(RowingPlugin.RestedDiscount.Value) : 1f;
-        }
-
         private static string RowHint()
         {
             return $"Press {RowingPlugin.RowKey.Value} when the marker reaches the green zone. Hold {RowingPlugin.BrakeKey.Value} to brake.";
         }
 
-        private void Toast(string title, string body)
+        /// <summary>
+        /// The helmsman's calls: the game's own centre message (as the helmsman sees them), so they never compete with
+        /// the snackbars and tips.
+        /// </summary>
+        private static void Announce(string text)
         {
+            Player.m_localPlayer?.Message(MessageHud.MessageType.Center, text);
+        }
+
+        private void Toast(string title, string body, ToastKind kind = ToastKind.Notice)
+        {
+            // A tip that something else replaces comes back once it's gone.
+            if (m_toastTitle != null && m_toastKind == ToastKind.Tip && kind != ToastKind.Tip && !m_tips.Contains(m_toastTip))
+            {
+                m_tips.Insert(0, m_toastTip);
+            }
             m_toastTitle = title;
             m_toastBody = body;
             m_toastStart = Time.time;
+            m_toastHold = ReadingTime(title, body);
+            m_toastKind = kind;
+        }
+
+        /// <summary>How long a snackbar stays up: time to read it, and never less than ToastHold.</summary>
+        private static float ReadingTime(string title, string body)
+        {
+            int characters = (title?.Length ?? 0) + (body?.Length ?? 0);
+            return Mathf.Max(ToastHold, 1.5f + characters / ReadingSpeed);
+        }
+
+        /// <summary>Queues a tip because it just became relevant, unless it's been seen, is waiting or is showing.</summary>
+        private void TriggerTip(RowingTips.Tip tip)
+        {
+            bool showing = m_toastTitle != null && m_toastKind == ToastKind.Tip && m_toastTip == tip;
+            if (!showing && !m_tips.Contains(tip) && !RowingTips.IsSeen(tip))
+            {
+                m_tips.Add(tip);
+            }
+        }
+
+        /// <summary>
+        /// Watches for the moments a tip becomes relevant, and shows the next waiting tip when no other snackbar is up.
+        /// </summary>
+        private void UpdateTips(Player player)
+        {
+            if (m_messageIsStroke && Time.time < m_messageUntil && StrokeMessage() == "Clash!")
+            {
+                TriggerTip(RowingTips.Tip.Clash);
+            }
+            if (Time.time >= m_nextTipCheck)
+            {
+                m_nextTipCheck = Time.time + 1f;
+                if (m_oars != null)
+                {
+                    if (Mathf.Abs(m_oars.Speed) >= RowingTips.BrakeSpeed)
+                    {
+                        TriggerTip(RowingTips.Tip.Brake);
+                    }
+                    m_oars.GetBenches(m_benches);
+                    foreach (ShipOars.Bench bench in m_benches)
+                    {
+                        if (bench.Occupant != null && bench.Occupant != player)
+                        {
+                            TriggerTip(RowingTips.Tip.Together);
+                        }
+                    }
+                }
+                if (StaminaCost.Describe(player, m_ship) != null)
+                {
+                    TriggerTip(RowingTips.Tip.Stamina);
+                }
+            }
+            if (m_toastTitle == null && m_tips.Count > 0 && Time.time >= m_nextTipTime)
+            {
+                RowingTips.Tip tip = m_tips[0];
+                m_tips.RemoveAt(0);
+                RowingTips.Text(tip, out string title, out string body);
+                Toast(title, body, ToastKind.Tip);
+                m_toastTip = tip;
+                RowingPlugin.Log.LogInfo($"Tip: showing {tip} for {m_toastHold:0.0} s");
+            }
         }
 
         private static bool IsShipSeat(Ship ship, Transform attachPoint)
@@ -330,14 +441,36 @@ namespace RowingMod
 
         private void OnGUI()
         {
-            if (m_ship == null || m_seat == null || !RowingUI.IsRepaint)
+            double started = HitchLog.Begin();
+            try
+            {
+                OnGUITimed();
+            }
+            finally
+            {
+                HitchLog.End("stroke bar", started);
+            }
+        }
+
+        private void OnGUITimed()
+        {
+            bool seated = m_ship != null && m_seat != null;
+            if ((!seated && m_toastTitle == null) || !RowingUI.IsRepaint)
             {
                 return;
             }
             Matrix4x4 previousMatrix = RowingUI.BeginScaled();
             try
             {
-                DrawStrokeUI();
+                if (seated)
+                {
+                    DrawStrokeUI();
+                }
+                else
+                {
+                    // Off the bench (e.g. the voyage summary): the snackbar sits where the stroke bar was.
+                    DrawToast(GetHudBarsTop() / RowingUI.Scale - BarGap - RowingPlugin.BarOffset.Value);
+                }
             }
             finally
             {
@@ -373,7 +506,7 @@ namespace RowingMod
             float markerPos = Mathf.Clamp01((nowMs - nearestMs) / (float)periodMs + 0.5f);
 
             // Green zone, with a line on the beat itself
-            float sweetWidth = Mathf.Clamp01(RowingPlugin.SweetSpotWidth.Value);
+            float sweetWidth = RowingSkill.SweetSpotWidth(Player.m_localPlayer);
             DrawRect(new Rect(x + width * (0.5f - sweetWidth / 2f), y, width * sweetWidth, height), new Color(0.3f, 0.8f, 0.3f, 0.8f));
             DrawRect(new Rect(x + width * 0.5f - 1f, y, 2f, height), new Color(1f, 1f, 1f, 0.35f));
 
@@ -385,16 +518,6 @@ namespace RowingMod
             string title = m_braking
                 ? $"Holding water [{RowingPlugin.BrakeKey.Value}]"
                 : ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
-            float staminaMultiplier = StaminaMultiplier(m_ship);
-            if (staminaMultiplier > 1.05f)
-            {
-                title += $"   Headwind: +{(staminaMultiplier - 1f) * 100f:0}% stamina";
-            }
-            float rested = RestedMultiplier(Player.m_localPlayer);
-            if (rested < 0.999f)
-            {
-                title += $"   Rested: -{(1f - rested) * 100f:0}% stamina";
-            }
             float boost = m_shipRowing != null ? m_shipRowing.GetSyncedBoost() : 0f;
             if (boost > 0.01f)
             {
@@ -405,13 +528,24 @@ namespace RowingMod
             float titleY = y - 4f - StackGap - titleHeight;
             RowingUI.Label(new Rect(textX, titleY, TextWidth, titleHeight), title, style);
 
+            // What strokes cost right now and why, on its own line above the title (it can be long).
+            float top = titleY;
+            string stamina = StaminaCost.Describe(Player.m_localPlayer, m_ship);
+            if (stamina != null)
+            {
+                s_content.text = stamina;
+                float staminaHeight = style.CalcHeight(s_content, TextWidth);
+                top = titleY - staminaHeight;
+                RowingUI.Label(new Rect(textX, top, TextWidth, staminaHeight), stamina, style);
+            }
+
             if (Time.time < m_messageUntil)
             {
                 string message = m_messageIsStroke ? StrokeMessage() : m_message;
                 RowingUI.Label(new Rect(textX, messageY, TextWidth, messageHeight), message, style);
             }
 
-            DrawToast(titleY - StackGap);
+            DrawToast(top - StackGap);
         }
 
         /// <summary>Draws the snackbar just above the bar's title: fades in while sliding up, holds, then fades out.</summary>
@@ -423,13 +557,19 @@ namespace RowingMod
             }
 
             float t = Time.time - m_toastStart;
-            if (t > ToastFadeIn + ToastHold + ToastFadeOut)
+            if (t > ToastFadeIn + m_toastHold + ToastFadeOut)
             {
                 m_toastTitle = null;
+                // A tip counts as seen once it has shown in full. The next tip waits a moment after any snackbar.
+                if (m_toastKind == ToastKind.Tip)
+                {
+                    RowingTips.MarkSeen(m_toastTip);
+                }
+                m_nextTipTime = Time.time + TipGap;
                 return;
             }
             float fadeIn = Mathf.Clamp01(t / ToastFadeIn);
-            float fadeOut = Mathf.Clamp01((ToastFadeIn + ToastHold + ToastFadeOut - t) / ToastFadeOut);
+            float fadeOut = Mathf.Clamp01((ToastFadeIn + m_toastHold + ToastFadeOut - t) / ToastFadeOut);
             float alpha = Mathf.Min(fadeIn, fadeOut);
             // Slides down into place from above, so it never covers the bar's title below it.
             float slide = (1f - fadeIn) * (1f - fadeIn) * 12f;
@@ -493,6 +633,22 @@ namespace RowingMod
             GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previous;
+        }
+    }
+
+    /// <summary>
+    /// Tutorial.ResetOnLogout: logging out and quitting both shut the game down, so the tutorial is marked unseen then
+    /// and plays again on the first sit of the next session.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(Game), "Shutdown")]
+    internal static class Game_Shutdown_Patch
+    {
+        private static void Postfix()
+        {
+            if (RowingPlugin.TutorialResetOnLogout.Value)
+            {
+                RowingTips.ForgetAll();
+            }
         }
     }
 }

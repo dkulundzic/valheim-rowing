@@ -44,9 +44,11 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 - **U** calls a quicker beat and **N** a slower one, stepping through Easy (a slower beat, easier on stamina), Steady (automatic, the default) and Hard (a quicker beat, more push and more stamina).
 - **J** calls **"Hold water!"**, telling the crew to brake. Each rower brakes themselves with J.
 
-Rowers get a message for every call, and the crew panel shows the current beat.
+Rowers see every call in the middle of the screen (like the helmsman does), and the crew panel shows the current beat.
 
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
+
+**Rowing skill:** rowing raises a new **Rowing** skill (in the skills screen, with an oar icon). Strong strokes train it most, weak ones a little. **The green zone grows with the skill:** a beginner gets a narrow window, **12% of the beat at level 0**, widening steadily to **28% at level 100** (20%, the old fixed width, at level 50). At level 100, strokes and braking also cost **30% less** stamina and strokes are **15% stronger**, scaling smoothly with level. Like other skills, it drops a little on death.
 
 ## 3. Stamina
 
@@ -54,8 +56,15 @@ Rowers get a message for every call, and the crew panel shows the current beat.
 - **Rowing into the wind costs more,** up to **double** when rowing straight into a strong wind.
   - A side wind or tailwind costs the normal amount.
   - While backing, "into the wind" means the wind you're backing into.
+- **Rough weather costs more:** **+30% in a storm**, and up to **+25% in strong wind** from any direction (rough seas); the larger applies, added to the headwind cost. It covers braking too.
+- **Cold costs more:** with the **Cold** debuff strokes and braking cost **15% more**, and **30% more** when **Freezing**, added to the other hard conditions. Warm clothes and a fire before a northern voyage help.
 - **Rested rowers pay 10% less,** for strokes and braking: sleep or rest by a fire before a voyage.
-- **Extra cost and discounts are shown** in the bar title, e.g. `Headwind: +60% stamina` or `Rested: -10% stamina`.
+- **The Rowing skill takes up to 30% off,** at level 100 (see the Rowing skill above).
+- **How it all adds up:** hard conditions are added together, then your discounts each take their share off what's left.
+  - **Hard conditions** (headwind, storm or rough sea, cold): their extra costs are added, and together they never add more than **+150%**.
+  - **Discounts** (Rested, the Rowing skill) multiply: Rested and level 100 together cost 0.9 × 0.7 = **63%**, never nothing.
+  - Example: a strong headwind (+70%), Rested and Rowing 50 (−15%): 6 × 1.7 × 0.9 × 0.85 = **7.8** stamina per stroke.
+- **The cost and its reasons are shown** above the bar title, e.g. `Stamina ×1.30 (headwind +70%, rested -10%, Rowing skill -15%)`.
 
 ## 4. How strokes speed up the ship
 
@@ -119,6 +128,7 @@ While you row or steer, a small top-down view of the ship sits in the bottom-rig
 - **Benches:** a dim ring is an empty bench, and a disc is a rower. After each stroke the disc flashes **green** (strong), **yellow** (weak), **red** (clash) or **gold** (in sync with others). It's **blue** while braking. Your own bench has a white ring.
 - **Oars:** little oars swing just like the real ones, and stowed oars lie inside the hull.
 - **Crew boost:** the blue bar along the middle fills with the crew's push.
+- **Speed:** a gauge under the ship shows its speed, e.g. "5.2 m/s", filling toward its top sail speed, which is marked at the right end. That's the most rowing can push it to.
 - **The beat:** the ship's outline pulses on every beat, so you can see the rhythm even with the drum off.
 - **Drum:** the footer shows whether the war drum is on, and for the helmsman, which key turns it on or off.
 - **Helmsman:** a diamond at the helm, with no oar. It's an outline when nobody steers and filled when someone does, with a white ring when it's you.
@@ -131,6 +141,8 @@ The helmsman sees the panel too, which shows who's rowing and who's in time.
 | Message | Meaning |
 |---|---|
 | **Rowing ready** | You sat down in a seat and can row. |
+| **Tip: …** | A short tip the first time something matters: sitting at an oar, your first stroke, another rower joining, your first clash, the ship passing 3 m/s, the stamina line appearing, or running out of stamina. Each shows once per session (again after every logout; turn `Tutorial.ResetOnLogout` off to see each only once, ever). Tips wait until no other notice is up, and a tip a notice replaces shows again afterwards. |
+| **Voyage: …** (where the stroke bar was, when you stand up) | Your stint at the oar: distance, time, strokes, % on the beat, syncs, clashes, plus your character's lifetime distance and strokes. |
 | **Your strokes won't count** | The ship's owner doesn't have the mod. |
 | **Your strokes count again** | The ship's owner now has the mod. |
 | **In sync ×N!** | Your strong stroke landed on the same beat as N−1 others. |
@@ -146,7 +158,7 @@ All of these can be changed in `BepInEx/config/com.dkulundzic.rowingmod.cfg`.
 
 **Timing:**
 - Beat: **1.8 s** when still (`StrokeCycleStill`), down to **1.2 s** at top speed (`StrokeCycleTopSpeed`), in proportion to speed ÷ top speed.
-- Green zone (`SweetSpotWidth`): 20% of the beat, centred on it: ±0.18 s at the slowest beat, ±0.12 s at the fastest.
+- Green zone: centred on the beat, its width set by the Rowing skill: **12%** of the beat at level 0 (`Skill.SweetSpotAtLevel0`), widening to **28%** at level 100 (`Skill.SweetSpotAtLevel100`). At level 50 that's 20%, i.e. ±0.18 s at the slowest beat and ±0.12 s at the fastest.
 - Weak-stroke power (`WeakStrokeFactor`): **35%** of a strong stroke.
 
 **Crew:**
@@ -170,5 +182,12 @@ All of these can be changed in `BepInEx/config/com.dkulundzic.rowingmod.cfg`.
 - **3 stamina per second** (`Brake.StaminaPerSecond`). With `Brake.Turning` on (the default), the drag acts at the rower's side of the hull.
 
 **Stamina:**
-- Cost per press = **6** × (1 + headwind), where headwind runs from 0 (side or tailwind) to 1 (straight into a full-strength wind). That gives 6 to 12 stamina.
-- `StaminaPerStroke` sets the base cost, and `HeadwindStaminaFactor` sets the headwind extra (0 turns it off).
+- Cost per press = **6** × (1 + load) × relief.
+  - **Load:** the extra costs of hard conditions, added together and capped at `Stamina.MaxLoad` (1.5):
+    - headwind, from 0 (side or tailwind) to 1 (straight into a full-strength wind), for strokes only;
+    - weather, the larger of storm (0.3) and rough sea (up to 0.25 as the wind goes from 60% to full strength);
+    - cold: 0.15 when Cold, 0.3 when Freezing.
+  - **Relief:** (1 − 0.1 if Rested) × (1 − 0.3 × Rowing level / 100).
+  - That gives 3.8 (calm, Rested, Rowing 100) to 15 stamina (full headwind in a storm while Freezing: +160%, capped at +150%; no discounts).
+- Braking uses the same chain on its 3 stamina per second, without the headwind.
+- `StaminaPerStroke` sets the base cost, `HeadwindStaminaFactor` the headwind extra (0 turns it off), `StormFactor` and `RoughSeaFactor` the weather, `ColdFactor` and `FreezingFactor` the cold, `MaxLoad` the cap on hard conditions, `RestedDiscount` and `Skill.StaminaReduction` the discounts.

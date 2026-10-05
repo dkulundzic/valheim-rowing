@@ -28,6 +28,7 @@
   <ItemGroup>
     <Reference Include="assembly_valheim" HintPath="lib/assembly_valheim.dll" Private="false" />
     <Reference Include="assembly_utils" HintPath="lib/assembly_utils.dll" Private="false" />
+    <Reference Include="assembly_guiutils" HintPath="lib/assembly_guiutils.dll" Private="false" />
     <Reference Include="UnityEngine" HintPath="lib/UnityEngine.dll" Private="false" />
     <Reference Include="UnityEngine.CoreModule" HintPath="lib/UnityEngine.CoreModule.dll" Private="false" />
     <Reference Include="UnityEngine.PhysicsModule" HintPath="lib/UnityEngine.PhysicsModule.dll" Private="false" />

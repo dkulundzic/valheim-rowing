@@ -11,17 +11,17 @@ namespace RowingMod
     {
         public const string Guid = "com.dkulundzic.rowingmod";
         public const string Name = "Rowing";
-        public const string Version = "1.2.0";
+        public const string Version = "1.3.0";
 
         internal static ManualLogSource Log;
 
         internal static ConfigEntry<KeyCode> RowKey;
         internal static ConfigEntry<float> StrokeCycleStill;
         internal static ConfigEntry<float> StrokeCycleTopSpeed;
-        internal static ConfigEntry<float> SweetSpotWidth;
         internal static ConfigEntry<float> WeakStrokeFactor;
         internal static ConfigEntry<float> StaminaPerStroke;
         internal static ConfigEntry<float> HeadwindStaminaFactor;
+        internal static ConfigEntry<float> MaxLoad;
         internal static ConfigEntry<float> StrokeStrength;
         internal static ConfigEntry<float> MaxBoost;
         internal static ConfigEntry<float> StrokeFade;
@@ -58,9 +58,22 @@ namespace RowingMod
         internal static ConfigEntry<float> EasyTempoFactor;
         internal static ConfigEntry<float> HardTempoFactor;
         internal static ConfigEntry<float> RestedDiscount;
+        internal static ConfigEntry<float> SkillGain;
+        internal static ConfigEntry<float> SkillStaminaReduction;
+        internal static ConfigEntry<float> SkillSweetSpotAtLevel0;
+        internal static ConfigEntry<float> SkillSweetSpotAtLevel100;
+        internal static ConfigEntry<float> SkillStrengthBonus;
+        internal static ConfigEntry<float> StormFactor;
+        internal static ConfigEntry<float> RoughSeaFactor;
+        internal static ConfigEntry<float> ColdFactor;
+        internal static ConfigEntry<float> FreezingFactor;
         internal static ConfigEntry<bool> ShowWakes;
+        internal static ConfigEntry<string> TutorialSeenTips;
+        internal static ConfigEntry<bool> TutorialResetOnLogout;
+        internal static ConfigEntry<bool> ShowVoyageSummary;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
+        internal static ConfigEntry<bool> LogHitches;
 
         private void Awake()
         {
@@ -97,17 +110,35 @@ namespace RowingMod
                 "Seconds between the ship's beats when it's still. The beat speeds up with the ship.");
             StrokeCycleTopSpeed = Config.Bind("Timing", "StrokeCycleTopSpeed", 1.2f,
                 "Seconds between the ship's beats at its top sail speed.");
-            SweetSpotWidth = Config.Bind("Timing", "SweetSpotWidth", 0.2f,
-                "Width of the green zone around each beat, as a fraction of the beat.");
             WeakStrokeFactor = Config.Bind("Timing", "WeakStrokeFactor", 0.35f,
                 "Strength of an early or late stroke compared with a well-timed one.");
 
             StaminaPerStroke = Config.Bind("Stamina", "StaminaPerStroke", 6f,
                 "Stamina each stroke costs, including a wasted second press in the same beat.");
+            SkillGain = Config.Bind("Skill", "Gain", 1f,
+                "How fast the Rowing skill rises with practice (the skill's increase step; 1 is like most game skills).");
+            SkillStaminaReduction = Config.Bind("Skill", "StaminaReduction", 0.3f,
+                "At Rowing 100, strokes and braking cost this much less stamina (0.3 = 30% less), scaling with level.");
+            SkillSweetSpotAtLevel0 = Config.Bind("Skill", "SweetSpotAtLevel0", 0.12f,
+                "Width of the green zone around each beat at Rowing 0, as a fraction of the beat. It widens steadily with level.");
+            SkillSweetSpotAtLevel100 = Config.Bind("Skill", "SweetSpotAtLevel100", 0.28f,
+                "Width of the green zone at Rowing 100, as a fraction of the beat.");
+            SkillStrengthBonus = Config.Bind("Skill", "StrengthBonus", 0.15f,
+                "At Rowing 100, strokes are this much stronger (0.15 = 15%), scaling with level.");
+            StormFactor = Config.Bind("Stamina", "StormFactor", 0.3f,
+                "Extra stamina cost for strokes and braking during a storm, as a fraction (0.3 = 30% more). 0 turns it off.");
+            RoughSeaFactor = Config.Bind("Stamina", "RoughSeaFactor", 0.25f,
+                "Extra stamina cost in strong wind of any direction (rough seas), up to this fraction at full wind strength, starting at 60% wind. The larger of this and the storm cost applies.");
+            ColdFactor = Config.Bind("Stamina", "ColdFactor", 0.15f,
+                "Extra stamina cost for strokes and braking with the Cold debuff (0.15 = 15% more). 0 turns it off.");
+            FreezingFactor = Config.Bind("Stamina", "FreezingFactor", 0.3f,
+                "Extra stamina cost for strokes and braking with the Freezing debuff (replaces the Cold cost). 0 turns it off.");
             RestedDiscount = Config.Bind("Stamina", "RestedDiscount", 0.1f,
                 "Rowers with the Rested buff pay this fraction less stamina for strokes and braking (0.1 = 10% less).");
             HeadwindStaminaFactor = Config.Bind("Stamina", "HeadwindStaminaFactor", 1f,
                 "Extra stamina cost when rowing into the wind, as a fraction of StaminaPerStroke. 1 means up to double straight into a full-strength wind; it scales with the wind's strength and angle. 0 turns it off.");
+            MaxLoad = Config.Bind("Stamina", "MaxLoad", 1.5f,
+                "Most extra stamina that hard conditions (such as a headwind) can add together, as a fraction of the base cost: 1.5 means at most 2.5 times the base cost. Discounts (Rested, the Rowing skill) then apply on top.");
 
             StrokeStrength = Config.Bind("Force", "StrokeStrength", 0.6f,
                 "Boost one well-timed stroke adds, as a fraction of the ship's own paddle force.");
@@ -159,6 +190,12 @@ namespace RowingMod
                 "Volume of the ship's war drum (0 to 1). The helmsman turns the drum on or off with the drum key.");
             DrumSound = Config.Bind("Sounds", "DrumSound", "",
                 "The war drum's sound. Empty uses a recorded drum (sounds/dundun.wav next to the mod) if present, otherwise a drum made by the mod; \"generated\" always uses the one made by the mod.");
+            TutorialSeenTips = Config.Bind("Tutorial", "SeenTips", "",
+                "Rowing tips already shown (each shows once, when it first matters: sitting down, the first stroke, another rower, a clash, speed, stamina). Empty it to see them all again.");
+            TutorialResetOnLogout = Config.Bind("Tutorial", "ResetOnLogout", true,
+                "Show the tips again after every logout or quit: SeenTips is emptied then. Off: each tip shows only once, ever.");
+            ShowVoyageSummary = Config.Bind("UI", "ShowVoyageSummary", true,
+                "When you stand up from an oar, show a short summary of the stint (distance, strokes, on-beat %, syncs, clashes) and your lifetime totals.");
             ShowWakes = Config.Bind("UI", "ShowWakes", true,
                 "Show subtle wakes on the water where blades sweep through.");
             WakeEffect = Config.Bind("UI", "WakeEffect", "",
@@ -167,12 +204,18 @@ namespace RowingMod
                 "Show water spray at the blade on each stroke.");
             SplashEffect = Config.Bind("UI", "SplashEffect", "",
                 $"Game effect prefab whose particles show as the spray (its sound is removed). Empty uses the default ({RowingSounds.DefaultSplashEffect}).");
+            LogHitches = Config.Bind("Debug", "LogHitches", false,
+                "Log every frame that takes longer than 0.25 s, with how much of it the mod's own code took, to find what freezes the game.");
             LogSoundCandidates = Config.Bind("Debug", "LogSoundCandidates", false,
                 "Log the game's water, splash and wood sounds once per session, to pick a SplashSound.");
 
             gameObject.AddComponent<Rower>();
             gameObject.AddComponent<CrewPanel>();
+            gameObject.AddComponent<HitchLog>();
             new Harmony(Guid).PatchAll();
+            // If a language is already loaded, name the skill now too. Read the private field rather than
+            // Localization.instance, which would create the localization early if it doesn't exist yet.
+            RowingSkill.AddName(Traverse.Create(typeof(Localization)).Field("m_instance").GetValue<Localization>());
             Log.LogInfo($"{Name} {Version} loaded");
         }
     }

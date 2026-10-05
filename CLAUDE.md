@@ -9,21 +9,26 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **The owner keeps it:** in `ShipRowing.UpdateBeat`, while anyone is aboard (`!Ship.CanBeRemoved()`), the owner writes ZDO longs `RowingMod_BeatTime` (latest beat, network-clock ms from `ZNet.GetTimeSeconds`) and `RowingMod_BeatPeriod` (ms).
   - **Tempo:** at each beat the owner picks the next period from speed: `StrokeCycleStill` (1.8 s) when still, down to `StrokeCycleTopSpeed` (1.2 s) at top speed.
   - **Clients:** extend the schedule with `GetBeat`. A stale schedule (more than 2 s past the next beat, e.g. after sleeping) restarts.
-  - **A press belongs to the nearest beat:** within ±`SweetSpotWidth`/2 of the beat it's strong, otherwise off-beat.
+  - **A press belongs to the nearest beat:** within ±(green zone width)/2 of the beat it's strong, otherwise off-beat. On this branch the width comes from the Rowing skill (`RowingSkill.SweetSpotWidth`); `Timing.SweetSpotWidth` is removed.
   - **One stroke per beat;** a second press is mashing (stamina spent, no stroke).
 - **Helm calls** (from `feature/helmsman-beat`, playtested and merged into main on 2026-10-05):
   - **Keys:** `CrewPanel.Update` reads the helm keys (U/N tempo, J "Hold water!" call, H drum) and sends RPC `RowingMod_Helm(int)` to the owner.
   - **State:** the owner stores ZDO `RowingMod_Tempo` (-1/0/1) and `RowingMod_HoldWater` (ms of the last call).
   - **Effect:** `TempoMs` scales the speed-based period by `Helm.EasyTempoFactor` 1.25 / `HardTempoFactor` 0.8.
-  - **Feedback:** rowers get snackbars per call, and the panel footer shows "Beat: Easy/Steady/Hard".
+  - **Feedback:** rowers see each call as the game's centre message (`Rower.Announce`, like the helmsman's own; the user asked for this so calls never compete with the tips), and the panel footer shows "Beat: Easy/Steady/Hard".
   - **Ramming speed (K) was removed from main** right after the merge, at the user's request: it comes back together with the drum rhythms (`feature/ramming-drum`). Helm command 3 is kept free for it. **When merging `feature/ramming-drum` into main, revert the removal commit on main first** (`git revert 85ba936`); otherwise git keeps main's deletion of the ramming code that the branch didn't change.
 - **Sync and clash,** computed by the owner per beat in `ApplyBeat`:
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
   - **Clash:** if anyone hit the beat, each off-beat stroke on it adds no boost and adds `ClashBrake` to a separate brake pool. The brake only slows the ship and never reverses it. If nobody hit the beat, off-beat strokes are weak (`WeakStrokeFactor`).
   - **Late strokes:** strokes arrive one at a time, so the owner re-applies the difference for the beat.
-- **Stamina:** each stroke costs `StaminaPerStroke` × the headwind multiplier × the Rested multiplier. An exhausted rower can't row.
+- **Stamina:** every cost goes through one chain in `StaminaCost.Multiplier`: **cost = base × (1 + load) × relief**. An exhausted rower can't row.
+  - **Base:** `StaminaPerStroke` per stroke, `Brake.StaminaPerSecond` × dt while braking.
+  - **Load:** hard conditions, their extra costs **added** and capped at `Stamina.MaxLoad` (1.5): the headwind (strokes only), and the weather, for strokes and braking: the larger of storm (`Stamina.StormFactor` 0.3, when `EnvMan.GetCurrentEnvironment().m_name` contains "Storm") and rough sea (up to `Stamina.RoughSeaFactor` 0.25 as wind intensity goes from 0.6 to 1). Also cold, for strokes and braking: `Stamina.FreezingFactor` 0.3 with `SEMan.s_statusEffectFreezing`, else `Stamina.ColdFactor` 0.15 with `s_statusEffectCold`. Ramming's ×2 (`feature/ramming-drum`) as a separate effort multiplier between load and relief.
+  - **Relief:** the rower's condition and practice, **multiplied** so they never reach zero: Rested, the Rowing skill (`RowingSkill.StaminaRelief`).
+  - **Why:** the user asked (2026-10-05) to combine every modifier into "a clean chain, so everything's taken into account and calculated in a logical manner", instead of stacking multipliers that could reach ~7×.
+  - **UI:** `StaminaCost.Describe` puts one line above the stroke bar's title, e.g. "Stamina ×1.30 (headwind +70%, rested -10%, Rowing skill -15%)", parts under 5% left out.
   - **Rested:** rowers with the Rested buff (`SEMan.s_statusEffectRested`) pay `Stamina.RestedDiscount` less (10% by default; the user asked for a small bonus) for strokes and braking.
-  - Headwind multiplier: `1 + HeadwindStaminaFactor × headwind × wind intensity`. `headwind` is `max(0, dot(windDir, −rowing direction))` on the horizontal plane (`EnvMan.GetWindDir` points where the wind blows to). A tailwind gives no discount. The bar title shows "Headwind: +N% stamina" above 5%.
+  - Headwind load: `HeadwindStaminaFactor × headwind × wind intensity`. `headwind` is `max(0, dot(windDir, −rowing direction))` on the horizontal plane (`EnvMan.GetWindDir` points where the wind blows to). A tailwind gives no discount.
 - **When rowing works:** always, at every speed setting including `Stop` and with the sail open. While backing (`Back`) strokes push backward, otherwise forward. Changing direction clears the boost (`ShipRowing.m_lastDirection`). Stop was blocked until 1.0.1; the user changed the rule because rowing a stopped boat makes sense, and a seated passenger can't change the speed setting.
 - **Who rows:** only passengers on rowing benches (`Chair` with `attach_sitship`): Karve 2, Longship 4. Not the back seat, not Hold fast spots, not the helmsman.
 - **Stroke strength:** timing × speed factor. The speed factor is `1 − (v / top)²`, where `v` is the ship's speed in the rowing direction and `top` is its top sail speed × `TopSpeedMultiplier`. It's applied every physics step, so rowing can never push a ship past its top sail speed. The sail setting doesn't change stroke strength.
@@ -77,10 +82,22 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Benches:** empty rings, occupied discs, and a stroke flash coloured green (strong), yellow (weak), red (clash) or gold (sync). Kinds upgrade as later strokes for the same beat arrive, in `ShipOars.OnStroke`. Your own bench has a white ring.
   - **Mini oars** are projected from the real 3D oars (`ShipOars.GetBenches`).
   - **Helm:** the helmsman is a diamond at `ShipControlls.m_attachPoint`, with no oar. It's an outline when empty and filled when steered (`HaveValidUser`/`GetUser`), with a white ring when it's you.
+  - **Speed gauge** (branch `feature/speed-gauge`): "N.N m/s" (`ShipOars.Speed`, measured from frame-to-frame movement on every client) and a bar filling toward `ShipRowing.GetTopSpeed()`, between the hull and the footer.
   - **Also:** a crew-boost bar along the centre line, and a footer with the speed setting ("Paddling · Crew boost N%") and "In sync ×N".
   - Config: `UI.ShowCrewPanel`, and `UI.CrewNames` (off by default).
 - `src/RowingUI.cs`: IMGUI scaling and helpers. All mod UI draws in virtual pixels scaled by `UI.Scale` (0 = automatic, `Screen.height / 1080`, at least 1). `DrawLine` builds its own rotation matrix, because `GUIUtility.RotateAroundPivot` takes the pivot in unscaled pixels.
-- `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
+- `src/RowingSkill.cs` (branch `feature/rowing-skill`): a custom "Rowing" skill.
+  - **Identity:** SkillType = |stable hash of "com.dkulundzic.rowingmod.skill.rowing"|.
+  - **Patches:** `Skills.IsSkillValid` (so it loads from saves), `Skills.GetSkillDef` (definition with a generated wooden oar icon: 128 px, Perlin-noise grain, rounded shading, leather grip, dark outline; the user asked for wood instead of the first white silhouette), and `Localization.SetupLanguage` (adds "skill_<id>" = "Rowing" via private `AddWord`). `Localization` lives in `assembly_guiutils.dll`, which is now referenced.
+  - **Practice:** `RaiseSkill` per stroke (1 strong, 0.3 weak).
+  - **Effects:** green zone = lerp(`Skill.SweetSpotAtLevel0` 0.12, `SweetSpotAtLevel100` 0.28, f), so it's narrower than the old fixed 0.2 below level 50, as the user asked. Stamina ×(1 − 0.3f), strength ×(1 + 0.15f), where f is the level / 100.
+  - **Strength reaches the owner:** the stroke's quality carries the skill's strength bonus, so the owner sums per-stroke quality (`BeatStrokes.QualityBySender`) instead of counting strokes.
+- `src/Rower.cs`: local-player side.
+  - **Snackbars** stay up for their reading time: `max(3.5 s, 1.5 s + characters / 15)`. The user found the fixed 6 s tutorial cards and the game's top-left voyage message too fast to read (2026-10-05). Two kinds: notices show at once; tips only when nothing else is up, 1.5 s after the last snackbar. A tip a notice replaces goes back to the front of the queue. The helmsman's calls aren't snackbars: rowers get them as the game's centre message (`Announce`).
+  - **Tips** (`src/RowingTips.cs`, replacing the 4-card tutorial of `feature/tutorial` on the user's request for contextual tips): Beat (first sit), Panel (first stroke), Together (another rower on a bench, via `ShipOars.GetBenches`), Clash (first "Clash!" message), Brake (ship over 3 m/s), Stamina (the stamina line shows), Tired ("Too tired to row"). Triggers are checked once a second. A tip counts as seen once shown in full (`Tutorial.SeenTips`, comma list); `Tutorial.ResetOnLogout` (default on) empties it in a `Game.Shutdown` postfix, which logging out and quitting both go through. Standing up drops waiting tips. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
+- `src/VoyageStats.cs` (branch `feature/voyage-stats`): per stint at an oar.
+  - **Tracking:** the ship's horizontal distance (jumps over 20 m per frame are ignored) and strokes, with sync and clash settled 2 s later via `GetStrongCount`.
+  - **On standing up:** a summary snackbar (drawn by `Rower` even off the bench, where the stroke bar was), and lifetime totals in `Player.m_customData` (`RowingMod_TotalMeters`, `RowingMod_TotalStrokes`), which are saved with the character. Config `UI.ShowVoyageSummary`.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.
 - `.tools/ilspycmd`: decompiler, version 8.2.0.7535. Newer versions don't install on .NET 8.
@@ -98,6 +115,7 @@ Checked on 2026-10-05 at the user's request (no profiling; nothing showed up in 
 - **Far ships:** `ShipOars.Update` does nothing for ships more than 90 m from the local player, and looks for bench occupants only while a player is within 15 m of the ship.
 - **Clock:** `ShipRowing.NowMs()` is the network clock smoothed: it runs on real time and eases toward `ZNet.GetTimeSeconds()` (2 s time constant, never backward, at least half speed), snapping only on gaps over 1.5 s. A client's network clock is overwritten by the server's every 2 s and lags on frame hitches; the user's drum log on the crew server (2026-10-05) showed ~40 jumps in 2 minutes, mostly backward, up to 0.7 s, which broke the drum's rhythm.
 - **Sound setup** (`RowingSounds.EnsureInitialized`) runs once, from `RowingSounds.Prepare` in a `Player.OnSpawned` postfix (under the loading fade), and logs "Sounds ready in N ms". Before, it ran on the first sound at sea (the drum or a stroke, right when boarding), and the user saw a ~1.5 s freeze on first sitting (2026-10-05). `Debug.LogSoundCandidates` scans every prefab and is slow; keep it off except when choosing sounds.
+- **UI warm-up:** `RowingUI.WarmUp` (from `CrewPanel.OnGUI` once the local player exists, under the loading fade) makes the shared textures and has the font prepare every character at each size and style the mod uses, and logs "UI ready in N ms". The hitch log (`Debug.LogHitches`) showed the crew panel's first draw taking 676 ms of a 688 ms frame on the first sit (2026-10-05), which was the freeze the user saw. The panel's sections are timed separately in the hitch log.
 - **Once per ship:** gunwale raycasts, the hull outline texture and the top-speed estimate.
 
 ## Commands
@@ -171,6 +189,7 @@ Checked on 2026-10-05 at the user's request (no profiling; nothing showed up in 
   - **To tune by playtest:** `Brake.Strength`, and how strong the turning torque is.
 - [x] **Released 1.1.0** on GitHub (2026-10-04), bundling everything since 1.0.0; 1.0.1 was never published. `Debug.LogSoundCandidates` is off by default for release.
 - [x] **Released 1.2.0** on GitHub (2026-10-04): the helmsman's war drum (generated sound), oar wakes, a 10% Rested discount; the beat tick is removed. The recorded dundun is not included.
+- [ ] **1.3.0 beta** (branch `release/1.3.0-beta`, 2026-10-05): `main` plus `rowing-skill` (with the stamina chain), `speed-gauge`, `tutorial`, `weather-stamina`, `cold-stamina` and `voyage-stats`, as the user chose. Weather and cold were folded into the stamina chain's load while merging; the tutorial mentions the skill and the helm calls. Version is `1.3.0` in code and manifest (BepInEx and Thunderstore need plain x.y.z); "beta" is only in the branch and release name. Not yet playtested as a whole.
 - [ ] **Feature branches waiting for playtest** (2026-10-05). Each is branched from main after 1.2.0, builds without warnings, is pushed and isn't merged; none is tested in game. Expect merge conflicts between them in `RowingPlugin.cs`, `Rower.cs` and `CrewPanel.cs`.
   - `feature/speed-gauge`: speed vs top sail speed in the panel.
   - `feature/rhythm-streak`: the crew streak bonus.

@@ -21,6 +21,39 @@ namespace RowingMod
         /// </summary>
         public static bool IsRepaint => Event.current.type == EventType.Repaint;
 
+        private static bool s_warm;
+
+        // Every character the mod's UI shows, so the font has them ready at each size and style.
+        private const string Glyphs = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,:;!?'\"()[]/%+-×·…";
+
+        /// <summary>
+        /// Does the UI's first-time work ahead of time: the shared textures, and the font's characters at every size
+        /// and style the mod uses. Unity prepares both on first use, which froze the game for ~0.7 s the first time
+        /// the crew panel appeared (2026-10-05). Call it inside OnGUI, under the loading fade; it runs once.
+        /// </summary>
+        public static void WarmUp()
+        {
+            if (s_warm)
+            {
+                return;
+            }
+            s_warm = true;
+            System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+            _ = Disc;
+            _ = Ring;
+            _ = Diamond;
+            _ = DiamondRing;
+            GUIContent content = new GUIContent(Glyphs);
+            foreach (int size in new[] { 0, 11 })
+            {
+                foreach (FontStyle style in new[] { FontStyle.Normal, FontStyle.Bold })
+                {
+                    LabelStyle(TextAnchor.MiddleLeft, style, false, size).CalcSize(content);
+                }
+            }
+            RowingPlugin.Log.LogInfo($"UI ready in {watch.ElapsedMilliseconds} ms");
+        }
+
         /// <summary>A copy of the skin's label style with changes, for caching: GUI.skin is only readable inside OnGUI.</summary>
         public static GUIStyle LabelStyle(TextAnchor alignment, FontStyle fontStyle, bool wordWrap, int fontSize = 0)
         {

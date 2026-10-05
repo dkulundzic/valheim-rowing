@@ -48,6 +48,9 @@ namespace RowingMod
         private class BeatStrokes
         {
             public readonly Dictionary<long, bool> StrongBySender = new Dictionary<long, bool>();
+            // Each stroke's strength as the rower sent it: 1 for a strong stroke, WeakStrokeFactor for a weak one,
+            // both raised by the rower's Rowing skill.
+            public readonly Dictionary<long, float> QualityBySender = new Dictionary<long, float>();
             public float AppliedBoost;
             public float AppliedBrake;
 
@@ -162,6 +165,12 @@ namespace RowingMod
             float submersion = Mathf.Clamp01(-Physics.gravity.y / (50f * Mathf.Max(0.01f, ship.m_force)));
             float drag = Mathf.Max(0.0001f, ship.m_dampingForward * submersion);
             return Mathf.Sqrt(sailPush / drag);
+        }
+
+        /// <summary>The ship's top sail speed (m/s) after TopSpeedMultiplier: the most rowing can push it to.</summary>
+        public float GetTopSpeed()
+        {
+            return TopSpeed();
         }
 
         private float TopSpeed()
@@ -331,6 +340,7 @@ namespace RowingMod
             }
             bool strong = quality >= 0.999f;
             strokes.StrongBySender[sender] = strong;
+            strokes.QualityBySender[sender] = quality;
             // An off-beat stroke on a beat someone already hit is a clash (as far as this client knows yet).
             int strongOnBeat = strokes.StrongCount;
             m_oars?.OnStroke(sender, strong, clash: !strong && strongOnBeat > 0, strongOnBeat, beatMs);
@@ -351,11 +361,25 @@ namespace RowingMod
             int strong = strokes.StrongCount;
             int weak = strokes.StrongBySender.Count - strong;
             float strength = RowingPlugin.StrokeStrength.Value;
+            float strongSum = 0f;
+            float weakSum = 0f;
+            foreach (KeyValuePair<long, bool> stroke in strokes.StrongBySender)
+            {
+                float quality = strokes.QualityBySender.TryGetValue(stroke.Key, out float q) ? q : 1f;
+                if (stroke.Value)
+                {
+                    strongSum += quality;
+                }
+                else
+                {
+                    weakSum += quality;
+                }
+            }
 
             float bonus = strong >= 2
                 ? Mathf.Min(RowingPlugin.SyncBonusPerRower.Value * (strong - 1), RowingPlugin.MaxSyncBonus.Value)
                 : 0f;
-            float boost = strong * strength * (1f + bonus);
+            float boost = strongSum * strength * (1f + bonus);
             float brake = 0f;
             if (strong > 0)
             {
@@ -365,7 +389,7 @@ namespace RowingMod
             else
             {
                 // Nobody hit the beat, so there's no rhythm to clash with; off-beat strokes are just weak.
-                boost += weak * strength * RowingPlugin.WeakStrokeFactor.Value;
+                boost += weakSum * strength;
             }
 
             m_boost = Mathf.Clamp(m_boost + boost - strokes.AppliedBoost, 0f, RowingPlugin.MaxBoost.Value);
@@ -674,11 +698,13 @@ namespace RowingMod
     {
         private static void Postfix(Ship __instance, float fixedDeltaTime)
         {
+            double started = HitchLog.Begin();
             ShipRowing rowing = __instance.GetComponent<ShipRowing>();
             if (rowing != null)
             {
                 rowing.ApplyBoost(fixedDeltaTime);
             }
+            HitchLog.End("ship physics", started);
         }
     }
 }
