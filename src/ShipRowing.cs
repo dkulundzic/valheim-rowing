@@ -26,6 +26,16 @@ namespace RowingMod
         public const string DrumPatternKey = "RowingMod_DrumPattern";
         // The number of the latest beat, counted by the owner, so every client agrees which measures end a phrase.
         public const string BeatIndexKey = "RowingMod_BeatIndex";
+        // The helmsman's calls: commands go to the owner, who keeps the state on the ship for everyone.
+        public const string HelmRpc = "RowingMod_Helm";
+        public const string TempoKey = "RowingMod_Tempo";                // -1 Easy, 0 Steady, 1 Hard
+        public const string RammingUntilKey = "RowingMod_RammingUntil";  // network-clock ms
+        public const string RammingReadyKey = "RowingMod_RammingReady";  // network-clock ms
+        public const string HoldWaterCallKey = "RowingMod_HoldWater";    // network-clock ms of the latest call
+        public const int HelmFaster = 1;
+        public const int HelmSlower = 2;
+        public const int HelmRamming = 3;
+        public const int HelmHoldWater = 4;
         // A brake not repeated for this long is dropped, in case its "off" got lost.
         private const float BrakeTimeout = 2.5f;
         // Below this speed (m/s) braking also adds a small constant deceleration, so the ship comes to a halt.
@@ -99,6 +109,7 @@ namespace RowingMod
             m_nview.Register<bool>(BrakeRpc, RPC_Brake);
             m_nview.Register<bool>(DrumRpc, RPC_Drum);
             m_nview.Register<int>(DrumPatternRpc, RPC_DrumPattern);
+            m_nview.Register<int>(HelmRpc, RPC_Helm);
             m_topSpeed = EstimateTopSailSpeed(m_ship);
             LogSeats();
         }
@@ -321,7 +332,7 @@ namespace RowingMod
         {
             int strong = strokes.StrongCount;
             int weak = strokes.StrongBySender.Count - strong;
-            float strength = RowingPlugin.StrokeStrength.Value;
+            float strength = RowingPlugin.StrokeStrength.Value * (IsRamming() ? 1f + Mathf.Max(0f, RowingPlugin.RammingStrength.Value) : 1f);
 
             float bonus = strong >= 2
                 ? Mathf.Min(RowingPlugin.SyncBonusPerRower.Value * (strong - 1), RowingPlugin.MaxSyncBonus.Value)
@@ -372,6 +383,73 @@ namespace RowingMod
             if (m_nview.IsOwner())
             {
                 m_nview.GetZDO().Set(DrumPatternKey, ((pattern % DrumPatterns.Count) + DrumPatterns.Count) % DrumPatterns.Count);
+            }
+        }
+
+        /// <summary>The helmsman's tempo call: -1 Easy, 0 Steady (automatic), 1 Hard. Readable on every client.</summary>
+        public int GetTempo()
+        {
+            return m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetInt(TempoKey) : 0;
+        }
+
+        /// <summary>Whether ramming speed is on right now.</summary>
+        public bool IsRamming()
+        {
+            return m_nview != null && m_nview.IsValid() && NowMs() < m_nview.GetZDO().GetLong(RammingUntilKey);
+        }
+
+        /// <summary>Seconds until ramming speed can be called again (0 when it can).</summary>
+        public float RammingCooldown()
+        {
+            if (m_nview == null || !m_nview.IsValid())
+            {
+                return 0f;
+            }
+            return Mathf.Max(0f, (m_nview.GetZDO().GetLong(RammingReadyKey) - NowMs()) / 1000f);
+        }
+
+        /// <summary>When the helmsman last called "Hold water!" (network-clock ms), 0 if never.</summary>
+        public long GetHoldWaterCall()
+        {
+            return m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetLong(HoldWaterCallKey) : 0;
+        }
+
+        /// <summary>The helmsman sends a call (HelmFaster, HelmSlower, HelmRamming, HelmHoldWater) to the owner.</summary>
+        public void SendHelmCommand(int command)
+        {
+            if (m_nview != null && m_nview.IsValid())
+            {
+                m_nview.InvokeRPC(HelmRpc, command);
+            }
+        }
+
+        private void RPC_Helm(long sender, int command)
+        {
+            if (!m_nview.IsOwner())
+            {
+                return;
+            }
+            ZDO zdo = m_nview.GetZDO();
+            long nowMs = NowMs();
+            switch (command)
+            {
+                case HelmFaster:
+                    zdo.Set(TempoKey, Mathf.Min(1, zdo.GetInt(TempoKey) + 1));
+                    break;
+                case HelmSlower:
+                    zdo.Set(TempoKey, Mathf.Max(-1, zdo.GetInt(TempoKey) - 1));
+                    break;
+                case HelmRamming:
+                    if (nowMs >= zdo.GetLong(RammingReadyKey))
+                    {
+                        long until = nowMs + SecondsToMs(RowingPlugin.RammingDuration.Value);
+                        zdo.Set(RammingUntilKey, until);
+                        zdo.Set(RammingReadyKey, until + SecondsToMs(RowingPlugin.RammingCooldown.Value));
+                    }
+                    break;
+                case HelmHoldWater:
+                    zdo.Set(HoldWaterCallKey, nowMs);
+                    break;
             }
         }
 
@@ -564,9 +642,25 @@ namespace RowingMod
         /// <summary>Time between beats: StrokeCycleStill when still, down to StrokeCycleTopSpeed at top sail speed.</summary>
         private long TempoMs(float direction)
         {
+            // Ramming speed: a fixed, very quick beat.
+            if (IsRamming())
+            {
+                return SecondsToMs(RowingPlugin.RammingCycle.Value);
+            }
             float topSpeed = TopSpeed();
             float speedRatio = topSpeed > 0.01f ? Mathf.Clamp01(Mathf.Abs(m_ship.GetSpeed()) / topSpeed) : 0f;
-            return SecondsToMs(Mathf.Lerp(RowingPlugin.StrokeCycleStill.Value, RowingPlugin.StrokeCycleTopSpeed.Value, speedRatio));
+            float seconds = Mathf.Lerp(RowingPlugin.StrokeCycleStill.Value, RowingPlugin.StrokeCycleTopSpeed.Value, speedRatio);
+            // The helmsman's call scales the automatic beat: Easy is slower, Hard quicker.
+            int tempo = GetTempo();
+            if (tempo < 0)
+            {
+                seconds *= RowingPlugin.EasyTempoFactor.Value;
+            }
+            else if (tempo > 0)
+            {
+                seconds *= RowingPlugin.HardTempoFactor.Value;
+            }
+            return SecondsToMs(seconds);
         }
 
         private void ForgetOldBeats()

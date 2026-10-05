@@ -39,6 +39,10 @@ namespace RowingMod
         private float m_messageUntil;
         private float m_ownerMissingSince = -1f;
         private bool m_ownerWarned;
+        // The helmsman's calls as last seen, so each new one shows a snackbar.
+        private int m_lastTempo;
+        private bool m_lastRamming;
+        private long m_lastHoldWaterCall;
         // Holding water: braking with the oar while the brake key is held.
         private bool m_braking;
         private float m_brakeHeartbeat;
@@ -73,7 +77,8 @@ namespace RowingMod
                 return;
             }
 
-            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player);
+            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player)
+                * (m_shipRowing.IsRamming() ? Mathf.Max(1f, RowingPlugin.RammingStamina.Value) : 1f);
             if (!player.HaveStamina(cost))
             {
                 Show("Too tired to row");
@@ -200,6 +205,9 @@ namespace RowingMod
             m_ship = ship;
             m_shipRowing = shipRowing;
             m_lastStrokeBeat = 0;
+            m_lastTempo = shipRowing.GetTempo();
+            m_lastRamming = shipRowing.IsRamming();
+            m_lastHoldWaterCall = shipRowing.GetHoldWaterCall();
 
             m_ownerMissingSince = -1f;
             m_ownerWarned = false;
@@ -207,9 +215,40 @@ namespace RowingMod
             return true;
         }
 
-        /// <summary>Shows a snackbar when strokes won't count, and again once they do.</summary>
+        /// <summary>Shows a snackbar for the helmsman's calls, when strokes won't count, and again once they do.</summary>
         private void UpdateNotices()
         {
+            if (m_shipRowing != null)
+            {
+                int tempo = m_shipRowing.GetTempo();
+                if (tempo != m_lastTempo)
+                {
+                    m_lastTempo = tempo;
+                    string detail = tempo < 0 ? "A slower beat: easier on stamina" : tempo > 0 ? "A quicker beat: more push, more stamina" : "The beat follows the ship's speed";
+                    Toast($"Helmsman: {CrewPanel.TempoName(tempo)}!", detail);
+                }
+                bool ramming = m_shipRowing.IsRamming();
+                if (ramming != m_lastRamming)
+                {
+                    m_lastRamming = ramming;
+                    if (ramming)
+                    {
+                        Toast("Helmsman: Ramming speed!",
+                            $"A very quick beat for {RowingPlugin.RammingDuration.Value:0} s: strokes +{RowingPlugin.RammingStrength.Value * 100f:0}%, stamina ×{RowingPlugin.RammingStamina.Value:0.#}");
+                    }
+                    else
+                    {
+                        Show("Ramming speed over");
+                    }
+                }
+                long holdWater = m_shipRowing.GetHoldWaterCall();
+                if (holdWater != m_lastHoldWaterCall)
+                {
+                    m_lastHoldWaterCall = holdWater;
+                    Toast("Helmsman: Hold water!", $"Hold {RowingPlugin.BrakeKey.Value} to brake");
+                }
+            }
+
             // Strokes go to the ship's owner, so they do nothing if that player doesn't run the mod.
             // Wait a moment before warning, since a new owner takes a sync or two to announce itself.
             if (m_shipRowing != null && m_shipRowing.HasModdedOwner())
@@ -363,6 +402,10 @@ namespace RowingMod
             string title = m_braking
                 ? $"Holding water [{RowingPlugin.BrakeKey.Value}]"
                 : ShipRowing.RowDirection(m_ship) < 0f ? $"Row back [{RowingPlugin.RowKey.Value}]" : $"Row [{RowingPlugin.RowKey.Value}]";
+            if (!m_braking && m_shipRowing.IsRamming())
+            {
+                title = $"RAMMING SPEED [{RowingPlugin.RowKey.Value}]";
+            }
             float staminaMultiplier = StaminaMultiplier(m_ship);
             if (staminaMultiplier > 1.05f)
             {

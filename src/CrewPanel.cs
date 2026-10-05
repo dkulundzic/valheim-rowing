@@ -56,9 +56,12 @@ namespace RowingMod
             useGUILayout = false;
         }
 
+        // The ship last steered, to remind the helmsman of the keys when they take the helm.
+        private Ship m_lastHelm;
+
         /// <summary>
-        /// Finds the panel's ship; at the helm, the drum key turns the ship's war drum on or off and the pattern key
-        /// picks its rhythm.
+        /// Finds the panel's ship. At the helm: the war drum (on or off, and its rhythm), the beat (quicker, slower),
+        /// ramming speed and the "Hold water!" call. Taking the helm shows the keys once.
         /// </summary>
         private void Update()
         {
@@ -72,13 +75,18 @@ namespace RowingMod
 
             Player player = Player.m_localPlayer;
             Ship ship = player != null ? player.GetControlledShip() : null;
-            if (ship == null)
+            if (ship != m_lastHelm)
             {
-                return;
+                m_lastHelm = ship;
+                if (ship != null)
+                {
+                    player.Message(MessageHud.MessageType.TopLeft,
+                        $"Helm: {RowingPlugin.DrumKey.Value} war drum, {RowingPlugin.DrumPatternKey.Value} drum rhythm, " +
+                        $"{RowingPlugin.TempoUpKey.Value}/{RowingPlugin.TempoDownKey.Value} quicker/slower beat, " +
+                        $"{RowingPlugin.RammingKey.Value} ramming speed, {RowingPlugin.HoldWaterCallKey.Value} \"Hold water!\"");
+                }
             }
-            bool toggle = ZInput.GetKeyDown(RowingPlugin.DrumKey.Value, logWarning: false);
-            bool next = ZInput.GetKeyDown(RowingPlugin.DrumPatternKey.Value, logWarning: false);
-            if (!toggle && !next)
+            if (ship == null)
             {
                 return;
             }
@@ -92,18 +100,55 @@ namespace RowingMod
             {
                 return;
             }
-            if (toggle)
+            if (ZInput.GetKeyDown(RowingPlugin.DrumKey.Value, logWarning: false))
             {
                 bool on = !rowing.IsDrumOn();
                 rowing.RequestDrum(on);
                 player.Message(MessageHud.MessageType.Center, on ? "War drum on" : "War drum off");
             }
-            else if (RowingSounds.HasDrumKit())
+            if (ZInput.GetKeyDown(RowingPlugin.DrumPatternKey.Value, logWarning: false) && RowingSounds.HasDrumKit())
             {
                 int pattern = (rowing.GetDrumPattern() + 1) % DrumPatterns.Count;
                 rowing.RequestDrumPattern(pattern);
                 player.Message(MessageHud.MessageType.Center, $"War drum: {DrumPatterns.Names[pattern]} ({pattern + 1}/{DrumPatterns.Count})");
             }
+            if (ZInput.GetKeyDown(RowingPlugin.TempoUpKey.Value, logWarning: false))
+            {
+                rowing.SendHelmCommand(ShipRowing.HelmFaster);
+                player.Message(MessageHud.MessageType.Center, $"Beat: {TempoName(Mathf.Min(1, rowing.GetTempo() + 1))}");
+            }
+            if (ZInput.GetKeyDown(RowingPlugin.TempoDownKey.Value, logWarning: false))
+            {
+                rowing.SendHelmCommand(ShipRowing.HelmSlower);
+                player.Message(MessageHud.MessageType.Center, $"Beat: {TempoName(Mathf.Max(-1, rowing.GetTempo() - 1))}");
+            }
+            if (ZInput.GetKeyDown(RowingPlugin.RammingKey.Value, logWarning: false))
+            {
+                float cooldown = rowing.RammingCooldown();
+                if (rowing.IsRamming())
+                {
+                    player.Message(MessageHud.MessageType.Center, "Ramming speed!");
+                }
+                else if (cooldown > 0f)
+                {
+                    player.Message(MessageHud.MessageType.Center, $"The crew needs {cooldown:0} s before ramming speed again");
+                }
+                else
+                {
+                    rowing.SendHelmCommand(ShipRowing.HelmRamming);
+                    player.Message(MessageHud.MessageType.Center, "Ramming speed!");
+                }
+            }
+            if (ZInput.GetKeyDown(RowingPlugin.HoldWaterCallKey.Value, logWarning: false))
+            {
+                rowing.SendHelmCommand(ShipRowing.HelmHoldWater);
+                player.Message(MessageHud.MessageType.Center, "Hold water!");
+            }
+        }
+
+        public static string TempoName(int tempo)
+        {
+            return tempo < 0 ? "Easy" : tempo > 0 ? "Hard" : "Steady";
         }
 
         private void OnGUI()
