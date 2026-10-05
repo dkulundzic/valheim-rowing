@@ -303,7 +303,7 @@ namespace RowingMod
             source.pitch = pitch;
             source.maxDistance = maxDistance;
             source.outputAudioMixerGroup = s_sfxGroup;
-            // The drum is the most important of the mod's sounds; all of them yield to the game's own (128).
+            // The drum keeps time for the crew, so it outranks other sounds; the rest share the game's default (128).
             source.priority = maxDistance >= DrumMaxDistance ? DrumPriority : SoundPriority;
             source.time = Mathf.Clamp(start, 0f, Mathf.Max(0f, clip.length - 0.05f));
             source.PlayDelayed(delay);
@@ -313,9 +313,12 @@ namespace RowingMod
         // Sound sources are pooled: playing a sound reuses a free one instead of creating and destroying an object.
         // With every voice busy, the one closest to finishing is cut short. The cap also keeps a full crew and a
         // busy drum from crowding out the game's own sounds.
+        // Priorities (lower is more important): at sea the game plays many sounds at once, and Unity silences the
+        // least important when it runs out of voices. Below the game's default, the drum's quieter hits could go
+        // silent at sea and leave only the boom on each stroke.
         private const int MaxVoices = 24;
-        private const int SoundPriority = 200;
-        private const int DrumPriority = 160;
+        private const int SoundPriority = 128;
+        private const int DrumPriority = 64;
         private static readonly List<Voice> s_voices = new List<Voice>();
         private static GameObject s_voiceHolder;
 
