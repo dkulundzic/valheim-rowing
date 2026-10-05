@@ -52,6 +52,8 @@ namespace RowingMod
         private bool m_seatIsBench;
         private static GUIStyle s_nameStyle;
         private static GUIStyle s_footerStyle;
+        private static GUIStyle s_gaugeStyle;
+        private static GUIStyle s_gaugeTopStyle;
         // The ship last steered, to remind the helmsman of the keys when they take the helm.
         private Ship m_lastHelm;
 
@@ -354,7 +356,13 @@ namespace RowingMod
         /// </summary>
         private static void DrawSpeedGauge(Rect rect, float speed, float topSpeed)
         {
-            GUIStyle text = new GUIStyle(GUI.skin.label) { fontSize = 11, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, wordWrap = false, clipping = TextClipping.Overflow };
+            if (s_gaugeStyle == null)
+            {
+                s_gaugeStyle = RowingUI.LabelStyle(TextAnchor.MiddleLeft, FontStyle.Bold, false, 11);
+                s_gaugeStyle.clipping = TextClipping.Overflow;
+                s_gaugeTopStyle = new GUIStyle(s_gaugeStyle) { alignment = TextAnchor.MiddleRight, fontStyle = FontStyle.Normal };
+            }
+            GUIStyle text = s_gaugeStyle;
             const float textWidth = 56f;
             RowingUI.Label(new Rect(rect.x, rect.y, textWidth, rect.height), $"{Mathf.Abs(speed):0.0} m/s", text);
 
@@ -364,8 +372,7 @@ namespace RowingMod
             RowingUI.DrawRect(new Rect(bar.x, bar.y, bar.width * fill, bar.height), GaugeColor);
             RowingUI.DrawRect(new Rect(bar.xMax - 1f, bar.y - 3f, 2f, bar.height + 6f), new Color(1f, 1f, 1f, 0.8f));
 
-            GUIStyle top = new GUIStyle(text) { alignment = TextAnchor.MiddleRight, fontStyle = FontStyle.Normal };
-            RowingUI.Label(new Rect(bar.xMax, rect.y, rect.xMax - bar.xMax, rect.height), $"{topSpeed:0.0}", top);
+            RowingUI.Label(new Rect(bar.xMax, rect.y, rect.xMax - bar.xMax, rect.height), $"{topSpeed:0.0}", s_gaugeTopStyle);
         }
 
         private static string SpeedSettingName(Ship.Speed speed)
