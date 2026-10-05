@@ -294,55 +294,108 @@ namespace RowingMod
             {
                 return;
             }
-            GameObject sound = new GameObject("RowingMod_Sound");
-            sound.transform.position = position;
-            AudioSource source = sound.AddComponent<AudioSource>();
+            float playSeconds = (length > 0f ? length : clip.length - start) / Mathf.Max(0.1f, pitch);
+            Voice voice = TakeVoice(Time.time + delay + playSeconds + 0.1f);
+            AudioSource source = voice.Source;
+            voice.transform.position = position;
             source.clip = clip;
             source.volume = Mathf.Clamp01(volume);
             source.pitch = pitch;
-            source.spatialBlend = 1f;
-            source.rolloffMode = AudioRolloffMode.Linear;
-            source.minDistance = 2f;
             source.maxDistance = maxDistance;
             source.outputAudioMixerGroup = s_sfxGroup;
+            // The drum is the most important of the mod's sounds; all of them yield to the game's own (128).
+            source.priority = maxDistance >= DrumMaxDistance ? DrumPriority : SoundPriority;
             source.time = Mathf.Clamp(start, 0f, Mathf.Max(0f, clip.length - 0.05f));
             source.PlayDelayed(delay);
-
-            float playSeconds = (length > 0f ? length : clip.length - start) / Mathf.Max(0.1f, pitch);
-            if (length > 0f)
-            {
-                sound.AddComponent<SliceFade>().Begin(source, playSeconds, delay);
-            }
-            Object.Destroy(sound, delay + playSeconds + 0.1f);
+            voice.Begin(length > 0f, playSeconds, delay);
         }
 
-        /// <summary>Fades a sound slice in quickly and out at its end, so a cut from a longer clip doesn't click.</summary>
-        private class SliceFade : MonoBehaviour
+        // Sound sources are pooled: playing a sound reuses a free one instead of creating and destroying an object.
+        // With every voice busy, the one closest to finishing is cut short. The cap also keeps a full crew and a
+        // busy drum from crowding out the game's own sounds.
+        private const int MaxVoices = 24;
+        private const int SoundPriority = 200;
+        private const int DrumPriority = 160;
+        private static readonly List<Voice> s_voices = new List<Voice>();
+        private static GameObject s_voiceHolder;
+
+        private static Voice TakeVoice(float busyUntil)
+        {
+            if (s_voiceHolder == null)
+            {
+                s_voices.Clear();
+                s_voiceHolder = new GameObject("RowingMod_Sounds");
+                Object.DontDestroyOnLoad(s_voiceHolder);
+            }
+            Voice chosen = null;
+            foreach (Voice voice in s_voices)
+            {
+                if (voice.BusyUntil <= Time.time)
+                {
+                    chosen = voice;
+                    break;
+                }
+                if (s_voices.Count >= MaxVoices && (chosen == null || voice.BusyUntil < chosen.BusyUntil))
+                {
+                    chosen = voice;
+                }
+            }
+            if (chosen == null)
+            {
+                GameObject sound = new GameObject("RowingMod_Sound");
+                sound.transform.SetParent(s_voiceHolder.transform, worldPositionStays: false);
+                AudioSource source = sound.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.spatialBlend = 1f;
+                source.rolloffMode = AudioRolloffMode.Linear;
+                source.minDistance = 2f;
+                chosen = sound.AddComponent<Voice>();
+                chosen.Source = source;
+                s_voices.Add(chosen);
+            }
+            chosen.Source.Stop();
+            chosen.BusyUntil = busyUntil;
+            return chosen;
+        }
+
+        /// <summary>
+        /// One pooled sound source. A slice cut from a longer clip fades in quickly and out at its end, so the cut
+        /// doesn't click.
+        /// </summary>
+        private class Voice : MonoBehaviour
         {
             private const float FadeIn = 0.05f;
             private const float FadeOut = 0.15f;
-            private AudioSource m_source;
+            public AudioSource Source;
+            public float BusyUntil;
+            private bool m_fade;
             private float m_volume;
             private float m_length;
             private float m_start;
 
-            public void Begin(AudioSource source, float length, float delay)
+            public void Begin(bool fade, float length, float delay)
             {
-                m_source = source;
-                m_volume = source.volume;
+                m_fade = fade;
+                enabled = fade;
+                if (!fade)
+                {
+                    return;
+                }
+                m_volume = Source.volume;
                 m_length = length;
                 m_start = Time.time + delay;
-                source.volume = 0f;
+                Source.volume = 0f;
             }
 
             private void Update()
             {
-                if (m_source == null)
+                if (!m_fade || Time.time > m_start + m_length)
                 {
+                    enabled = false;
                     return;
                 }
                 float t = Time.time - m_start;
-                m_source.volume = m_volume * Mathf.Min(Mathf.Clamp01(t / FadeIn), Mathf.Clamp01((m_length - t) / FadeOut));
+                Source.volume = m_volume * Mathf.Min(Mathf.Clamp01(t / FadeIn), Mathf.Clamp01((m_length - t) / FadeOut));
             }
         }
 

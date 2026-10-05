@@ -88,6 +88,15 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - `package/`: Thunderstore files: `manifest.json`, `README.md` (player-facing) and `icon.png`. `make_icon.py` regenerates the icon with Pillow.
 - `package.sh`: builds Release and writes `dist/RowingMod-<version>.zip` (not committed).
 
+## Performance
+
+Checked on 2026-10-05 at the user's request (no profiling; nothing showed up in game). Keep these when changing code:
+
+- **IMGUI** (`Rower`, `CrewPanel`): `useGUILayout = false`, and `OnGUI` draws only on `EventType.Repaint` (`RowingUI.IsRepaint`). Styles are cached statics made on first draw (`RowingUI.LabelStyle`), text is measured with one reused `GUIContent`, and the panel's ship and seat check are found in `Update`, re-searching chairs only when the seat changes. Don't allocate in `OnGUI`.
+- **Sounds:** `RowingSounds.PlayAt` reuses a pool of 24 `AudioSource`s (`Voice`); when all are busy, the one closest to finishing is cut. Priorities: drum 160, other mod sounds 200 (the game's default is 128), so the mod yields voices to the game.
+- **Far ships:** `ShipOars.Update` does nothing for ships more than 90 m from the local player, and looks for bench occupants only while a player is within 15 m of the ship.
+- **Once per ship:** gunwale raycasts, the hull outline texture and the top-speed estimate.
+
 ## Commands
 
 - `dotnet` comes from mise and isn't on PATH. Run it as `mise exec dotnet@8 -- dotnet …`.

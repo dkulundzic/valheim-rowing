@@ -44,6 +44,11 @@ namespace RowingMod
         private float m_brakeHeartbeat;
         // How often a braking rower repeats "still braking", so the owner can drop a brake whose "off" got lost.
         private const float BrakeHeartbeatInterval = 1f;
+        // Text styles, made once on first draw, and a reusable content for measuring text.
+        private static GUIStyle s_labelStyle;
+        private static GUIStyle s_toastTitleStyle;
+        private static GUIStyle s_toastBodyStyle;
+        private static readonly GUIContent s_content = new GUIContent();
         private string m_toastTitle;
         private string m_toastBody;
         private float m_toastStart;
@@ -295,9 +300,15 @@ namespace RowingMod
             m_messageUntil = Time.time + MessageTime;
         }
 
+        private void Awake()
+        {
+            // Everything is drawn with GUI (not GUILayout), so skip IMGUI's layout pass.
+            useGUILayout = false;
+        }
+
         private void OnGUI()
         {
-            if (m_ship == null || m_seat == null)
+            if (m_ship == null || m_seat == null || !RowingUI.IsRepaint)
             {
                 return;
             }
@@ -319,11 +330,12 @@ namespace RowingMod
             const float height = 16f;
             float x = (RowingUI.Width - width) / 2f;
             float textX = (RowingUI.Width - TextWidth) / 2f;
-            GUIStyle style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = false };
+            GUIStyle style = s_labelStyle ?? (s_labelStyle = RowingUI.LabelStyle(TextAnchor.MiddleCenter, FontStyle.Bold, false));
 
             // Stack from the bottom up, measuring each text line, so nothing overlaps whatever the font size:
             // message line (space kept even when empty, so the bar doesn't jump), bar, title, snackbar.
-            float messageHeight = style.CalcHeight(new GUIContent("Ag"), TextWidth);
+            s_content.text = "Ag";
+            float messageHeight = style.CalcHeight(s_content, TextWidth);
             float messageY = GetHudBarsTop() / RowingUI.Scale - BarGap - RowingPlugin.BarOffset.Value - messageHeight;
             // The marker sticks out 4 px above and below the bar.
             float y = messageY - StackGap - 4f - height;
@@ -366,7 +378,8 @@ namespace RowingMod
             {
                 title += $"   Crew boost {boost * 100f:0}%";
             }
-            float titleHeight = style.CalcHeight(new GUIContent(title), TextWidth);
+            s_content.text = title;
+            float titleHeight = style.CalcHeight(s_content, TextWidth);
             float titleY = y - 4f - StackGap - titleHeight;
             RowingUI.Label(new Rect(textX, titleY, TextWidth, titleHeight), title, style);
 
@@ -399,11 +412,13 @@ namespace RowingMod
             // Slides down into place from above, so it never covers the bar's title below it.
             float slide = (1f - fadeIn) * (1f - fadeIn) * 12f;
 
-            GUIStyle titleStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = true };
-            GUIStyle bodyStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, wordWrap = true };
+            GUIStyle titleStyle = s_toastTitleStyle ?? (s_toastTitleStyle = RowingUI.LabelStyle(TextAnchor.MiddleCenter, FontStyle.Bold, true));
+            GUIStyle bodyStyle = s_toastBodyStyle ?? (s_toastBodyStyle = RowingUI.LabelStyle(TextAnchor.MiddleCenter, FontStyle.Normal, true));
             float textWidth = ToastWidth - 2f * ToastPadding;
-            float titleHeight = titleStyle.CalcHeight(new GUIContent(m_toastTitle), textWidth);
-            float bodyHeight = bodyStyle.CalcHeight(new GUIContent(m_toastBody), textWidth);
+            s_content.text = m_toastTitle;
+            float titleHeight = titleStyle.CalcHeight(s_content, textWidth);
+            s_content.text = m_toastBody;
+            float bodyHeight = bodyStyle.CalcHeight(s_content, textWidth);
             float height = ToastPadding + titleHeight + bodyHeight + ToastPadding;
 
             Rect panel = new Rect((RowingUI.Width - ToastWidth) / 2f, bottom - height - slide, ToastWidth, height);

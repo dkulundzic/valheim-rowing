@@ -150,6 +150,11 @@ namespace RowingMod
         private Vector3 m_lastPosition;
         private bool m_hasLastPosition;
         private readonly List<Oar> m_oars = new List<Oar>();
+        // Beyond ActiveDistance from the local player, a ship's oars stop updating (the drum carries 70 m).
+        // Within CrewDistance of the ship's centre, a player may be on a bench (a Longship is about 20 m long).
+        private const float ActiveDistance = 90f;
+        private const float CrewDistance = 15f;
+        private bool m_idle;
         private bool m_built;
 
         private void Awake()
@@ -397,6 +402,27 @@ namespace RowingMod
                 }
                 return;
             }
+            // Ships far from the local player (e.g. parked at a harbour) skip their oars, wakes and drum: nobody
+            // here would see or hear them. They pick up again on approach.
+            Player local = Player.m_localPlayer;
+            if (local == null || (local.transform.position - transform.position).sqrMagnitude > ActiveDistance * ActiveDistance)
+            {
+                if (!m_idle)
+                {
+                    m_idle = true;
+                    m_hasLastPosition = false;
+                    m_lastDrumBeat = 0;
+                    m_drumCount = 0;
+                    m_drumScheduledUntil = 0;
+                    foreach (Oar oar in m_oars)
+                    {
+                        oar.Occupant = null;
+                        oar.Braking = false;
+                    }
+                }
+                return;
+            }
+            m_idle = false;
             if (!m_built)
             {
                 Build();
@@ -404,6 +430,8 @@ namespace RowingMod
 
             UpdateSpeed();
             UpdateDrum();
+            // Only look for each bench's occupant when some player is on or right by the ship.
+            bool anyoneClose = AnyPlayerWithin(CrewDistance);
             foreach (Oar oar in m_oars)
             {
                 if (!oar.Root.gameObject.activeSelf)
@@ -411,7 +439,7 @@ namespace RowingMod
                     oar.Root.gameObject.SetActive(true);
                 }
                 // Who sits here decides whose strokes swing this oar. An empty bench can't be braking.
-                oar.Occupant = FindOccupant(oar.Seat);
+                oar.Occupant = anyoneClose ? FindOccupant(oar.Seat) : null;
                 if (oar.Occupant == null)
                 {
                     oar.Braking = false;
@@ -498,6 +526,19 @@ namespace RowingMod
                 }
             }
             m_drumScheduledUntil = until;
+        }
+
+        private bool AnyPlayerWithin(float distance)
+        {
+            Vector3 position = transform.position;
+            foreach (Player player in Player.GetAllPlayers())
+            {
+                if (player != null && (player.transform.position - position).sqrMagnitude < distance * distance)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private bool AnyPlayerAboard()
