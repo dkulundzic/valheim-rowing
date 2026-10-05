@@ -58,6 +58,7 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
       - **Patterns:** `src/DrumPatterns.cs` mirrors the Python previews. `Build(pattern, beatIndex, period, seed)` returns one measure's hits; the human-hand jitter is seeded from the beat's time, so every client hears the same hits.
       - **Sync:** the owner counts beats in ZDO long `RowingMod_BeatIndex` (for "every fourth measure"), and stores the rhythm in ZDO int `RowingMod_DrumPattern` (RPC `RowingMod_DrumPattern(int)` from the helm, key `Controls.DrumPatternKey` = P).
       - **Playback:** `ShipOars.UpdateDrumPattern` schedules hits up to 200 ms ahead with `PlayDelayed`, so timing doesn't depend on frame rate.
+      - **Volume:** `Sounds.DrumVolume` defaults to 1.25 and goes up to 2. Each hit plays at `DrumVolume × gain`, capped at 1, so above 1 the quiet hits rise while the stroke boom stays at full. The drum files are already normalized to −1 dBFS. The user asked for louder drums because the rhythms were hard to tell apart (2026-10-05).
   - **Wakes** (`UI.ShowWakes`, `UI.WakeEffect`, default `vfx_water_surface` at half scale): three ripples along each stroke's drive at the blade on the water line, and every ~0.5 s while braking above 1 m/s.
   - **Each stroke is layered** (the user wants believable, non-repeating sounds; values are defaults, each a `Sounds.*` setting):
     - **Splash** (`fx_footstep_water`, 7 wading clips): random clip, pitch 0.9–1.12, volume jitter.

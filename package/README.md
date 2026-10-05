@@ -75,7 +75,7 @@ After the first launch, the settings are in `BepInEx\config\com.dkulundzic.rowin
 | `UI.ShowSplashes` | true | Show water spray at the blade on each stroke. |
 | `Controls.DrumKey` | H | At the helm: turn the ship's war drum on or off. |
 | `Controls.DrumPatternKey` | P | At the helm: switch the war drum to its next rhythm. |
-| `Sounds.DrumVolume` | 0.8 | Volume of the war drum. |
+| `Sounds.DrumVolume` | 1.25 | Volume of the war drum, 0 to 2. Above 1, the quieter hits get louder while the stroke boom stays at full, so the rhythm stands out more. |
 | `Stamina.RestedDiscount` | 0.1 | Rested rowers pay this fraction less stamina. |
 | `UI.ShowWakes` | true | Show subtle wakes where blades sweep through the water. |
 
