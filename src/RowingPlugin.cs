@@ -51,6 +51,11 @@ namespace RowingMod
         internal static ConfigEntry<float> DrumVolume;
         internal static ConfigEntry<string> DrumSound;
         internal static ConfigEntry<KeyCode> DrumKey;
+        internal static ConfigEntry<KeyCode> TempoUpKey;
+        internal static ConfigEntry<KeyCode> TempoDownKey;
+        internal static ConfigEntry<KeyCode> HoldWaterCallKey;
+        internal static ConfigEntry<float> EasyTempoFactor;
+        internal static ConfigEntry<float> HardTempoFactor;
         internal static ConfigEntry<float> RestedDiscount;
         internal static ConfigEntry<float> SkillGain;
         internal static ConfigEntry<float> SkillStaminaReduction;
@@ -70,6 +75,18 @@ namespace RowingMod
 
             DrumKey = Config.Bind("Controls", "DrumKey", KeyCode.H,
                 "Key the helmsman presses to turn the ship's war drum on or off. At the helm it doesn't clash with rowing.");
+            TempoUpKey = Config.Bind("Controls", "TempoUpKey", KeyCode.U,
+                "At the helm: call a quicker beat (Easy, Steady, Hard).");
+            TempoDownKey = Config.Bind("Controls", "TempoDownKey", KeyCode.N,
+                "At the helm: call a slower beat (Hard, Steady, Easy).");
+            HoldWaterCallKey = Config.Bind("Controls", "HoldWaterCallKey", KeyCode.J,
+                "At the helm: call \"Hold water!\", telling the crew to brake. Rowers brake themselves with the brake key.");
+
+            EasyTempoFactor = Config.Bind("Helm", "EasyTempoFactor", 1.25f,
+                "The helmsman's Easy call: the beat is this many times longer than the automatic one.");
+            HardTempoFactor = Config.Bind("Helm", "HardTempoFactor", 0.8f,
+                "The helmsman's Hard call: the beat is this many times the automatic one.");
+
             BrakeKey = Config.Bind("Controls", "BrakeKey", KeyCode.J,
                 "Key a seated rower holds to hold water (brake with the oar). Movement, attack, jump and crouch keys stand you up, so don't use those.");
 

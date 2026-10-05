@@ -40,6 +40,12 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **Oars:** every rowing bench has an oar. On an empty bench it's pulled in and stowed inside the hull; when someone sits down, it swings out and rests in the water. Each stroke swings it through the water and back. A crew in sync rows visibly together, and you can hear it: every oar splashes where it is, and a crew hitting the beat together sounds fuller and deeper. Wood creaks under strong strokes, and each blade leaves a subtle wake on the water. Only players with the mod see and hear the oars.
 
+**The helmsman calls the beat:** at the helm,
+- **U** calls a quicker beat and **N** a slower one, stepping through Easy (a slower beat, easier on stamina), Steady (automatic, the default) and Hard (a quicker beat, more push and more stamina).
+- **J** calls **"Hold water!"**, telling the crew to brake. Each rower brakes themselves with J.
+
+Rowers get a message for every call, and the crew panel shows the current beat.
+
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
 **Rowing skill:** rowing raises a new **Rowing** skill (in the skills screen, with an oar icon). Strong strokes train it most, weak ones a little. **The green zone grows with the skill:** a beginner gets a narrow window, **12% of the beat at level 0**, widening steadily to **28% at level 100** (20%, the old fixed width, at level 50). At level 100, strokes and braking also cost **30% less** stamina and strokes are **15% stronger**, scaling smoothly with level. Like other skills, it drops a little on death.

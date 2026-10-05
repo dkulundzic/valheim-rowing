@@ -11,6 +11,12 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Clients:** extend the schedule with `GetBeat`. A stale schedule (more than 2 s past the next beat, e.g. after sleeping) restarts.
   - **A press belongs to the nearest beat:** within ±(green zone width)/2 of the beat it's strong, otherwise off-beat. On this branch the width comes from the Rowing skill (`RowingSkill.SweetSpotWidth`); `Timing.SweetSpotWidth` is removed.
   - **One stroke per beat;** a second press is mashing (stamina spent, no stroke).
+- **Helm calls** (from `feature/helmsman-beat`, playtested and merged into main on 2026-10-05):
+  - **Keys:** `CrewPanel.Update` reads the helm keys (U/N tempo, J "Hold water!" call, H drum) and sends RPC `RowingMod_Helm(int)` to the owner.
+  - **State:** the owner stores ZDO `RowingMod_Tempo` (-1/0/1) and `RowingMod_HoldWater` (ms of the last call).
+  - **Effect:** `TempoMs` scales the speed-based period by `Helm.EasyTempoFactor` 1.25 / `HardTempoFactor` 0.8.
+  - **Feedback:** rowers get snackbars per call, and the panel footer shows "Beat: Easy/Steady/Hard".
+  - **Ramming speed (K) was removed from main** right after the merge, at the user's request: it comes back together with the drum rhythms (`feature/ramming-drum`). Helm command 3 is kept free for it. **When merging `feature/ramming-drum` into main, revert the removal commit on main first** (`git revert 85ba936`); otherwise git keeps main's deletion of the ramming code that the branch didn't change.
 - **Sync and clash,** computed by the owner per beat in `ApplyBeat`:
   - **Sync:** strong strokes on the same beat each get `+SyncBonusPerRower × (n−1)`, capped at `MaxSyncBonus`.
   - **Clash:** if anyone hit the beat, each off-beat stroke on it adds no boost and adds `ClashBrake` to a separate brake pool. The brake only slows the ship and never reverses it. If nobody hit the beat, off-beat strokes are weak (`WeakStrokeFactor`).
@@ -89,6 +95,16 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
 - `package/`: Thunderstore files: `manifest.json`, `README.md` (player-facing) and `icon.png`. `make_icon.py` regenerates the icon with Pillow.
 - `package.sh`: builds Release and writes `dist/RowingMod-<version>.zip` (not committed).
 
+## Performance
+
+Checked on 2026-10-05 at the user's request (no profiling; nothing showed up in game). Keep these when changing code:
+
+- **IMGUI** (`Rower`, `CrewPanel`): `useGUILayout = false`, and `OnGUI` draws only on `EventType.Repaint` (`RowingUI.IsRepaint`). Styles are cached statics made on first draw (`RowingUI.LabelStyle`), text is measured with one reused `GUIContent`, and the panel's ship and seat check are found in `Update`, re-searching chairs only when the seat changes. Don't allocate in `OnGUI`.
+- **Sounds:** `RowingSounds.PlayAt` reuses a pool of 24 `AudioSource`s (`Voice`); when all are busy, the one closest to finishing is cut. Priorities: drum 64, other mod sounds 128 (the game's default). They were 160/200 for a day, to yield voices to the game; raised after the user heard drum rhythms that didn't change and a late drum start on the crew server (suspected voice stealing; not confirmed).
+- **Far ships:** `ShipOars.Update` does nothing for ships more than 90 m from the local player, and looks for bench occupants only while a player is within 15 m of the ship.
+- **Clock:** `ShipRowing.NowMs()` is the network clock smoothed: it runs on real time and eases toward `ZNet.GetTimeSeconds()` (2 s time constant, never backward, at least half speed), snapping only on gaps over 1.5 s. A client's network clock is overwritten by the server's every 2 s and lags on frame hitches; the user's drum log on the crew server (2026-10-05) showed ~40 jumps in 2 minutes, mostly backward, up to 0.7 s, which broke the drum's rhythm.
+- **Once per ship:** gunwale raycasts, the hull outline texture and the top-speed estimate.
+
 ## Commands
 
 - `dotnet` comes from mise and isn't on PATH. Run it as `mise exec dotnet@8 -- dotnet …`.
@@ -160,6 +176,19 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **To tune by playtest:** `Brake.Strength`, and how strong the turning torque is.
 - [x] **Released 1.1.0** on GitHub (2026-10-04), bundling everything since 1.0.0; 1.0.1 was never published. `Debug.LogSoundCandidates` is off by default for release.
 - [x] **Released 1.2.0** on GitHub (2026-10-04): the helmsman's war drum (generated sound), oar wakes, a 10% Rested discount; the beat tick is removed. The recorded dundun is not included.
+- [ ] **Feature branches waiting for playtest** (2026-10-05). Each is branched from main after 1.2.0, builds without warnings, is pushed and isn't merged; none is tested in game. Expect merge conflicts between them in `RowingPlugin.cs`, `Rower.cs` and `CrewPanel.cs`.
+  - `feature/speed-gauge`: speed vs top sail speed in the panel.
+  - `feature/rhythm-streak`: the crew streak bonus.
+  - `feature/tutorial`: first-time snackbars.
+  - `feature/voyage-stats`: per-stint summary and lifetime totals.
+  - `feature/weather-stamina`: storm and rough-sea cost.
+  - `feature/cold-stamina`: Cold and Freezing cost.
+  - `feature/colorblind-panel`: Okabe-Ito colours and glyphs.
+  - `feature/assisted-rowing`: hold H to auto-row, owner can disallow.
+  - `feature/rowing-skill`: a custom Rowing skill; the green zone is narrow at low skill and widens with level (12% at 0, 20% at 50, 28% at 100), as the user asked.
+  - `feature/gamepad`: RT row, LT brake.
+  - `feature/rower-lean`: experimental body lean.
+  - **Not done:** the Drakkar check (the user has none), grunts (waiting for recordings), Thunderstore (needs the user's account), "rowing cools you down" (I recommended skipping it).
 - [ ] **Next:** discuss grunting or effort sounds for rowers.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.

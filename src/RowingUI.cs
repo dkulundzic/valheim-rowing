@@ -11,6 +11,21 @@ namespace RowingMod
     {
         private static Texture2D s_disc;
         private static Texture2D s_ring;
+        // ClipLine's scratch space, reused so drawing the panel doesn't allocate (IMGUI runs on the main thread only).
+        private static readonly float[] s_clipP = new float[4];
+        private static readonly float[] s_clipQ = new float[4];
+
+        /// <summary>
+        /// Whether an OnGUI call should draw. The mod's UI only draws (no buttons or layout), so it skips every event
+        /// but Repaint: OnGUI runs several times a frame, and the other passes would only redo the same work.
+        /// </summary>
+        public static bool IsRepaint => Event.current.type == EventType.Repaint;
+
+        /// <summary>A copy of the skin's label style with changes, for caching: GUI.skin is only readable inside OnGUI.</summary>
+        public static GUIStyle LabelStyle(TextAnchor alignment, FontStyle fontStyle, bool wordWrap, int fontSize = 0)
+        {
+            return new GUIStyle(GUI.skin.label) { alignment = alignment, fontStyle = fontStyle, wordWrap = wordWrap, fontSize = fontSize };
+        }
 
         public static float Scale
         {
@@ -61,8 +76,10 @@ namespace RowingMod
             float t0 = 0f;
             float t1 = 1f;
             Vector2 d = b - a;
-            float[] p = { -d.x, d.x, -d.y, d.y };
-            float[] q = { a.x - rect.xMin, rect.xMax - a.x, a.y - rect.yMin, rect.yMax - a.y };
+            float[] p = s_clipP;
+            float[] q = s_clipQ;
+            p[0] = -d.x; p[1] = d.x; p[2] = -d.y; p[3] = d.y;
+            q[0] = a.x - rect.xMin; q[1] = rect.xMax - a.x; q[2] = a.y - rect.yMin; q[3] = rect.yMax - a.y;
             for (int i = 0; i < 4; i++)
             {
                 if (Mathf.Approximately(p[i], 0f))

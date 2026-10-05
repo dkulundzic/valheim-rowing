@@ -21,6 +21,14 @@ namespace RowingMod
         // The helmsman turning the war drum on or off; sent to the owner, who stores it on the ship.
         public const string DrumRpc = "RowingMod_Drum";
         public const string DrumKey = "RowingMod_Drum";
+        // The helmsman's calls: commands go to the owner, who keeps the state on the ship for everyone.
+        public const string HelmRpc = "RowingMod_Helm";
+        public const string TempoKey = "RowingMod_Tempo";                // -1 Easy, 0 Steady, 1 Hard
+        public const string HoldWaterCallKey = "RowingMod_HoldWater";    // network-clock ms of the latest call
+        public const int HelmFaster = 1;
+        public const int HelmSlower = 2;
+        // 3 is kept for ramming speed, which comes back with the drum rhythms (feature/ramming-drum).
+        public const int HelmHoldWater = 4;
         // A brake not repeated for this long is dropped, in case its "off" got lost.
         private const float BrakeTimeout = 2.5f;
         // Below this speed (m/s) braking also adds a small constant deceleration, so the ship comes to a halt.
@@ -96,6 +104,7 @@ namespace RowingMod
             m_nview.Register<float>(LegacyStrokeRpc, RPC_LegacyStroke);
             m_nview.Register<bool>(BrakeRpc, RPC_Brake);
             m_nview.Register<bool>(DrumRpc, RPC_Drum);
+            m_nview.Register<int>(HelmRpc, RPC_Helm);
             m_topSpeed = EstimateTopSailSpeed(m_ship);
             LogSeats();
         }
@@ -247,9 +256,53 @@ namespace RowingMod
             return m_beats.TryGetValue(beatMs, out BeatStrokes strokes) ? strokes.StrongCount : 0;
         }
 
+        // The smoothed network clock: its value (seconds) and the real time it was last advanced.
+        private static double s_clock;
+        private static double s_clockReal = -1.0;
+        // How quickly the smoothed clock closes a gap to the network clock (seconds), the gap that makes it jump
+        // instead, and the slowest it may run (fraction of real time), so it never stalls or runs backward.
+        private const double ClockSmoothing = 2.0;
+        private const double ClockSnap = 1.5;
+        private const double ClockMinRate = 0.5;
+
+        /// <summary>
+        /// The network clock (ms), which the ship's beat runs on, smoothed. A client's network clock is overwritten
+        /// by the server's every 2 s and also lags when frames hitch; on the crew server it jumped back up to 0.7 s
+        /// every few seconds, which broke the drum's rhythm and made the stroke bar stutter. This clock runs on real
+        /// time and eases toward the network clock instead, never backward; a gap over 1.5 s (loading, sleeping) is
+        /// taken at once.
+        /// </summary>
         public static long NowMs()
         {
-            return ZNet.instance != null ? (long)(ZNet.instance.GetTimeSeconds() * 1000.0) : 0;
+            if (ZNet.instance == null)
+            {
+                return 0;
+            }
+            double network = ZNet.instance.GetTimeSeconds();
+            double real = Time.realtimeSinceStartupAsDouble;
+            if (s_clockReal < 0.0 || real < s_clockReal)
+            {
+                s_clock = network;
+                s_clockReal = real;
+            }
+            else if (real > s_clockReal)
+            {
+                double dt = real - s_clockReal;
+                double clock = s_clock + dt;
+                double gap = network - clock;
+                if (System.Math.Abs(gap) > ClockSnap)
+                {
+                    clock = network;
+                }
+                else
+                {
+                    clock += gap * System.Math.Min(1.0, dt / ClockSmoothing);
+                    clock = System.Math.Max(clock, s_clock + dt * ClockMinRate);
+                }
+                s_clock = clock;
+                s_clockReal = real;
+            }
+            return (long)(s_clock * 1000.0);
         }
 
         public static long SecondsToMs(float seconds)
@@ -343,6 +396,49 @@ namespace RowingMod
         public bool IsDrumOn()
         {
             return m_nview != null && m_nview.IsValid() && m_nview.GetZDO().GetBool(DrumKey);
+        }
+
+        /// <summary>The helmsman's tempo call: -1 Easy, 0 Steady (automatic), 1 Hard. Readable on every client.</summary>
+        public int GetTempo()
+        {
+            return m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetInt(TempoKey) : 0;
+        }
+
+        /// <summary>When the helmsman last called "Hold water!" (network-clock ms), 0 if never.</summary>
+        public long GetHoldWaterCall()
+        {
+            return m_nview != null && m_nview.IsValid() ? m_nview.GetZDO().GetLong(HoldWaterCallKey) : 0;
+        }
+
+        /// <summary>The helmsman sends a call (HelmFaster, HelmSlower, HelmHoldWater) to the owner.</summary>
+        public void SendHelmCommand(int command)
+        {
+            if (m_nview != null && m_nview.IsValid())
+            {
+                m_nview.InvokeRPC(HelmRpc, command);
+            }
+        }
+
+        private void RPC_Helm(long sender, int command)
+        {
+            if (!m_nview.IsOwner())
+            {
+                return;
+            }
+            ZDO zdo = m_nview.GetZDO();
+            long nowMs = NowMs();
+            switch (command)
+            {
+                case HelmFaster:
+                    zdo.Set(TempoKey, Mathf.Min(1, zdo.GetInt(TempoKey) + 1));
+                    break;
+                case HelmSlower:
+                    zdo.Set(TempoKey, Mathf.Max(-1, zdo.GetInt(TempoKey) - 1));
+                    break;
+                case HelmHoldWater:
+                    zdo.Set(HoldWaterCallKey, nowMs);
+                    break;
+            }
         }
 
         /// <summary>The helmsman asks the ship's owner to turn the drum on or off.</summary>
@@ -535,7 +631,18 @@ namespace RowingMod
         {
             float topSpeed = TopSpeed();
             float speedRatio = topSpeed > 0.01f ? Mathf.Clamp01(Mathf.Abs(m_ship.GetSpeed()) / topSpeed) : 0f;
-            return SecondsToMs(Mathf.Lerp(RowingPlugin.StrokeCycleStill.Value, RowingPlugin.StrokeCycleTopSpeed.Value, speedRatio));
+            float seconds = Mathf.Lerp(RowingPlugin.StrokeCycleStill.Value, RowingPlugin.StrokeCycleTopSpeed.Value, speedRatio);
+            // The helmsman's call scales the automatic beat: Easy is slower, Hard quicker.
+            int tempo = GetTempo();
+            if (tempo < 0)
+            {
+                seconds *= RowingPlugin.EasyTempoFactor.Value;
+            }
+            else if (tempo > 0)
+            {
+                seconds *= RowingPlugin.HardTempoFactor.Value;
+            }
+            return SecondsToMs(seconds);
         }
 
         private void ForgetOldBeats()
