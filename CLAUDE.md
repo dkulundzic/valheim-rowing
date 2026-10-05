@@ -186,6 +186,7 @@ Checked on 2026-10-05 at the user's request (no profiling; nothing showed up in 
   - **To tune by playtest:** `Brake.Strength`, and how strong the turning torque is.
 - [x] **Released 1.1.0** on GitHub (2026-10-04), bundling everything since 1.0.0; 1.0.1 was never published. `Debug.LogSoundCandidates` is off by default for release.
 - [x] **Released 1.2.0** on GitHub (2026-10-04): the helmsman's war drum (generated sound), oar wakes, a 10% Rested discount; the beat tick is removed. The recorded dundun is not included.
+- [ ] **1.3.0 beta** (branch `release/1.3.0-beta`, 2026-10-05): `main` plus `rowing-skill` (with the stamina chain), `speed-gauge`, `tutorial`, `weather-stamina`, `cold-stamina` and `voyage-stats`, as the user chose. Weather and cold were folded into the stamina chain's load while merging; the tutorial mentions the skill and the helm calls. Version is `1.3.0` in code and manifest (BepInEx and Thunderstore need plain x.y.z); "beta" is only in the branch and release name. Not yet playtested as a whole.
 - [ ] **Feature branches waiting for playtest** (2026-10-05). Each is branched from main after 1.2.0, builds without warnings, is pushed and isn't merged; none is tested in game. Expect merge conflicts between them in `RowingPlugin.cs`, `Rower.cs` and `CrewPanel.cs`.
   - `feature/speed-gauge`: speed vs top sail speed in the panel.
   - `feature/rhythm-streak`: the crew streak bonus.
