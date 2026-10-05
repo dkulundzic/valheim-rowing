@@ -193,7 +193,136 @@ def war_party(track, index, start, period):
                 place(track, SANGBAN_MUTE, start + period * eighth / 8, rng.uniform(0.12, 0.18))
 
 
+def war_party_base(track, start, period):
+    """L's core: the doubled stroke and build-up counts on two and three."""
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.4, exact=True)
+    place(track, KENKENI, start + period * 1 / 4, 0.2)
+    place(track, KENKENI, start + period * 2 / 4, 0.28)
+
+
+def grace(track, start, period, eighths=(1, 3), chance=0.5):
+    if period >= 1.4:
+        for eighth in eighths:
+            if rng.random() < chance:
+                place(track, SANGBAN_MUTE, start + period * eighth / 8, rng.uniform(0.12, 0.18))
+
+
+# M: war party gallop. L, but the fill measure gallops in threes into the next ONE.
+def war_party_gallop(track, index, start, period):
+    war_party_base(track, start, period)
+    if index % 4 == 3:
+        for k, gain in enumerate((0.28, 0.36, 0.46)):
+            place(track, SANGBAN, start + period * (2 / 3 + k / 9), gain)
+    else:
+        place(track, SANGBAN, start + period * 3 / 4, 0.42)
+    grace(track, start, period)
+
+
+# N: war party heavy. L with a second, lower deep drum answering on three: thunderous.
+def war_party_heavy(track, index, start, period):
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.4, exact=True)
+    place(track, KENKENI, start + period * 1 / 4, 0.2)
+    place(track, DUNDUNBA, start + period * 2 / 4, 0.36, pitch=0.9)
+    if index % 4 == 3:
+        for k, gain in enumerate((0.26, 0.34, 0.44)):
+            place(track, SANGBAN, start + period * (3 / 4 + k / 12), gain)
+    else:
+        place(track, SANGBAN, start + period * 3 / 4, 0.42)
+    grace(track, start, period, eighths=(3,))
+
+
+# O: war party groove. L's doubled stroke, but the counts sit between the beats, and a fill every fourth measure.
+def war_party_groove(track, index, start, period):
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.4, exact=True)
+    place(track, KENKENI, start + period * 3 / 8, 0.24)
+    place(track, KENKENI, start + period * 5 / 8, 0.3)
+    if index % 4 == 3:
+        place(track, SANGBAN, start + period * 3 / 4, 0.36)
+        place(track, SANGBAN, start + period * 7 / 8, 0.48)
+    else:
+        place(track, SANGBAN, start + period * 7 / 8, 0.42)
+    grace(track, start, period, eighths=(1,))
+
+
+# P: war party dialogue. Measures alternate call (high drums) and response (middle drums), with L's roll every fourth.
+def war_party_dialogue(track, index, start, period):
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.4, exact=True)
+    drum = KENKENI if index % 2 == 0 else SANGBAN
+    place(track, drum, start + period * 1 / 4, 0.22)
+    place(track, drum, start + period * 2 / 4, 0.3)
+    if index % 4 == 3:
+        for k, gain in enumerate((0.26, 0.34, 0.44)):
+            place(track, SANGBAN, start + period * (3 / 4 + k / 12), gain)
+    else:
+        place(track, SANGBAN if index % 2 == 0 else KENKENI, start + period * 3 / 4, 0.4)
+    grace(track, start, period)
+
+
+# Q: war party long phrase. A roll-in every second measure, and a bigger two-hit-per-count fill every fourth.
+def war_party_long_phrase(track, index, start, period):
+    war_party_base(track, start, period)
+    if index % 4 == 3:
+        for k in range(6):
+            place(track, SANGBAN if k % 2 else KENKENI, start + period * (0.5 + k / 12), 0.24 + 0.05 * k)
+    elif index % 2 == 1:
+        for k, gain in enumerate((0.24, 0.32, 0.42)):
+            place(track, KENKENI, start + period * (3 / 4 + k / 12), gain)
+    else:
+        place(track, SANGBAN, start + period * 3 / 4, 0.42)
+    grace(track, start, period, eighths=(1,))
+
+
+# R: battle march. A steady pulse of quiet taps on every eighth, the doubled stroke, and the middle drum on three-and.
+def battle_march(track, index, start, period):
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.4, exact=True)
+    for eighth in range(1, 8):
+        place(track, SANGBAN_MUTE, start + period * eighth / 8, 0.16 if eighth % 2 else 0.22)
+    place(track, SANGBAN, start + period * 5 / 8, 0.32)
+    place(track, KENKENI, start + period * 3 / 4, 0.3)
+    if index % 4 == 3:
+        place(track, SANGBAN, start + period * 7 / 8, 0.44)
+
+
+# S: thunder. The doubled stroke, light ticks on two and three, and a deep double hit on "four-and" rolling into ONE.
+def thunder(track, index, start, period):
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.4, exact=True)
+    place(track, KENKENI, start + period * 1 / 4, 0.2)
+    place(track, KENKENI, start + period * 2 / 4, 0.24)
+    place(track, DUNDUNBA, start + period * 3 / 4, 0.3, pitch=0.95)
+    place(track, DUNDUNBA, start + period * 7 / 8, 0.38, pitch=0.95)
+    grace(track, start, period, eighths=(1,), chance=0.35)
+
+
+# T: shaman. Quick pairs of dry taps (ruffs) on two and three, the high drum on four, intricate but light; thins out
+# at the fastest beat.
+def shaman(track, index, start, period):
+    stroke(track, start)
+    place(track, SANGBAN, start, 0.35, exact=True)
+    pair = min(0.07, period / 20)
+    for count in (1, 2):
+        if period >= 1.4 or count == 2:
+            place(track, SANGBAN_MUTE, start + period * count / 4 - pair, 0.14)
+        place(track, SANGBAN_MUTE, start + period * count / 4, 0.22)
+    place(track, KENKENI, start + period * 3 / 4, 0.34)
+    if index % 4 == 3:
+        place(track, KENKENI, start + period * 7 / 8, 0.4)
+
+
 if __name__ == "__main__":
+    render("measure_M_war_party_gallop", war_party_gallop)
+    render("measure_N_war_party_heavy", war_party_heavy)
+    render("measure_O_war_party_groove", war_party_groove)
+    render("measure_P_war_party_dialogue", war_party_dialogue)
+    render("measure_Q_war_party_long_phrase", war_party_long_phrase)
+    render("measure_R_battle_march", battle_march)
+    render("measure_S_thunder", thunder)
+    render("measure_T_shaman", shaman)
     render("measure_E_call_and_response", call_and_response)
     render("measure_F_triplet_gallop", triplet_gallop)
     render("measure_G_doubled_stroke", doubled_stroke)
