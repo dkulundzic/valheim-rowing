@@ -154,6 +154,20 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **To tune by playtest:** `Brake.Strength`, and how strong the turning torque is.
 - [x] **Released 1.1.0** on GitHub (2026-10-04), bundling everything since 1.0.0; 1.0.1 was never published. `Debug.LogSoundCandidates` is off by default for release.
 - [x] **Released 1.2.0** on GitHub (2026-10-04): the helmsman's war drum (generated sound), oar wakes, a 10% Rested discount; the beat tick is removed. The recorded dundun is not included.
+- [ ] **Feature branches waiting for playtest** (2026-10-05). Each is branched from main after 1.2.0, builds without warnings, is pushed and isn't merged; none is tested in game. Expect merge conflicts between them in `RowingPlugin.cs`, `Rower.cs` and `CrewPanel.cs`.
+  - `feature/speed-gauge`: speed vs top sail speed in the panel.
+  - `feature/rhythm-streak`: the crew streak bonus.
+  - `feature/tutorial`: first-time snackbars.
+  - `feature/voyage-stats`: per-stint summary and lifetime totals.
+  - `feature/weather-stamina`: storm and rough-sea cost.
+  - `feature/cold-stamina`: Cold and Freezing cost.
+  - `feature/colorblind-panel`: Okabe-Ito colours and glyphs.
+  - `feature/assisted-rowing`: hold H to auto-row, owner can disallow.
+  - `feature/helmsman-beat`: Easy/Steady/Hard, ramming speed, "Hold water!" call.
+  - `feature/rowing-skill`: a custom Rowing skill; the user wants the green zone to widen with skill, which this does (20% → 28%).
+  - `feature/gamepad`: RT row, LT brake.
+  - `feature/rower-lean`: experimental body lean.
+  - **Not done:** the Drakkar check (the user has none), grunts (waiting for recordings), Thunderstore (needs the user's account), "rowing cools you down" (I recommended skipping it).
 - [ ] **Next:** discuss grunting or effort sounds for rowers.
 - [x] Switched to native arm64 (see Environment). Joining is about 6× faster.
 - [ ] Playtest and tune `StrokeStrength`, `MaxBoost`, `StrokeCycle` and `SweetSpotWidth`. Then test in multiplayer with someone else rowing while you steer.
