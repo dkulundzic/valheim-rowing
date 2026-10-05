@@ -300,10 +300,10 @@ namespace RowingMod
         {
             string row = RowingPlugin.RowKey.Value.ToString();
             string brake = RowingPlugin.BrakeKey.Value.ToString();
-            m_toastQueue.Enqueue(("Rowing: row on the beat", $"Press {row} when the white marker crosses the green zone. That's the ship's beat; it speeds up as the ship does.", TutorialHold, false));
+            m_toastQueue.Enqueue(("Rowing: row on the beat", $"Press {row} when the white marker crosses the green zone. That's the ship's beat; it speeds up as the ship does. Practice raises your Rowing skill, which widens the zone.", TutorialHold, false));
             m_toastQueue.Enqueue(("Rowing: row together", "Hit the same beat as your crew for a sync bonus. An off-beat stroke when others are on the beat clashes and slows the ship.", TutorialHold, false));
             m_toastQueue.Enqueue(("Rowing: brake", $"Hold {brake} to hold water and slow the ship. Braking on one side swings the bow toward that side.", TutorialHold, false));
-            m_toastQueue.Enqueue(("Rowing: your crew", $"Bottom right: the ship, its rowers, the beat and the speed. The helmsman can beat a war drum with {RowingPlugin.DrumKey.Value} at the helm.", TutorialHold, true));
+            m_toastQueue.Enqueue(("Rowing: your crew", $"Bottom right: the ship, its rowers, the beat and the speed. At the helm, the helmsman calls the beat ({RowingPlugin.TempoUpKey.Value}/{RowingPlugin.TempoDownKey.Value}) and \"Hold water!\" ({RowingPlugin.HoldWaterCallKey.Value}), and beats a war drum ({RowingPlugin.DrumKey.Value}).", TutorialHold, true));
         }
 
         private void UpdateToastQueue()
