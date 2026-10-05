@@ -53,6 +53,10 @@ namespace RowingMod
         internal static ConfigEntry<string> DrumSound;
         internal static ConfigEntry<KeyCode> DrumKey;
         internal static ConfigEntry<float> RestedDiscount;
+        internal static ConfigEntry<float> SkillGain;
+        internal static ConfigEntry<float> SkillStaminaReduction;
+        internal static ConfigEntry<float> SkillSweetSpotBonus;
+        internal static ConfigEntry<float> SkillStrengthBonus;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<string> WakeEffect;
         internal static ConfigEntry<bool> LogSoundCandidates;
@@ -87,6 +91,14 @@ namespace RowingMod
 
             StaminaPerStroke = Config.Bind("Stamina", "StaminaPerStroke", 6f,
                 "Stamina each stroke costs, including a wasted second press in the same beat.");
+            SkillGain = Config.Bind("Skill", "Gain", 1f,
+                "How fast the Rowing skill rises with practice (the skill's increase step; 1 is like most game skills).");
+            SkillStaminaReduction = Config.Bind("Skill", "StaminaReduction", 0.3f,
+                "At Rowing 100, strokes and braking cost this much less stamina (0.3 = 30% less), scaling with level.");
+            SkillSweetSpotBonus = Config.Bind("Skill", "SweetSpotBonus", 0.4f,
+                "At Rowing 100, the green zone is this much wider (0.4 = 40% wider, e.g. 20% to 28% of the beat), scaling with level.");
+            SkillStrengthBonus = Config.Bind("Skill", "StrengthBonus", 0.15f,
+                "At Rowing 100, strokes are this much stronger (0.15 = 15%), scaling with level.");
             RestedDiscount = Config.Bind("Stamina", "RestedDiscount", 0.1f,
                 "Rowers with the Rested buff pay this fraction less stamina for strokes and braking (0.1 = 10% less).");
             HeadwindStaminaFactor = Config.Bind("Stamina", "HeadwindStaminaFactor", 1f,
@@ -156,6 +168,9 @@ namespace RowingMod
             gameObject.AddComponent<Rower>();
             gameObject.AddComponent<CrewPanel>();
             new Harmony(Guid).PatchAll();
+            // If a language is already loaded, name the skill now too. Read the private field rather than
+            // Localization.instance, which would create the localization early if it doesn't exist yet.
+            RowingSkill.AddName(Traverse.Create(typeof(Localization)).Field("m_instance").GetValue<Localization>());
             Log.LogInfo($"{Name} {Version} loaded");
         }
     }

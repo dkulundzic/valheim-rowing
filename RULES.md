@@ -42,6 +42,8 @@ The whole ship rows to **one shared beat**, like a drummer keeping time. Every r
 
 **War drum:** the helmsman can beat a war drum in time with the ship's beat, by pressing **H** at the helm. Everyone aboard hears it, and nearby ships faintly. It starts off, and the crew panel shows whether it's on.
 
+**Rowing skill:** rowing raises a new **Rowing** skill (in the skills screen, with an oar icon). Strong strokes train it most, weak ones a little. At level 100, strokes and braking cost **30% less** stamina, the green zone is **40% wider** (20% to 28% of the beat) and strokes are **15% stronger**, scaling smoothly with level. Like other skills, it drops a little on death.
+
 ## 3. Stamina
 
 - **Every press costs stamina,** including wasted ones.

@@ -68,7 +68,7 @@ namespace RowingMod
                 return;
             }
 
-            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player);
+            float cost = RowingPlugin.StaminaPerStroke.Value * StaminaMultiplier(m_ship) * RestedMultiplier(player) * RowingSkill.StaminaMultiplier(player);
             if (!player.HaveStamina(cost))
             {
                 Show("Too tired to row");
@@ -88,9 +88,12 @@ namespace RowingMod
 
             float offset = (nowMs - nearestMs) / (float)periodMs;
             m_lastStrokeBeat = nearestMs;
-            m_lastStrokeStrong = Mathf.Abs(offset) <= RowingPlugin.SweetSpotWidth.Value / 2f;
+            // The Rowing skill widens the green zone.
+            m_lastStrokeStrong = Mathf.Abs(offset) <= RowingPlugin.SweetSpotWidth.Value * RowingSkill.SweetSpotMultiplier(player) / 2f;
             m_lastStrokeEarly = offset < 0f;
-            float quality = m_lastStrokeStrong ? 1f : RowingPlugin.WeakStrokeFactor.Value;
+            // The stroke's strength goes to the owner as its quality, raised by the Rowing skill.
+            float quality = (m_lastStrokeStrong ? 1f : RowingPlugin.WeakStrokeFactor.Value) * RowingSkill.StrengthMultiplier(player);
+            RowingSkill.Practice(player, m_lastStrokeStrong);
             m_ship.GetComponent<ZNetView>().InvokeRPC(ZNetView.Everybody, ShipRowing.StrokeRpc, quality, nearestMs);
             m_messageIsStroke = true;
             m_messageUntil = Time.time + MessageTime;
@@ -104,7 +107,7 @@ namespace RowingMod
         private void UpdateBrake(Player player)
         {
             bool wanted = ZInput.GetKey(RowingPlugin.BrakeKey.Value, logWarning: false) && !IsTyping();
-            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * Time.deltaTime;
+            float cost = RowingPlugin.BrakeStaminaPerSecond.Value * RestedMultiplier(player) * RowingSkill.StaminaMultiplier(player) * Time.deltaTime;
             if (wanted && cost > 0f && !player.HaveStamina(cost))
             {
                 wanted = false;
@@ -339,7 +342,7 @@ namespace RowingMod
             float markerPos = Mathf.Clamp01((nowMs - nearestMs) / (float)periodMs + 0.5f);
 
             // Green zone, with a line on the beat itself
-            float sweetWidth = Mathf.Clamp01(RowingPlugin.SweetSpotWidth.Value);
+            float sweetWidth = Mathf.Clamp01(RowingPlugin.SweetSpotWidth.Value * RowingSkill.SweetSpotMultiplier(Player.m_localPlayer));
             DrawRect(new Rect(x + width * (0.5f - sweetWidth / 2f), y, width * sweetWidth, height), new Color(0.3f, 0.8f, 0.3f, 0.8f));
             DrawRect(new Rect(x + width * 0.5f - 1f, y, 2f, height), new Color(1f, 1f, 1f, 0.35f));
 

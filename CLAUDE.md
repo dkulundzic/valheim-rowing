@@ -74,6 +74,12 @@ A BepInEx 5 mod that lets passengers row a ship to make it faster.
   - **Also:** a crew-boost bar along the centre line, and a footer with the speed setting ("Paddling · Crew boost N%") and "In sync ×N".
   - Config: `UI.ShowCrewPanel`, and `UI.CrewNames` (off by default).
 - `src/RowingUI.cs`: IMGUI scaling and helpers. All mod UI draws in virtual pixels scaled by `UI.Scale` (0 = automatic, `Screen.height / 1080`, at least 1). `DrawLine` builds its own rotation matrix, because `GUIUtility.RotateAroundPivot` takes the pivot in unscaled pixels.
+- `src/RowingSkill.cs` (branch `feature/rowing-skill`): a custom "Rowing" skill.
+  - **Identity:** SkillType = |stable hash of "com.dkulundzic.rowingmod.skill.rowing"|.
+  - **Patches:** `Skills.IsSkillValid` (so it loads from saves), `Skills.GetSkillDef` (definition with a generated oar icon), and `Localization.SetupLanguage` (adds "skill_<id>" = "Rowing" via private `AddWord`). `Localization` lives in `assembly_guiutils.dll`, which is now referenced.
+  - **Practice:** `RaiseSkill` per stroke (1 strong, 0.3 weak).
+  - **Effects:** stamina ×(1 − 0.3f), green zone ×(1 + 0.4f), strength ×(1 + 0.15f), where f is the level / 100. Settings under `Skill.*`.
+  - **Strength reaches the owner:** the stroke's quality carries the skill's strength bonus, so the owner sums per-stroke quality (`BeatStrokes.QualityBySender`) instead of counting strokes.
 - `src/Rower.cs`: local-player side. Seat detection, key input via `ZInput.GetKeyDown`, timing, stamina and the stroke bar.
 - `lib/`: game and Unity DLLs copied from `valheim.app/Contents/Resources/Data/Managed`. They're not committed (Iron Gate's code).
 - `decompiled/`: the game's code decompiled by ilspycmd, for reading only. It's not compiled or committed.
