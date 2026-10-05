@@ -438,10 +438,11 @@ def room(seconds=1.6, darkness=0.06):
     return response / np.sqrt(np.sum(response ** 2))
 
 
-ROOM = room()
+# Kept subtle at the user's request: a short tail, mixed low.
+ROOM = room(seconds=1.1)
 
 
-def echo_bus(kicks, delay=0.33, feedback=0.38, repeats=4):
+def echo_bus(kicks, delay=0.33, feedback=0.22, repeats=3):
     """A darker, fading echo of the kicks, like the boom coming back off the water."""
     out = np.copy(kicks)
     tap = kicks
@@ -464,7 +465,7 @@ def echo_bus(kicks, delay=0.33, feedback=0.38, repeats=4):
     return out
 
 
-def render_spacey(name, pattern, reverb=0.45, echo=False):
+def render_spacey(name, pattern, reverb=0.22, echo=False):
     """Like render, but the kicks go on their own bus with a reverb tail (and optionally an echo), mixed under the dry taps."""
     total = int(RATE * (sum(MEASURES) + 3.0))
     track = np.zeros(total)
@@ -578,12 +579,12 @@ def kick_roll(track, kicks, index, start, period):
 
 if __name__ == "__main__":
     render_spacey("measure_AC_kick_march", kick_march)
-    render_spacey("measure_AD_big_room", big_room, reverb=0.9)
+    render_spacey("measure_AD_big_room", big_room, reverb=0.4)
     render_spacey("measure_AE_heartbeat_kick", heartbeat_kick)
     render_spacey("measure_AF_four_on_the_floor", four_on_the_floor)
-    render_spacey("measure_AG_sub_stroke", sub_stroke, reverb=0.6)
+    render_spacey("measure_AG_sub_stroke", sub_stroke, reverb=0.3)
     render_spacey("measure_AH_kick_syncopation", kick_syncopation)
-    render_spacey("measure_AI_dub_echo", dub_echo, reverb=0.35, echo=True)
+    render_spacey("measure_AI_dub_echo", dub_echo, reverb=0.15, echo=True)
     render_spacey("measure_AJ_kick_roll", kick_roll)
     render("measure_U_march_sixteenths", march_sixteenths)
     render("measure_V_march_rolls", march_rolls)
