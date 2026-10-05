@@ -63,6 +63,8 @@ namespace RowingMod
         internal static ConfigEntry<float> SkillSweetSpotAtLevel0;
         internal static ConfigEntry<float> SkillSweetSpotAtLevel100;
         internal static ConfigEntry<float> SkillStrengthBonus;
+        internal static ConfigEntry<float> StormFactor;
+        internal static ConfigEntry<float> RoughSeaFactor;
         internal static ConfigEntry<bool> ShowWakes;
         internal static ConfigEntry<bool> TutorialSeen;
         internal static ConfigEntry<string> WakeEffect;
@@ -118,6 +120,10 @@ namespace RowingMod
                 "Width of the green zone at Rowing 100, as a fraction of the beat.");
             SkillStrengthBonus = Config.Bind("Skill", "StrengthBonus", 0.15f,
                 "At Rowing 100, strokes are this much stronger (0.15 = 15%), scaling with level.");
+            StormFactor = Config.Bind("Stamina", "StormFactor", 0.3f,
+                "Extra stamina cost for strokes and braking during a storm, as a fraction (0.3 = 30% more). 0 turns it off.");
+            RoughSeaFactor = Config.Bind("Stamina", "RoughSeaFactor", 0.25f,
+                "Extra stamina cost in strong wind of any direction (rough seas), up to this fraction at full wind strength, starting at 60% wind. The larger of this and the storm cost applies.");
             RestedDiscount = Config.Bind("Stamina", "RestedDiscount", 0.1f,
                 "Rowers with the Rested buff pay this fraction less stamina for strokes and braking (0.1 = 10% less).");
             HeadwindStaminaFactor = Config.Bind("Stamina", "HeadwindStaminaFactor", 1f,

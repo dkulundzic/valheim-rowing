@@ -9,7 +9,7 @@ namespace RowingMod
     ///   cost = base × (1 + load) × relief
     ///
     /// 1. Base: Stamina.StaminaPerStroke for a stroke, Brake.StaminaPerSecond for braking.
-    /// 2. Load: conditions that make pulling harder (a headwind). Their extra costs are added, not multiplied, and
+    /// 2. Load: conditions that make pulling harder (a headwind, a storm or rough sea). Their extra costs are added, not multiplied, and
     ///    capped at Stamina.MaxLoad, so several bad conditions together stay predictable.
     /// 3. Relief: the rower's own condition and practice (Rested, the Rowing skill). Each takes its share off what's
     ///    left, so discounts multiply and can never bring the cost to zero.
@@ -43,6 +43,8 @@ namespace RowingMod
             {
                 load += Add(parts, "headwind", Headwind(ship));
             }
+            float weather = Weather(out string weatherName);
+            load += Add(parts, weatherName, weather);
             load = Mathf.Min(load, Mathf.Max(0f, RowingPlugin.MaxLoad.Value));
 
             // Relief: the rower's condition and practice, each taking its share off what's left.
@@ -105,6 +107,31 @@ namespace RowingMod
             rowDir.y = 0f;
             float headwind = Mathf.Max(0f, Vector3.Dot(wind.normalized, -rowDir.normalized));
             return Mathf.Max(0f, RowingPlugin.HeadwindStaminaFactor.Value) * headwind * Mathf.Clamp01(env.GetWindIntensity());
+        }
+
+        /// <summary>
+        /// Rough weather: a storm (any weather whose name contains "Storm") adds Stamina.StormFactor, and strong wind
+        /// of any direction (which also raises the waves) adds up to Stamina.RoughSeaFactor as it goes from 60% to
+        /// full strength. They describe the same sea, so only the larger counts.
+        /// </summary>
+        private static float Weather(out string name)
+        {
+            name = "rough sea";
+            EnvMan env = EnvMan.instance;
+            if (env == null)
+            {
+                return 0f;
+            }
+            EnvSetup current = env.GetCurrentEnvironment();
+            bool storm = current != null && current.m_name.IndexOf("Storm", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            float stormExtra = storm ? Mathf.Max(0f, RowingPlugin.StormFactor.Value) : 0f;
+            float roughExtra = Mathf.Max(0f, RowingPlugin.RoughSeaFactor.Value) * Mathf.Clamp01((env.GetWindIntensity() - 0.6f) / 0.4f);
+            if (stormExtra >= roughExtra)
+            {
+                name = "storm";
+                return stormExtra;
+            }
+            return roughExtra;
         }
 
         /// <summary>Valheim's Rested buff (from sleeping or resting by a fire): Stamina.RestedDiscount less.</summary>
