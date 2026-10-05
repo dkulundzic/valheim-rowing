@@ -553,4 +553,20 @@ namespace RowingMod
             GUI.color = previous;
         }
     }
+
+    /// <summary>
+    /// Tutorial.ResetOnLogout: logging out and quitting both shut the game down, so the tutorial is marked unseen then
+    /// and plays again on the first sit of the next session.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(Game), "Shutdown")]
+    internal static class Game_Shutdown_Patch
+    {
+        private static void Postfix()
+        {
+            if (RowingPlugin.TutorialResetOnLogout.Value && RowingPlugin.TutorialSeen.Value)
+            {
+                RowingPlugin.TutorialSeen.Value = false;
+            }
+        }
+    }
 }

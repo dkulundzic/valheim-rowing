@@ -141,7 +141,7 @@ The helmsman sees the panel too, which shows who's rowing and who's in time.
 | Message | Meaning |
 |---|---|
 | **Rowing ready** | You sat down in a seat and can row. |
-| **Rowing: …** (four in a row) | The first time you sit at an oar: a short tutorial on the beat, rowing together, braking and the crew panel. Set `Tutorial.Seen` to false to see it again. |
+| **Rowing: …** (four in a row) | The first time you sit at an oar each session: a short tutorial on the beat, rowing together, braking and the crew panel. It plays again after every logout; turn `Tutorial.ResetOnLogout` off to see it only once, or set `Tutorial.Seen` to false to see it again. |
 | **Voyage: …** (where the stroke bar was, when you stand up) | Your stint at the oar: distance, time, strokes, % on the beat, syncs, clashes, plus your character's lifetime distance and strokes. |
 | **Your strokes won't count** | The ship's owner doesn't have the mod. |
 | **Your strokes count again** | The ship's owner now has the mod. |
